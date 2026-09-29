@@ -3,8 +3,47 @@ const errorEl = document.getElementById('games-error');
 const exportAllBtn = document.getElementById('export-all-btn');
 const importInput = document.getElementById('import-games-input');
 
+const draftsSection = document.getElementById('drafts-section');
+const draftListEl = document.getElementById('draft-list');
+
+// Games still being written (see storage.js), newest first, above the
+// saved ones. A draft is whatever the editor had, so any part of it may be
+// missing.
+function renderDrafts() {
+  const drafts = Object.entries(QuizGameStorage.loadDrafts()).sort(
+    ([, a], [, b]) => (b.updatedAt || 0) - (a.updatedAt || 0)
+  );
+  draftListEl.innerHTML = '';
+  draftsSection.hidden = !drafts.length;
+
+  drafts.forEach(([id, d]) => {
+    const g = d.game || {};
+    const stages = Array.isArray(g.stages) ? g.stages : [];
+    const questionCount = stages.reduce(
+      (n, s) => n + ((s && Array.isArray(s.questions) && s.questions.length) || 0),
+      0
+    );
+
+    const row = document.createElement('div');
+    row.className = 'room-row draft-row';
+    row.innerHTML = `
+      <a class="option" href="editor.html?draft=${encodeURIComponent(id)}"></a>
+      <button type="button" class="room-close-btn draft-delete-btn" title="Ištrinti juodraštį">×</button>
+    `;
+    row.querySelector('a').textContent = `${g.name || 'Be pavadinimo'} (${stages.length} etapai, ${questionCount} klausimai)`;
+    row.querySelector('.draft-delete-btn').addEventListener('click', () => {
+      if (!confirm('Ištrinti šį juodraštį?')) return;
+      QuizGameStorage.deleteDraft(id);
+      QuizMediaStore.removeUnused(QuizGameStorage.allGamesAndDrafts()).catch(() => {});
+      renderDrafts();
+    });
+    draftListEl.appendChild(row);
+  });
+}
+
 function render() {
   errorEl.textContent = '';
+  renderDrafts();
   const games = QuizGameStorage.loadAll();
   const ids = Object.keys(games);
   listEl.innerHTML = '';
@@ -39,7 +78,7 @@ function render() {
     row.querySelector('.game-delete-btn').addEventListener('click', () => {
       if (!confirm('Ištrinti šį žaidimą?')) return;
       QuizGameStorage.deleteGame(id);
-      QuizMediaStore.removeUnused(Object.values(QuizGameStorage.loadAll())).catch(() => {});
+      QuizMediaStore.removeUnused(QuizGameStorage.allGamesAndDrafts()).catch(() => {});
       render();
     });
     listEl.appendChild(row);

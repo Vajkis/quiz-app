@@ -36,9 +36,58 @@
     saveAll(all);
   }
 
-  function newId() {
-    return QuizGameShared.generateId(loadAll());
+  // New games being written, as { key: { game, updatedAt } }: the editor
+  // saves one here as it's filled in — as-is, nothing checked — and saving
+  // it as a game deletes it. Kept apart from the games, like the main app's
+  // data/drafts.json.
+  const DRAFTS_KEY = 'quizAppDrafts';
+
+  function loadDrafts() {
+    try {
+      return JSON.parse(localStorage.getItem(DRAFTS_KEY)) || {};
+    } catch {
+      return {};
+    }
   }
 
-  global.QuizGameStorage = { loadAll, saveAll, getGame, upsertGame, deleteGame, newId };
+  function getDraft(id) {
+    const draft = loadDrafts()[id];
+    return draft ? draft.game : null;
+  }
+
+  function saveDraft(id, game) {
+    const all = loadDrafts();
+    all[id] = { game, updatedAt: Date.now() };
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+  }
+
+  function deleteDraft(id) {
+    const all = loadDrafts();
+    delete all[id];
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+  }
+
+  // Every game and draft — what the media store must keep files for.
+  function allGamesAndDrafts() {
+    return [...Object.values(loadAll()), ...Object.values(loadDrafts()).map((d) => d.game)];
+  }
+
+  // Unused by a game or a draft, so a draft saved as a game can keep its key.
+  function newId() {
+    return QuizGameShared.generateId({ ...loadAll(), ...loadDrafts() });
+  }
+
+  global.QuizGameStorage = {
+    loadAll,
+    saveAll,
+    getGame,
+    upsertGame,
+    deleteGame,
+    newId,
+    loadDrafts,
+    getDraft,
+    saveDraft,
+    deleteDraft,
+    allGamesAndDrafts,
+  };
 })(window);

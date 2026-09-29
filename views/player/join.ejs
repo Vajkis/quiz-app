@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/player.css">
+</head>
+<body>
+<div id="app">
+  <h1><%= title %></h1>
+
+  <div id="join-form">
+    <input id="team-input" type="text" placeholder="Komandos pavadinimas arba ID">
+    <button id="join-btn">Prisijungti</button>
+    <p id="join-error"></p>
+  </div>
+
+  <div id="team-info" hidden>
+    <p>Komanda: <strong id="team-name"></strong> (ID: <span id="team-id"></span>)</p>
+    <button id="logout-btn">Atsijungti</button>
+  </div>
+
+  <%# Same list as the view screen's dashboard (view/dashboard.ejs). %>
+  <div id="room-form" hidden>
+    <p id="room-error"><%= error || '' %></p>
+    <% if (roomList.length) { %>
+      <p class="section-label">Aktyvūs kambariai:</p>
+      <% roomList.forEach(function(r) { %>
+        <a class="option" href="/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
+      <% }); %>
+    <% } else { %>
+      <p>Nėra aktyvių kambarių.</p>
+    <% } %>
+  </div>
+</div>
+<script src="/room.js"></script>
+</body>
+</html>

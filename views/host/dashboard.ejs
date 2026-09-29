@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1>Hosto skydelis</h1>
+  <% if (error) { %>
+    <p id="dashboard-error"><%= error %></p>
+  <% } %>
+
+  <div class="dashboard-actions">
+    <a class="option" id="manage-games-link" href="/host/games">Tvarkyti žaidimus</a>
+    <a class="option" id="team-history-link" href="/host/teams">Komandų istorija</a>
+    <form method="POST" action="/host/logout" id="host-logout-form">
+      <button type="submit" id="host-logout-btn">Atsijungti</button>
+    </form>
+  </div>
+
+  <div id="season-setting">
+    <span class="season-label">Aktyvus sezonas:</span>
+    <input id="season-edit-input" type="number" placeholder="Nr." value="<%= activeSeason || '' %>">
+    <button type="button" id="save-season-btn">Išsaugoti</button>
+  </div>
+  <p id="season-error"></p>
+
+  <div id="create-room-form">
+    <select id="game-select">
+      <% gameList.forEach(function(g) { %>
+        <option value="<%= g.id %>"><%= g.name %></option>
+      <% }); %>
+    </select>
+
+    <button id="new-room-btn">Sukurti kambarį</button>
+    <p id="create-room-error"></p>
+  </div>
+
+  <% if (roomList.length) { %>
+    <p class="section-label">Aktyvūs kambariai:</p>
+    <% roomList.forEach(function(r) { %>
+      <div class="room-row">
+        <a class="option" href="/host/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
+        <button class="room-close-btn" data-id="<%= r.id %>" title="Uždaryti kambarį">×</button>
+      </div>
+    <% }); %>
+  <% } %>
+</div>
+<script src="/host.js"></script>
+</body>
+</html>

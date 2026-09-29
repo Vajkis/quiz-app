@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1>Hosto prisijungimas</h1>
+
+  <% if (error) { %>
+    <p id="login-error"><%= error %></p>
+  <% } %>
+
+  <form method="POST" action="/host/login" id="host-login-form">
+    <input type="hidden" name="next" value="<%= next %>">
+    <input type="password" name="code" id="host-code-input" placeholder="Prieigos kodas" autofocus autocomplete="off">
+    <button type="submit" id="host-login-btn">Prisijungti</button>
+  </form>
+</div>
+</body>
+</html>

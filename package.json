@@ -1,0 +1,36 @@
+{
+  "name": "quiz-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Simple quiz app served over local network",
+  "main": "server.js",
+  "scripts": {
+    "start": "npm run build:css && node server.js",
+    "dev": "concurrently -k -n css,server -c yellow,blue \"npm:watch:css\" \"npm:dev:server\"",
+    "dev:server": "nodemon server.js",
+    "build:css": "sass styles/host.scss:public/css/host.css styles/view.scss:public/css/view.css styles/player.scss:public/css/player.css styles/preview.scss:public/css/preview.css --no-source-map",
+    "watch:css": "sass --watch styles/host.scss:public/css/host.css styles/view.scss:public/css/view.css styles/player.scss:public/css/player.css styles/preview.scss:public/css/preview.css --no-source-map",
+    "build:docs": "npm run build:css && node scripts/build-docs.js",
+    "build:docs:watch": "nodemon --config nodemon.docs.json",
+    "serve:docs": "node scripts/serve-docs.js",
+    "dev:docs": "npm run build:docs && concurrently -k -n build,serve -c yellow,blue \"npm:build:docs:watch\" \"npm:serve:docs\""
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "data/*"
+    ]
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
+    "express": "^4.19.2",
+    "jszip": "^3.10.2",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.1.14",
+    "sass": "^1.77.8"
+  }
+}

@@ -1,0 +1,354 @@
+@font-face {
+  font-family: "Mulish";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../fonts/mulish-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Mulish";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("../fonts/mulish-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+* {
+  box-sizing: border-box;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+body {
+  margin: 0;
+  font-family: "Mulish", system-ui, sans-serif;
+  background: #f4f4f8;
+  color: #222;
+  padding: 16px;
+}
+
+#app {
+  margin: 0 auto;
+  max-width: 600px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.question {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.question p {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.correct-answer {
+  font-weight: 700 !important;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fafafa;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: 16px;
+}
+@media (min-width: 992px) {
+  .option:not(.selected):hover {
+    background: #eef2ff;
+    border-color: #3b82f6;
+  }
+}
+.option.selected {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+@media (min-width: 992px) {
+  .option.selected:hover {
+    filter: brightness(0.93);
+  }
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.options-grid .option,
+.options-grid .view-option {
+  margin: 0;
+}
+
+.options-list {
+  margin-top: 8px;
+}
+
+.leaderboard-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.leaderboard-row.own-team {
+  border: 2px solid #3b82f6;
+}
+
+.leaderboard-rank {
+  font-weight: 700;
+  color: #6b7280;
+  width: 24px;
+}
+
+.leaderboard-name {
+  flex: 1;
+}
+
+.leaderboard-score {
+  font-weight: 700;
+}
+
+#leaderboard {
+  margin-bottom: 12px;
+}
+
+.section-label {
+  margin-bottom: 8px;
+}
+
+#join-error,
+#room-error {
+  color: #dc2626;
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+#join-form,
+#room-form {
+  margin-bottom: 16px;
+}
+
+#join-form input[type=text] {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  text-align: left;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+#join-btn,
+#logout-btn,
+#leave-room-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: #3b82f6;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+@media (min-width: 576px) {
+  #join-btn,
+  #logout-btn,
+  #leave-room-btn {
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+@media (min-width: 992px) {
+  #join-btn:hover,
+  #logout-btn:hover,
+  #leave-room-btn:hover {
+    filter: brightness(0.9);
+  }
+}
+
+#logout-btn,
+#leave-room-btn {
+  background: #dc2626;
+  margin-top: 8px;
+}
+
+#team-info {
+  text-align: center;
+  background: #fff;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#result {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.previous-questions {
+  margin-top: 24px;
+  border-top: 1px solid #ddd;
+  padding-top: 12px;
+}
+
+.previous-questions-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.previous-question {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 8px;
+  padding: 0 12px;
+}
+.previous-question summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.previous-question-body {
+  overflow: hidden;
+}
+
+.previous-question-inner {
+  display: flow-root;
+  padding-bottom: 12px;
+}
+
+.previous-question-status {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+}
+.previous-question-status.unanswered {
+  color: #dc2626;
+}
+
+.text-answer-input {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.question-text {
+  font-weight: 700;
+}
+
+#internet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.92);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+#internet-overlay[hidden] {
+  display: none;
+}
+#internet-overlay.visible {
+  opacity: 1;
+}
+
+.internet-overlay-box {
+  max-width: 360px;
+  color: #fff;
+  text-align: center;
+}
+
+.internet-overlay-icon {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  color: #fff;
+}
+
+.internet-overlay-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.internet-overlay-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  color: #e5e7eb;
+}
+
+#internet-recheck-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #fff;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+@media (min-width: 992px) {
+  #internet-recheck-btn:hover {
+    background: #fff;
+    color: #111;
+  }
+}
+
+#room-error:empty {
+  display: none;
+}

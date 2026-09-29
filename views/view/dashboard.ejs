@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/view.css">
+</head>
+<body>
+<div id="app">
+  <h1>Ekrano peržiūra</h1>
+  <% if (error) { %>
+    <p id="dashboard-error"><%= error %></p>
+  <% } %>
+
+  <div class="join-qr">
+    <img src="/api/qr" alt="QR kodas prisijungti prie žaidimo" class="join-qr-code">
+  </div>
+
+  <% if (roomList.length) { %>
+    <p class="section-label">Aktyvūs kambariai:</p>
+    <% roomList.forEach(function(r) { %>
+      <a class="option" href="/view/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
+    <% }); %>
+  <% } else { %>
+    <p>Nėra aktyvių kambarių.</p>
+  <% } %>
+</div>
+</body>
+</html>

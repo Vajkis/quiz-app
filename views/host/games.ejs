@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1>Žaidimai</h1>
+  <a class="option" href="/host">← Atgal į kambarius</a>
+  <a class="option" href="/host/games/new" id="new-game-btn">+ Naujas žaidimas</a>
+
+  <% if (error) { %>
+    <p id="games-error"><%= error %></p>
+  <% } %>
+
+  <p id="games-file-error" hidden></p>
+
+  <label for="import-games-input" id="import-games-btn" class="secondary-btn">⭱ Importuoti (JSON / zip)</label>
+  <input type="file" id="import-games-input" accept="application/json,.json,application/zip,.zip" class="file-input-hidden">
+
+  <% if (gameList.length) { %>
+    <button type="button" id="export-all-games-btn" class="secondary-btn">⭳ Eksportuoti visus</button>
+    <p class="section-label">Sukurti žaidimai:</p>
+    <% gameList.forEach(function(g) { %>
+      <div class="room-row">
+        <a class="option" href="/host/games/<%= g.id %>/edit"><%= g.name %> (<%= g.stageCount %> etapai, <%= g.questionCount %> klausimai)</a>
+        <button type="button" class="room-close-btn game-export-btn" data-id="<%= g.id %>" title="Eksportuoti žaidimą">⭳</button>
+        <button class="room-close-btn game-delete-btn" data-id="<%= g.id %>" title="Ištrinti žaidimą">×</button>
+      </div>
+    <% }); %>
+  <% } %>
+</div>
+<script src="/vendor/jszip.min.js"></script>
+<script src="/game-shared.js"></script>
+<script src="/game-media-zip.js"></script>
+<script src="/game-export.js"></script>
+<script src="/games-list.js"></script>
+</body>
+</html>

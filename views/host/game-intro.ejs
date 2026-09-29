@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1><%= roomName %></h1>
+  <p id="room-code">Kambario kodas: <strong><%= roomId %></strong></p>
+
+  <div class="stage-intro">
+    <p class="stage-intro-name"><%= roomName %></p>
+  </div>
+
+  <nav id="host-bar">
+    <div class="host-bar-side">
+      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
+    </div>
+    <div class="host-bar-main">
+      <button id="next-btn" data-room="<%= roomId %>">Pradėti žaidimą</button>
+    </div>
+  </nav>
+  <%- include('_team-status', { roomId }) %>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/host.js"></script>
+</body>
+</html>

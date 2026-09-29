@@ -1,0 +1,36 @@
+$color-bg: #f4f4f8;
+$color-text: #222;
+$color-card: #fff;
+$color-border: #ddd;
+$color-primary: #3b82f6;
+$color-danger: #dc2626;
+$color-success: #16a34a;
+$color-purple: #6b21a8;
+$color-muted: #6b7280;
+
+$radius: 8px;
+$radius-sm: 6px;
+
+$shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+// Hover states only make sense with a real pointer — on touch devices
+// :hover either does nothing useful or "sticks" after a tap. 992px is the
+// usual desktop/tablet-landscape breakpoint.
+@mixin hover-only {
+  @media (min-width: 992px) {
+    &:hover {
+      @content;
+    }
+  }
+}
+
+// #app is 600px wide, but a "width: 100%" action button stretched that far
+// looks absurd on a desktop-sized screen — cap and center it there. Below
+// 576px (phone territory) there's no room to spare, so stay full width.
+@mixin capped-button {
+  @media (min-width: 576px) {
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

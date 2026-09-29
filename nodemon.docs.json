@@ -1,0 +1,6 @@
+{
+  "watch": ["docs-src", "public/game-shared.js", "public/game-editor-core.js", "public/game-media-zip.js", "styles"],
+  "ext": "html,js,scss",
+  "exec": "npm run build:docs",
+  "delay": 300
+}

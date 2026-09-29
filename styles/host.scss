@@ -1,0 +1,1539 @@
+@use 'variables' as v;
+@use 'base';
+
+// Wider cap than view/player — host's editor has a lot of side-by-side
+// inputs. Still shrinks below this on narrower screens (max-width, not min).
+#app {
+  max-width: 736px;
+}
+
+#room-code,
+#stage-info {
+  text-align: center;
+  font-size: 16px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+#host-code-input {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  text-align: left;
+  letter-spacing: 2px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  margin-bottom: 8px;
+  @include v.capped-button;
+}
+
+// Same padding/font-size/border-width as #prev-btn, #next-btn and the rest
+// of the app's full-width primary buttons (border: 1px solid *transparent*
+// rather than none) so they all come out exactly the same height, whether
+// or not a given one actually shows a visible border.
+#host-login-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: v.$color-primary;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+  @include v.capped-button;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+#login-error {
+  @extend %error-text;
+  text-align: center;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.stage-intro {
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 32px 16px;
+  margin-bottom: 12px;
+  text-align: center;
+  box-shadow: v.$shadow-card;
+}
+
+.stage-intro-label {
+  font-size: 14px;
+  color: v.$color-muted;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.stage-intro-name {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.audio-player-block {
+  margin-top: 8px;
+}
+
+.question-audio {
+  display: block;
+  width: 100%;
+}
+
+.audio-hint {
+  font-size: 13px;
+  color: v.$color-muted;
+  margin-top: 4px;
+}
+
+.audio-mode-buttons,
+.fullscreen-mode-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+
+  button {
+    flex: 1;
+    margin-top: 0;
+    text-align: center;
+  }
+}
+
+.room-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin: 6px 0;
+
+  .option {
+    margin: 0;
+    flex: 1;
+  }
+}
+
+.room-close-btn {
+  flex-shrink: 0;
+  width: 40px;
+  border: none;
+  border-radius: v.$radius-sm;
+  background: transparent;
+  color: v.$color-danger;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  @include v.hover-only {
+    background: #fde8e8;
+  }
+
+  // docs/ games list: the per-game preview (▶) and export (⭳) share the
+  // row-button shape but aren't destructive — blue like the other export buttons.
+  &.game-preview-btn,
+  &.game-export-btn {
+    color: v.$color-primary;
+
+    @include v.hover-only {
+      background: #eaf1ff;
+    }
+  }
+
+  // a link (to preview.html), not a button — center the icon by hand
+  &.game-preview-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    text-decoration: none;
+  }
+}
+
+#prev-btn,
+#season-toggle-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  font-size: 16px;
+  background: #fff;
+  color: v.$color-primary;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius;
+  cursor: pointer;
+  @include v.capped-button;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+}
+
+#next-btn,
+#finish-game-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  font-size: 16px;
+  background: v.$color-success;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+  @include v.capped-button;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+// Game-flow pages: the main buttons live in a bar fixed along the bottom
+// (same as docs/preview.html), so they're always in the same spot — ✕ back
+// to the dashboard (and ▶/II + ■ for a music question) on the left, the
+// page's own prev/next buttons centred. A 1fr | auto | 1fr grid keeps the
+// middle group centred without the left one ever overlapping it.
+$host-bar-height: 64px;
+
+body:has(#host-bar) {
+  padding-bottom: $host-bar-height + 16px;
+}
+
+#host-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  height: $host-bar-height;
+  padding: 0 12px;
+  background: v.$color-card;
+  border-top: 1px solid v.$color-border;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+
+  #prev-btn,
+  #season-toggle-btn,
+  #next-btn,
+  #finish-game-btn {
+    width: auto;
+    max-width: none;
+    height: 44px;
+    margin: 0;
+    padding: 0 20px;
+    border-radius: v.$radius-sm;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+}
+
+.host-bar-side,
+.host-bar-main,
+.host-bar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// Right-hand group (the fullscreen toggle), mirroring the ✕ on the left.
+.host-bar-end {
+  justify-content: flex-end;
+}
+
+.host-bar-btn {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: #fff;
+  color: v.$color-muted;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+}
+
+#host-bar-audio,
+#host-bar-audio-stop {
+  border-color: v.$color-success;
+  color: v.$color-success;
+
+  @include v.hover-only {
+    background: #e8f7ee;
+  }
+}
+
+#host-bar-audio.is-playing {
+  background: v.$color-success;
+  color: #fff;
+}
+
+// Fullscreen toggle: filled while the view screen shows the picture big.
+#host-bar-fullscreen {
+  border-color: v.$color-primary;
+  color: v.$color-primary;
+
+  &.is-active {
+    background: v.$color-primary;
+    color: #fff;
+  }
+}
+
+.fullscreen-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// Phones: one row, left group first, the centred buttons sharing whatever
+// width is left.
+@media (max-width: 575px) {
+  #host-bar {
+    display: flex;
+    gap: 6px;
+  }
+
+  .host-bar-side,
+  .host-bar-end {
+    gap: 6px;
+  }
+
+  .host-bar-main {
+    flex: 1;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  #host-bar {
+    #prev-btn,
+    #season-toggle-btn,
+    #next-btn,
+    #finish-game-btn {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0 6px;
+      font-size: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}
+
+#new-room-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  font-size: 16px;
+  background: v.$color-purple;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+  @include v.capped-button;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+#create-room-form {
+  margin-bottom: 16px;
+}
+
+// A full-width card like the rest of the dashboard's sections, but its
+// content is one single row: label, the (always-editable) season number,
+// and one save button pushed to the card's right edge (margin-left: auto)
+// rather than the row being split apart with justify-content: space-between.
+#season-setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  box-shadow: v.$shadow-card;
+}
+
+.season-label {
+  font-size: 14px;
+  color: v.$color-muted;
+}
+
+// Input and button share one height/font-size/border-radius so they read
+// as one matched control instead of two differently-sized pieces.
+$season-control-height: 32px;
+
+#season-edit-input {
+  width: 56px;
+  flex-shrink: 0;
+  height: $season-control-height;
+  padding: 0 8px;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: v.$color-primary;
+    box-shadow: 0 0 0 3px rgba(v.$color-primary, 0.15);
+  }
+}
+
+#save-season-btn {
+  flex-shrink: 0;
+  margin-left: auto;
+  height: $season-control-height;
+  padding: 0 12px;
+  font-size: 14px;
+  background: v.$color-success;
+  color: #fff;
+  border: none;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+#season-error {
+  @extend %error-text;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+// Native <select> chrome (the browser's own arrow/box) doesn't match the
+// rest of the form, so it's suppressed via appearance: none and redrawn
+// with a plain SVG chevron — same muted grey as .stage-intro-label etc. —
+// positioned as a background-image, since a real background-image is the
+// only way to draw into a <select> itself (an overlaid element would need
+// its own wrapper and pointer-event juggling).
+#game-select {
+  display: block;
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  font-family: inherit;
+  font-size: 16px;
+  color: v.$color-text;
+  text-align: left;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  margin-bottom: 8px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  @include v.hover-only {
+    border-color: v.$color-primary;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: v.$color-primary;
+    box-shadow: 0 0 0 3px rgba(v.$color-primary, 0.15);
+  }
+}
+
+#dashboard-error {
+  @extend %error-text;
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+
+#create-room-error {
+  @extend %error-text;
+  margin-top: 12px;
+}
+
+#new-game-btn {
+  margin-bottom: 12px;
+}
+
+// Stacked one-per-row below 576px — three items squeezed side by side got
+// too cramped to tap reliably on phones — and back to a single row from
+// 576px up, matching the same phone/everything-else cutoff capped-button
+// uses in _variables.scss.
+.dashboard-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 12px;
+
+  #manage-games-link,
+  #team-history-link,
+  #host-logout-form {
+    margin: 0;
+  }
+
+  @media (min-width: 576px) {
+    flex-direction: row;
+
+    #manage-games-link,
+    #team-history-link {
+      flex: 1;
+    }
+  }
+}
+
+#host-logout-btn {
+  display: block;
+  width: 100%;
+  flex-shrink: 0;
+  height: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  background: transparent;
+  color: v.$color-danger;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  @include v.hover-only {
+    background: #fde8e8;
+  }
+
+  @media (min-width: 576px) {
+    width: auto;
+  }
+}
+
+#game-name-input {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  margin-bottom: 16px;
+}
+
+// The gap between cards is owned entirely by the next card's margin-top
+// (not split with this card's own margin-bottom) — collapsed, a card's
+// trailing space came from its own margin-bottom regardless of how short
+// the collapsed body made it look, which read as excess/orphaned space
+// belonging to nothing in particular.
+#stages-container .stage-card {
+  border-top: 3px solid v.$color-border;
+  margin-top: 20px;
+}
+
+.stage-card {
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 14px;
+  box-shadow: v.$shadow-card;
+}
+
+.stage-header {
+  display: flex;
+  gap: 6px;
+
+  .stage-name-input {
+    flex: 1;
+    // A flex item's default min-width is its content size, not 0 — without
+    // this an <input> refuses to shrink past that and pushes the move/remove
+    // buttons off-screen on narrow viewports instead of yielding space.
+    min-width: 0;
+    padding: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+}
+
+.toggle-stage-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: v.$color-primary;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.2s ease;
+
+  &.collapsed {
+    transform: rotate(-90deg);
+  }
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+}
+
+.chevron-icon {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  margin-top: -4px;
+
+  &.chevron-icon--up {
+    transform: rotate(225deg);
+    margin-top: 4px;
+  }
+}
+
+.stage-body {
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+
+  // Lives on the content instead of on .stage-header's margin-bottom: this
+  // sits inside the max-height-clipped box, so overflow: hidden here
+  // actually hides it when collapsed (max-height: 0) instead of the gap
+  // persisting below the header regardless of collapsed state.
+  .questions-container {
+    margin-top: 16px;
+  }
+}
+
+.question-card {
+  background: v.$color-bg;
+  border-radius: v.$radius-sm;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.question-header {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+
+  .question-text-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px;
+    font-size: 15px;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+}
+
+.question-img-input,
+.question-audio-input {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  margin-bottom: 8px;
+}
+
+.audio-clip-controls {
+  background: v.$color-card;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  padding: 8px;
+  margin-bottom: 8px;
+
+  .question-audio-preview {
+    display: block;
+    width: 100%;
+    margin-bottom: 6px;
+  }
+}
+
+// One row per control on mobile; from 768px up all three sit on a single
+// row (nowrap — the field-group buttons and the play button below shrink
+// via flex-shrink/flex-basis rather than wrapping to a second line).
+.audio-clip-times {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+}
+
+// "Nuo"/"Iki" each group their number input and "set from current time"
+// button into one fused control (shared border, input's right/button's left
+// corners squared off) rather than two loose fields side by side. The
+// "Nuo (s)"/"Iki (s)" label lives as the input's placeholder instead of a
+// separate element above it, so the group stays a single compact row. The
+// group spans the full row on mobile (button stretches to fill what the
+// fixed-width input doesn't use) and shrinks to a fixed-width pair on
+// desktop, where the button no longer needs to be that wide.
+// Shared row height for the clip controls — the input and both button
+// kinds have different default vertical rhythm (padding/line-height), so
+// without a fixed height + zero vertical padding they don't align.
+$clip-control-height: 38px;
+
+.audio-clip-field-group {
+  display: flex;
+  width: 100%;
+
+  @media (min-width: 768px) {
+    width: auto;
+  }
+
+  input[type='number'] {
+    width: 56px;
+    height: $clip-control-height;
+    flex-shrink: 0;
+    padding: 0 8px;
+    font-size: 13px;
+    text-align: center;
+    border: 1px solid v.$color-border;
+    border-right: none;
+    border-radius: v.$radius-sm 0 0 v.$radius-sm;
+
+    &::placeholder {
+      color: v.$color-muted;
+    }
+  }
+
+  button {
+    flex: 1;
+    min-width: 0;
+    height: $clip-control-height;
+    margin: 0;
+    padding: 0 10px;
+    font-size: 13px;
+    background: #fff;
+    color: v.$color-primary;
+    border: 1px solid v.$color-primary;
+    border-radius: 0 v.$radius-sm v.$radius-sm 0;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    @media (min-width: 768px) {
+      flex: 0 1 200px;
+    }
+
+    @include v.hover-only {
+      background: #eaf1ff;
+    }
+  }
+}
+
+// Sits in the same row as the two field-groups from 768px up and takes
+// whatever width is left over (flex-grow) instead of just hugging its text.
+// min-width: 0 lets it actually shrink that low when the row is tight,
+// instead of the default intrinsic min-width forcing the row to overflow.
+// Selector is doubled up (.play-from-start-btn.secondary-btn, not just
+// .play-from-start-btn) to outrank .secondary-btn's own margin-top: 6px —
+// same specificity otherwise means whichever rule comes later in the file
+// wins, which was silently reintroducing that 6px and fighting the row's
+// gap: 8px.
+.play-from-start-btn.secondary-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: $clip-control-height;
+  margin-top: 0;
+  padding: 0 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.option-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid v.$color-border;
+
+  &:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+.option-row-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .option-text-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px;
+    font-size: 14px;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+}
+
+// Stands in for the text field once an option has a picture (see
+// createOptionRow in game-editor-core.js).
+.option-img-thumb-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.option-img-thumb {
+  display: block;
+  max-width: 100%;
+  height: 56px;
+  object-fit: contain;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: #fafafa;
+}
+
+.option-img-input {
+  width: 100%;
+  padding: 7px;
+  font-size: 14px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+}
+
+.correct-answer-hint {
+  font-size: 12px;
+  color: v.$color-muted;
+  margin-bottom: 6px;
+}
+
+.correct-answer-badge {
+  // Same 32x32 footprint as .remove-option-btn (just not clickable). Only
+  // the first row shows one at all — no reserved space on the rest.
+  display: none;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: v.$color-success;
+}
+
+.check-icon {
+  width: 12px;
+  height: 6px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  margin-top: -2px;
+}
+
+.option-row:first-child .correct-answer-badge {
+  display: flex;
+}
+
+.move-btn,
+.remove-stage-btn,
+.remove-question-btn,
+.remove-option-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.remove-stage-btn,
+.remove-question-btn,
+.move-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.remove-stage-btn,
+.remove-question-btn,
+.remove-option-btn {
+  color: v.$color-danger;
+
+  @include v.hover-only {
+    background: #fde8e8;
+  }
+}
+
+.move-btn {
+  color: v.$color-primary;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+}
+
+.remove-option-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.secondary-btn,
+.add-question-btn,
+.add-option-btn {
+  display: block;
+  padding: 8px 12px;
+  font-size: 14px;
+  background: #fff;
+  color: v.$color-primary;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+  margin-top: 6px;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+}
+
+#add-stage-btn {
+  width: 100%;
+}
+
+#save-game-btn,
+.import-choice-confirm {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: v.$color-success;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+#editor-error,
+#games-error,
+#games-file-error {
+  @extend %error-text;
+  margin-top: 12px;
+}
+
+#games-file-error[hidden] {
+  display: none;
+}
+
+// host/games: under "+ Naujas žaidimas", full width like the links around it
+#import-games-btn,
+#export-all-games-btn {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 16px;
+  text-align: center;
+}
+
+#import-games-btn.is-busy {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+// Overrides base.scss's 8px, scoped to host only (view.css keeps its own
+// spacing) — the section-divider text (e.g. "Sukurti žaidimai:") sat too
+// close to the list below it.
+.section-label {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+// docs/ only (main app's games list keeps its plain .option link — this
+// page's "+ Naujas žaidimas" is this page's one primary action, styled to
+// match #save-game-btn, and grouped with Export/Import the same way the
+// editor groups its own primary + secondary actions in .editor-actions).
+#new-game-cta {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  text-align: center;
+  text-decoration: none;
+  background: v.$color-success;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+// Every button in the games list's and the editor's action groups gets the
+// same size — the primary one (new game / save) used to be taller, with
+// bigger text, than its secondary neighbours; now only its colour differs.
+@mixin action-group-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: v.$radius;
+}
+
+.list-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'newgame'
+    'export'
+    'import';
+  gap: 8px;
+  margin: 16px 0;
+
+  #new-game-cta,
+  #export-all-btn,
+  label[for='import-games-input'] {
+    @include action-group-button;
+  }
+
+  #new-game-cta {
+    grid-area: newgame;
+  }
+  #export-all-btn {
+    grid-area: export;
+  }
+  label[for='import-games-input'] {
+    grid-area: import;
+  }
+
+  // One row of three equal buttons — the primary one no longer stretched
+  // over two rows (it stands out by colour alone).
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-areas: 'newgame import export';
+    max-width: 736px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+// The editor's 4 action buttons: stacked in DOM/reading order on mobile
+// (Naujas etapas, Save, Import, Export — export/import were sitting
+// side-by-side, glued right under Save), regrouped into two columns from
+// 768px up via named grid areas — DOM order stays reading-order for
+// accessibility, grid-template-areas does the visual reshuffling.
+.editor-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'addstage'
+    'save'
+    'import'
+    'export';
+  gap: 8px;
+  margin-top: 16px;
+
+  #add-stage-btn,
+  #save-game-btn,
+  #export-game-btn,
+  label[for='import-game-input'] {
+    @include action-group-button;
+  }
+
+  #add-stage-btn {
+    grid-area: addstage;
+  }
+  #save-game-btn {
+    grid-area: save;
+  }
+  #export-game-btn {
+    grid-area: export;
+  }
+  label[for='import-game-input'] {
+    grid-area: import;
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'import addstage'
+      'export save';
+    max-width: 736px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+// Import of a file with several games: pick one (see chooseImportGame in
+// game-editor-core.js). Rows are the games list's .option, under the buttons;
+// a row only selects, "Patvirtinti" (styled like "Išsaugoti žaidimą") imports.
+.import-choice {
+  margin-top: 16px;
+
+  @media (min-width: 768px) {
+    max-width: 736px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .option {
+    font-family: inherit;
+  }
+
+  // Atšaukti, then Patvirtinti: stacked on phones, one row on desktop
+  // (same 768px breakpoint as .editor-actions).
+  .import-choice-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 8px;
+
+    @media (min-width: 768px) {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .import-choice-confirm,
+  .secondary-btn {
+    width: 100%;
+    margin: 0;
+    font-family: inherit;
+  }
+
+  .import-choice-confirm:disabled {
+    opacity: 0.5;
+    cursor: default;
+    filter: none;
+  }
+}
+
+// Lets a styled <label for="..."> stand in for a real file-picker button
+// (native file inputs can't be restyled directly), with the <input
+// type="file"> itself hidden off-screen but still focusable/clickable.
+.file-input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: v.$color-muted;
+  margin: 6px 0;
+}
+
+// Komandų istorija (/host/teams): one card per team, nested season -> game
+// -> stage breakdowns going from boldest/biggest text down to the smallest,
+// so the eye lands on team name and total first.
+.team-card {
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 14px;
+  margin: 12px 0;
+  box-shadow: v.$shadow-card;
+}
+
+.team-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+// Team history: one card per season (newest open) — built from the game
+// editor's stage card (.stage-card / .stage-header / .toggle-stage-btn /
+// .stage-body), so only the differences live here.
+.season-section {
+  margin-top: 16px;
+}
+
+.season-section-header {
+  align-items: center;
+}
+
+.season-section-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+// Inside the clipped body (like .questions-container), so the gap under the
+// header collapses along with it.
+.season-section-inner {
+  margin-top: 8px;
+
+  // Inside the season card a team is a divided row, not a card of its own.
+  .team-card {
+    margin: 0;
+    padding: 12px 0;
+    background: none;
+    border-radius: 0;
+    box-shadow: none;
+    border-top: 1px solid v.$color-border;
+  }
+
+  // one step below the season title
+  .team-card-header {
+    font-size: 16px;
+  }
+}
+
+.game-block {
+  background: v.$color-bg;
+  border-radius: v.$radius-sm;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+.game-block-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.stage-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: v.$color-muted;
+  padding: 2px 0;
+}
+
+// Question kind indicator in the editor — a question left with a single
+// option becomes a typed-answer question (see syncQuestionType).
+.question-type-label {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$color-primary;
+  background: rgba(v.$color-primary, 0.1);
+  border-radius: v.$radius-sm;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+
+.question-card.text-answer .question-type-label {
+  color: v.$color-purple;
+  background: rgba(v.$color-purple, 0.1);
+}
+
+// Stage answers: all typed-answer questions gathered in one section under
+// the answers, each team's answer with ✓/✗ the host can flip (e.g. to
+// accept a typo).
+#typed-answers-review {
+  margin-top: 24px;
+}
+
+.typed-answers-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.typed-answers-empty {
+  color: v.$color-muted;
+  font-weight: 400 !important;
+}
+
+.typed-answer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+
+  & + & {
+    border-top: 1px solid v.$color-border;
+  }
+}
+
+.typed-answer-team {
+  flex: 0 0 30%;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.typed-answer-text {
+  flex: 1;
+  overflow-wrap: anywhere;
+
+  // nothing typed (e.g. the team answers on paper) — still markable
+  &.is-empty {
+    color: v.$color-muted;
+    font-style: italic;
+  }
+}
+
+// ✓ / ✗ pair: the inactive one is an outline in its colour, the active one
+// is filled.
+.typed-answer-btn {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 36px;
+  border: 1px solid currentColor;
+  border-radius: v.$radius;
+  background: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &.correct-btn {
+    color: v.$color-success;
+  }
+
+  &.wrong-btn {
+    color: v.$color-danger;
+  }
+
+  &.correct-btn.active {
+    background: v.$color-success;
+    border-color: v.$color-success;
+    color: #fff;
+  }
+
+  &.wrong-btn.active {
+    background: v.$color-danger;
+    border-color: v.$color-danger;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+}
+
+// Game-flow pages: each team and whether its phone can reach the internet
+// (the hotspot has none, so it would be mobile data).
+.team-status {
+  margin-top: 24px;
+  padding: 12px 16px;
+  background: v.$color-card;
+  border-radius: v.$radius;
+  box-shadow: v.$shadow-card;
+}
+
+.team-status-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  .team-status-title {
+    margin-bottom: 0;
+  }
+}
+
+.team-status-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+// On (default) = primary outline like other secondary buttons; off = muted,
+// so a switched-off warning is easy to spot.
+.internet-warning-toggle.secondary-btn {
+  margin-top: 0;
+  font-family: inherit;
+
+  &[hidden] {
+    display: none;
+  }
+
+  &.is-off {
+    color: v.$color-muted;
+    border-color: v.$color-border;
+    background: #f3f4f6;
+  }
+}
+
+.team-status-empty {
+  color: v.$color-muted;
+}
+
+.team-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+
+  & + & {
+    border-top: 1px solid v.$color-border;
+  }
+}
+
+.team-status-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.team-status-badge {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: v.$radius;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.team-status-row.is-clean .team-status-badge {
+  background: #dcfce7;
+  color: v.$color-success;
+}
+
+.team-status-row.is-online .team-status-badge {
+  background: v.$color-danger;
+  color: #fff;
+  font-weight: 700;
+}
+
+.team-status-row.is-unknown .team-status-badge,
+.team-status-row.is-offline .team-status-badge {
+  background: #f3f4f6;
+  color: v.$color-muted;
+}
+
+// Game editor: a URL field with a 📁 button beside it that uploads a file
+// from the computer and fills the field in (see attachFilePicker). The
+// wrapper takes over the field's bottom margin so spacing stays the same.
+.file-url-field {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  margin-bottom: 8px;
+
+  input[type='text'] {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+}
+
+.option-row .file-url-field {
+  margin-bottom: 0;
+}
+
+// Same look as the editor's other icon buttons (.move-btn: round,
+// borderless, primary-coloured line icon, light tint on hover).
+.pick-file-btn {
+  flex-shrink: 0;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: v.$color-primary;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  .pick-file-icon {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .pick-file-spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: pick-file-spin 0.7s linear infinite;
+  }
+
+  &.is-uploading {
+    .pick-file-icon {
+      display: none;
+    }
+
+    .pick-file-spinner {
+      display: block;
+    }
+  }
+}
+
+@keyframes pick-file-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

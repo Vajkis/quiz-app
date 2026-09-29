@@ -1,0 +1,19 @@
+<% if (audio) { %>
+  <div class="audio-player-block" data-room="<%= roomId %>">
+    <audio
+      class="question-audio"
+      controls
+      muted
+      src="<%= audio %>"
+      data-start="<%= audioStart || '' %>"
+      data-end="<%= audioEnd || '' %>"
+    ></audio>
+    <p class="audio-hint">🔇 Šis grotuvas nutildytas — garsas girdimas per „View" ekraną.</p>
+    <div class="audio-mode-buttons">
+      <button type="button" class="play-audio-normal-btn secondary-btn">▶ Nuo pradžios</button>
+      <% if (audioStart || audioEnd) { %>
+        <button type="button" class="play-audio-clip-btn secondary-btn">▶ Pažymėta dalis</button>
+      <% } %>
+    </div>
+  </div>
+<% } %>

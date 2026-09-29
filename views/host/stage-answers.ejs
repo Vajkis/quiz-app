@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1><%= roomName %></h1>
+  <p id="room-code">Teisingi atsakymai: <strong><%= review.stageName %></strong></p>
+
+  <div id="stage-review">
+    <% review.questions.forEach(function(q) { %>
+      <div class="question">
+        <p><%= q.number %>. <%= q.question %></p>
+        <p class="correct-answer"><%= q.correctAnswer %></p>
+        <%- include('_audio-player', { roomId, audio: q.audio, audioStart: q.audioStart, audioEnd: q.audioEnd }) %>
+        <%
+          const imgButtons = [];
+          if (q.img) imgButtons.push({ src: q.img, label: '🔍 Klausimo nuotrauką' });
+          if (q.correctAnswerImg) imgButtons.push({ src: q.correctAnswerImg, label: '🔍 Atsakymo nuotrauką' });
+        %>
+        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: null }) %>
+      </div>
+    <% }); %>
+  </div>
+
+  <% const typedQuestions = review.questions.filter(function(q) { return typedAnswers[q.number - 1]; }); %>
+  <% if (typedQuestions.length) { %>
+    <div id="typed-answers-review">
+      <p class="typed-answers-title">Įrašyti atsakymai</p>
+      <% typedQuestions.forEach(function(q) { const typed = typedAnswers[q.number - 1]; %>
+        <div class="question typed-answers">
+          <p><%= q.number %>. <%= q.question %></p>
+          <p class="correct-answer"><%= q.correctAnswer %></p>
+          <% if (typed.length === 0) { %>
+            <p class="typed-answers-empty">Kambaryje nėra komandų.</p>
+          <% } %>
+          <% typed.forEach(function(a) { %>
+            <div class="typed-answer-row"
+              data-room="<%= roomId %>"
+              data-index="<%= q.number - 1 %>"
+              data-team="<%= a.teamId %>">
+              <span class="typed-answer-team"><%= a.teamName %></span>
+              <span class="typed-answer-text<%= a.typed ? '' : ' is-empty' %>"><%= a.typed || '(neįrašė)' %></span>
+              <button type="button" class="typed-answer-btn correct-btn<%= a.correct ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>
+              <button type="button" class="typed-answer-btn wrong-btn<%= a.correct ? '' : ' active' %>" data-correct="false" title="Neteisinga">✗</button>
+            </div>
+          <% }); %>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <nav id="host-bar">
+    <div class="host-bar-side">
+      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
+    </div>
+    <div class="host-bar-main">
+      <button id="next-btn" data-room="<%= roomId %>">Rodyti taškus</button>
+    </div>
+  </nav>
+  <%- include('_team-status', { roomId }) %>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/host.js"></script>
+</body>
+</html>

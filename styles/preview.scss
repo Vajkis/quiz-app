@@ -1,0 +1,192 @@
+// docs/preview.html: the big screen's own styles (view.scss) plus the fixed
+// navigation bar along the bottom, which the screen has to leave room for.
+@use 'variables' as v;
+@use 'view';
+
+$bar-height: 64px;
+
+body {
+  padding-bottom: $bar-height + 16px;
+}
+
+.view-app {
+  min-height: calc(100vh - 32px - #{$bar-height});
+}
+
+// Same pin as at the end of view.scss, minus the bar.
+.view-app:has(#view-question:not([hidden]) #view-options.image-options),
+.view-app:has(#view-question:not([hidden]) #view-question-box.has-image) {
+  height: calc(100vh - 32px - #{$bar-height});
+}
+
+#preview-error {
+  @extend %error-text;
+  text-align: center;
+  font-size: 18px;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+#preview-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: $bar-height;
+  padding: 0 12px;
+  background: v.$color-card;
+  border-top: 1px solid v.$color-border;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+}
+
+// The view screen's fullscreen overlay, but ending at the bar's top edge so
+// the bar (and its toggle) stays visible and clickable while it's open.
+#fullscreen-overlay {
+  bottom: $bar-height;
+}
+
+#preview-counter {
+  min-width: 64px;
+  text-align: center;
+  color: v.$color-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-btn {
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius-sm;
+  background: #fff;
+  color: v.$color-primary;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &[hidden] {
+    display: none;
+  }
+
+  &--primary {
+    background: v.$color-primary;
+    color: #fff;
+
+    @include v.hover-only {
+      background: v.$color-primary;
+      filter: brightness(0.93);
+    }
+  }
+}
+
+#preview-exit {
+  position: absolute;
+  left: 12px;
+  width: 44px;
+  padding: 0;
+  border-color: v.$color-border;
+  color: v.$color-muted;
+}
+
+// Icon only (▶ / II, then ■), right next to the ✕.
+#preview-audio,
+#preview-audio-stop {
+  position: absolute;
+  left: 12px + 44px + 8px;
+  width: 44px;
+  padding: 0;
+  border-color: v.$color-success;
+  color: v.$color-success;
+
+  @include v.hover-only {
+    background: #e8f7ee;
+  }
+
+  &.is-playing {
+    background: v.$color-success;
+    color: #fff;
+  }
+}
+
+#preview-audio-stop {
+  left: 12px + (44px + 8px) * 2;
+}
+
+// Icon only, on the right edge; filled while the overlay is open.
+#preview-fullscreen {
+  position: absolute;
+  right: 12px;
+  width: 44px;
+  padding: 0;
+
+  &.is-active {
+    background: v.$color-primary;
+    color: #fff;
+  }
+}
+
+.fullscreen-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+// Phones: the ✕, ▶ and ■ join the row instead of floating left over the buttons.
+@media (max-width: 575px) {
+  #preview-bar {
+    gap: 6px;
+  }
+
+  #preview-exit,
+  #preview-audio,
+  #preview-audio-stop,
+  #preview-fullscreen {
+    position: static;
+  }
+
+  #preview-counter {
+    min-width: 40px;
+    font-size: 14px;
+  }
+
+  // share whatever width is left instead of overflowing the screen
+  #preview-prev,
+  #preview-next {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 6px;
+    font-size: 14px;
+  }
+
+  #preview-exit,
+  #preview-audio,
+  #preview-audio-stop,
+  #preview-fullscreen {
+    flex-shrink: 0;
+  }
+}

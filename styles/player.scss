@@ -1,0 +1,216 @@
+@use 'variables' as v;
+@use 'base';
+
+#join-form,
+#room-form {
+  margin-bottom: 16px;
+}
+
+#join-form input[type='text'] {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  text-align: left;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  margin-bottom: 8px;
+}
+
+#join-btn,
+#logout-btn,
+#leave-room-btn {
+  // A <button>'s default display is inline-block, on which auto margins
+  // (as set by capped-button below) compute to 0 rather than centering it —
+  // needs to be a block box for that centering to actually take effect.
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: v.$color-primary;
+  color: #fff;
+  // border: 1px solid transparent, not none — same width as host.scss's
+  // bordered buttons (e.g. #prev-btn), so every full-width primary button
+  // across the app comes out the same height regardless of which of them
+  // actually shows a visible border.
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+  @include v.capped-button;
+
+  @include v.hover-only {
+    filter: brightness(0.9);
+  }
+}
+
+#logout-btn,
+#leave-room-btn {
+  background: v.$color-danger;
+  margin-top: 8px;
+}
+
+#join-error,
+#room-error {
+  @extend %error-text;
+}
+
+#team-info {
+  text-align: center;
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: v.$shadow-card;
+}
+
+#result {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+// Earlier questions of the running stage, collapsed under the live one so
+// they don't compete with it but can still be reopened and re-answered.
+.previous-questions {
+  margin-top: 24px;
+  border-top: 1px solid v.$color-border;
+  padding-top: 12px;
+}
+
+.previous-questions-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: v.$color-muted;
+  margin-bottom: 8px;
+}
+
+.previous-question {
+  background: v.$color-card;
+  border-radius: v.$radius;
+  box-shadow: v.$shadow-card;
+  margin-bottom: 8px;
+  padding: 0 12px;
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    cursor: pointer;
+    font-weight: 600;
+  }
+}
+
+// Clips while app.js animates its height open/closed; the padding sits on
+// the inner wrapper so it slides along instead of popping in.
+.previous-question-body {
+  overflow: hidden;
+}
+
+.previous-question-inner {
+  display: flow-root; // keep children's margins inside the measured height
+  padding-bottom: 12px;
+}
+
+.previous-question-status {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$color-success;
+
+  &.unanswered {
+    color: v.$color-danger;
+  }
+}
+
+// Typed-answer question: a single empty field instead of option buttons.
+.text-answer-input {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  font-size: 16px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+}
+
+// The main question's text, bold so it stands out from the options below.
+.question-text {
+  font-weight: 700;
+}
+
+// Shown while the phone can reach the internet (the game's hotspot has
+// none, so it's mobile data) — same dimmed full-screen look as the view
+// screen's image overlay. Covers the page, so nothing can be answered
+// until it's gone; app.js hides it on the next clean check.
+#internet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.92);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+
+  &[hidden] {
+    display: none;
+  }
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+.internet-overlay-box {
+  max-width: 360px;
+  color: #fff;
+  text-align: center;
+}
+
+.internet-overlay-icon {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px;
+  color: #fff;
+}
+
+.internet-overlay-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.internet-overlay-text {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  color: #e5e7eb;
+}
+
+#internet-recheck-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #fff;
+  border-radius: v.$radius;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  @include v.hover-only {
+    background: #fff;
+    color: #111;
+  }
+}
+
+// Only there when "/<code>" pointed at a room that no longer exists.
+#room-error:empty {
+  display: none;
+}

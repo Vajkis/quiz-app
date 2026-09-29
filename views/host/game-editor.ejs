@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
+<div id="app">
+  <h1><%= gameId ? 'Redaguoti žaidimą' : 'Naujas žaidimas' %></h1>
+  <a class="option" href="/host/games">← Atgal į žaidimus</a>
+
+  <% if (game) { %>
+    <script id="game-data" type="application/json"><%- JSON.stringify(game).replace(/</g, '\\u003c') %></script>
+  <% } %>
+
+  <div id="game-editor">
+    <input id="game-name-input" type="text" placeholder="Žaidimo pavadinimas">
+
+    <div id="stages-container"></div>
+
+    <div class="editor-actions">
+      <button type="button" id="add-stage-btn" class="secondary-btn">+ Naujas etapas</button>
+      <button type="button" id="save-game-btn">Išsaugoti žaidimą</button>
+      <button type="button" id="export-game-btn" class="secondary-btn">⭳ Eksportuoti (JSON / zip)</button>
+      <label for="import-game-input" class="secondary-btn">⭱ Importuoti (JSON / zip)</label>
+      <input type="file" id="import-game-input" accept="application/json,.json,application/zip,.zip" class="file-input-hidden">
+    </div>
+
+    <p id="editor-error"></p>
+  </div>
+</div>
+<script src="/vendor/jszip.min.js"></script>
+<script src="/game-shared.js"></script>
+<script src="/game-media-zip.js"></script>
+<script src="/game-export.js"></script>
+<script src="/game-editor-core.js"></script>
+<script src="/game-editor.js"></script>
+</body>
+</html>

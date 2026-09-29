@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= title %></title>
+<link rel="stylesheet" href="/css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1>Komandų istorija</h1>
+  <a class="option" href="/host">← Atgal į kambarius</a>
+
+  <% if (error) { %>
+    <p id="teams-error"><%= error %></p>
+  <% } %>
+
+  <% if (!teamCount) { %>
+    <p class="section-label">Komandų dar nėra.</p>
+  <% } else if (!seasonList.length) { %>
+    <p class="section-label">Dar nesužaista nė vieno žaidimo su sezonu.</p>
+  <% } %>
+
+  <%# Newest season first and open; older ones below, collapsed. %>
+  <% seasonList.forEach(function(season, i) { %>
+    <div class="stage-card season-section">
+      <div class="stage-header season-section-header">
+        <button type="button" class="toggle-stage-btn<%= i === 0 ? '' : ' collapsed' %>" title="Suskleisti/išskleisti sezoną"><span class="chevron-icon"></span></button>
+        <span class="season-section-title">Sezonas <%= season.seasonId %></span>
+      </div>
+      <div class="stage-body season-section-body"<%- i === 0 ? '' : ' style="max-height: 0px"' %>>
+        <div class="season-section-inner">
+          <% season.teams.forEach(function(team) { %>
+            <div class="team-card">
+              <div class="team-card-header">
+                <span class="team-card-name"><%= team.name %></span>
+                <span class="team-card-total"><%= team.total %> tšk.</span>
+              </div>
+              <% team.games.forEach(function(game) { %>
+                <div class="game-block">
+                  <div class="game-block-header">
+                    <span><%= game.gameName %></span>
+                    <span><%= game.total %> tšk.</span>
+                  </div>
+                  <% game.stages.forEach(function(stage) { %>
+                    <div class="stage-line">
+                      <span><%= stage.stageName %></span>
+                      <span><%= stage.score %></span>
+                    </div>
+                  <% }); %>
+                </div>
+              <% }); %>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+</div>
+<script src="/host.js"></script>
+</body>
+</html>

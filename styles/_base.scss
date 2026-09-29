@@ -1,0 +1,174 @@
+// Shared across host/view/player: reset, page shell, and components used
+// by two or more of the three compiled stylesheets (question cards,
+// answer buttons, leaderboards). Group-specific rules live in
+// host.scss / view.scss / player.scss instead.
+@use 'variables' as v;
+
+// Self-hosted instead of @import-ing fonts.googleapis.com: this app is
+// meant to run over a phone hotspot with no real internet uplink, where
+// that import silently fails and every weight falls back to the browser's
+// default sans-serif (Arial, on most). Mulish is a variable font — one file
+// per unicode range covers the whole 400-800 weight axis, so the browser
+// picks the exact instance for the font-weight it's asked to render.
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('../fonts/mulish-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('../fonts/mulish-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+body {
+  margin: 0;
+  font-family: 'Mulish', system-ui, sans-serif;
+  background: v.$color-bg;
+  color: v.$color-text;
+  padding: 16px;
+}
+
+#app {
+  margin: 0 auto;
+  max-width: 600px;
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.question {
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: v.$shadow-card;
+
+  p {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+}
+
+.correct-answer {
+  font-weight: 700 !important;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin: 6px 0;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  background: #fafafa;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+  cursor: pointer;
+  font-size: 16px;
+
+  &:not(.selected) {
+    @include v.hover-only {
+      background: #eef2ff;
+      border-color: v.$color-primary;
+    }
+  }
+
+  &.selected {
+    background: v.$color-primary;
+    color: #fff;
+    border-color: v.$color-primary;
+
+    @include v.hover-only {
+      filter: brightness(0.93);
+    }
+  }
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+
+  .option,
+  .view-option {
+    margin: 0;
+  }
+}
+
+.options-list {
+  margin-top: 8px;
+}
+
+.leaderboard-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.leaderboard-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: v.$color-card;
+  border-radius: v.$radius;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  box-shadow: v.$shadow-card;
+
+  &.own-team {
+    border: 2px solid v.$color-primary;
+  }
+}
+
+.leaderboard-rank {
+  font-weight: 700;
+  color: v.$color-muted;
+  width: 24px;
+}
+
+.leaderboard-name {
+  flex: 1;
+}
+
+.leaderboard-score {
+  font-weight: 700;
+}
+
+#leaderboard {
+  margin-bottom: 12px;
+}
+
+.section-label {
+  margin-bottom: 8px;
+}
+
+// Extended by each group's own error-message ids (@extend works across
+// @use boundaries for placeholder selectors).
+%error-text {
+  color: v.$color-danger;
+  font-size: 14px;
+  margin-top: 8px;
+}

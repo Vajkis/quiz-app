@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz - Žaidimo redagavimas</title>
+<link rel="stylesheet" href="css/host.css">
+</head>
+<body>
+<div id="app">
+  <h1 id="editor-title">Naujas žaidimas</h1>
+  <a class="option" href="index.html">← Atgal į žaidimus</a>
+
+  <div id="game-editor">
+    <input id="game-name-input" type="text" placeholder="Žaidimo pavadinimas">
+
+    <div id="stages-container"></div>
+
+    <div class="editor-actions">
+      <button type="button" id="add-stage-btn" class="secondary-btn">+ Naujas etapas</button>
+      <button type="button" id="save-game-btn">Išsaugoti žaidimą</button>
+      <button type="button" id="export-game-btn" class="secondary-btn">⭳ Eksportuoti</button>
+      <label for="import-game-input" class="secondary-btn">⭱ Importuoti</label>
+      <input type="file" id="import-game-input" accept="application/json,.json,application/zip,.zip" class="file-input-hidden">
+    </div>
+
+    <p id="editor-error"></p>
+  </div>
+</div>
+<script src="js/vendor/jszip.min.js"></script>
+<script src="js/game-shared.js"></script>
+<script src="js/game-media-zip.js"></script>
+<script src="js/game-editor-core.js"></script>
+<script src="js/media-store.js"></script>
+<script src="js/audio-override.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/game-files.js"></script>
+<script src="js/editor.js"></script>
+</body>
+</html>

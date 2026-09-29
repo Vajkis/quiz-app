@@ -245,7 +245,14 @@ function showStageAnswers(stage, shownOptions) {
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
     const answer = correctAnswerText(q, shownOptions[i]);
-    answerP.textContent = q.bonus ? `${answer} + ${q.bonus.answer}` : answer;
+    answerP.textContent = answer;
+    // The extra answer in the extra question's purple (see view.scss).
+    if (q.bonus) {
+      const bonusSpan = document.createElement('span');
+      bonusSpan.className = 'bonus-answer-text';
+      bonusSpan.textContent = ` + ${q.bonus.answer}`;
+      answerP.appendChild(bonusSpan);
+    }
     box.append(questionP, answerP);
     stageReviewEl.appendChild(box);
   });
@@ -447,6 +454,12 @@ async function init() {
   }
   document.title = `Peržiūra - ${game.name}`;
   await QuizMediaPreview.load(game).catch(() => {});
+  // The game's background picture, behind every screen (see view.scss).
+  const background = resolveMedia(game.background);
+  if (background) {
+    document.body.classList.add('has-game-bg');
+    document.body.style.setProperty('--game-bg', `url(${JSON.stringify(background)})`);
+  }
   screens = buildScreens(game);
   render();
 }

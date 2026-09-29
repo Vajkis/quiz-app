@@ -376,6 +376,12 @@
   margin-right: 10px;
 }
 
+// The extra answer, after the main one in the stage review — the same
+// purple as its question.
+.bonus-answer-text {
+  color: v.$color-purple;
+}
+
 // The extra answer's question, in the question's own box right under it.
 #view-bonus-question {
   flex-shrink: 0;
@@ -422,4 +428,56 @@
 .view-app:has(#view-question:not([hidden]) #view-options.image-options),
 .view-app:has(#view-question:not([hidden]) #view-question-box.has-image) {
   height: calc(100vh - 32px);
+}
+
+// The game's background picture (set in the editor): one behind every
+// screen of the game, covering the whole page and staying put while a long
+// screen (the stage review) scrolls. Every box on top turns see-through,
+// just enough for the picture to show while the text stays readable; the
+// intro and rules slides, which have no box of their own, get one.
+$game-bg-panel: rgba(255, 255, 255, 0.8);
+
+body.has-game-bg {
+  background: v.$color-bg var(--game-bg) center / cover no-repeat fixed;
+
+  .question,
+  .leaderboard-row {
+    background: $game-bg-panel;
+  }
+
+  .view-option {
+    background: rgba(250, 250, 250, 0.75);
+  }
+
+  .view-text-answer-hint {
+    background: $game-bg-panel;
+  }
+
+  #game-intro-screen .stage-intro-name,
+  #stage-intro-screen,
+  #game-rules-screen,
+  .leaderboard-title {
+    align-self: center;
+    background: $game-bg-panel;
+    border-radius: v.$radius;
+    box-shadow: v.$shadow-card;
+  }
+
+  #stage-intro-screen,
+  #game-rules-screen {
+    flex: 0 1 auto;
+    margin: auto;
+    padding: 32px 40px;
+  }
+
+  #game-intro-screen .stage-intro-name {
+    padding: 24px 40px;
+  }
+
+  .leaderboard-title {
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 8px 24px;
+  }
 }

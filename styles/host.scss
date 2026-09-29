@@ -560,7 +560,12 @@ $season-control-height: 32px;
   font-weight: 600;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+}
+
+// The game's background picture, under its name.
+.game-background-field {
+  margin-bottom: 8px;
 }
 
 // The gap between cards is owned entirely by the next card's margin-top
@@ -750,7 +755,8 @@ $season-control-height: 32px;
 }
 
 .question-img-input,
-.question-audio-input {
+.question-audio-input,
+.game-background-input {
   width: 100%;
   padding: 8px;
   font-size: 14px;
@@ -1620,7 +1626,7 @@ $clip-control-height: 38px;
   &.is-bonus {
     .typed-answer-team {
       font-weight: 400;
-      color: v.$color-muted;
+      color: v.$color-purple;
     }
   }
 }
@@ -1652,8 +1658,11 @@ $clip-control-height: 38px;
   }
 }
 
+// The extra answer, in the extra question's purple (as in the editor and
+// on the view screen), so it's plainly told apart from the main answer.
 .bonus-answer {
   font-weight: 400 !important;
+  color: v.$color-purple;
 
   .bonus-note {
     color: v.$color-muted;

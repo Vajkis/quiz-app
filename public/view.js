@@ -237,6 +237,15 @@ function showBonusQuestion(el, hasBonus, question) {
 }
 
 // The game's rules, one list item each — the slide after its name.
+// The extra answer after the main one, in the extra question's purple
+// (see #view-bonus-question), so the two can't be mistaken for one answer.
+function appendBonusAnswer(answerP, bonusAnswer) {
+  const span = document.createElement('span');
+  span.className = 'bonus-answer-text';
+  span.textContent = ` + ${bonusAnswer}`;
+  answerP.appendChild(span);
+}
+
 function renderRules(rules) {
   gameRulesListEl.innerHTML = '';
   rules.forEach((rule) => {
@@ -360,7 +369,8 @@ socket.on('stage-answers', (review) => {
 
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
-    answerP.textContent = q.bonus ? `${q.correctAnswer} + ${q.bonus.answer}` : q.correctAnswer;
+    answerP.textContent = q.correctAnswer;
+    if (q.bonus) appendBonusAnswer(answerP, q.bonus.answer);
 
     box.append(questionP, answerP);
 

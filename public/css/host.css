@@ -700,7 +700,11 @@ body:has(#host-bar) {
   font-weight: 600;
   border: 1px solid #ddd;
   border-radius: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+}
+
+.game-background-field {
+  margin-bottom: 8px;
 }
 
 #stages-container .stage-card {
@@ -861,7 +865,8 @@ body:has(#host-bar) {
 }
 
 .question-img-input,
-.question-audio-input {
+.question-audio-input,
+.game-background-input {
   width: 100%;
   padding: 8px;
   font-size: 14px;
@@ -1629,7 +1634,7 @@ body:has(#host-bar) {
 }
 .typed-answer-row.is-bonus .typed-answer-team {
   font-weight: 400;
-  color: #6b7280;
+  color: #6b21a8;
 }
 
 .typed-answer-links {
@@ -1656,6 +1661,7 @@ body:has(#host-bar) {
 
 .bonus-answer {
   font-weight: 400 !important;
+  color: #6b21a8;
 }
 .bonus-answer .bonus-note {
   color: #6b7280;

@@ -151,6 +151,9 @@
     }
 
     const game = { name };
+    // One picture behind the whole game on the big screen — optional.
+    const background = typeof body.background === 'string' ? body.background.trim() : '';
+    if (background) game.background = background;
     const rules = normalizeRules(body.rules);
     if (rules.length) game.rules = rules;
     game.stages = stages;
@@ -172,6 +175,7 @@
   function toPortableGame(game) {
     return {
       name: game.name,
+      ...(game.background ? { background: game.background } : {}),
       rules: normalizeRules(game.rules),
       stages: (game.stages || []).map((stage) => ({
         name: stage && stage.name,

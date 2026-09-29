@@ -359,6 +359,15 @@ function normalizeGamePayload(body) {
   // The game's rules, one per line, shown on their own slide right after
   // the game's name — optional; blank lines are dropped.
   const game = { name };
+  // One picture behind the whole game on the view screen — optional.
+  const background =
+    typeof body.background === 'string' ? body.background.trim() : '';
+  if (background.startsWith('media:'))
+    return {
+      error:
+        'Fono nuotrauka nurodo failą, kurio nėra — importuok žaidimą iš .zip failo'
+    };
+  if (background) game.background = background;
   const rules = normalizeRules(body.rules);
   if (rules.length) game.rules = rules;
   game.stages = stages;
@@ -1075,6 +1084,7 @@ function referencedLocalPaths() {
     if (value && !/^https?:[/][/]/i.test(value) && !value.startsWith('/'))
       out.add(localPathKey(value));
   };
+  Object.values(games).forEach((game) => add(game.background));
   Object.values(games).forEach((game) =>
     game.stages.forEach((stage) =>
       stage.questions.forEach((q) => {
@@ -1630,10 +1640,12 @@ app.get('/view/:roomId(\\d{6})', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
   if (!room) return renderViewDashboard(req, res, 'Kambarys nerastas');
+  const game = games[room.gameId];
   res.render('view/screen', {
     title: 'Quiz - View',
     roomId,
-    roomName: room.name
+    roomName: room.name,
+    background: (game && resolveMediaSrc(game.background)) || null
   });
 });
 

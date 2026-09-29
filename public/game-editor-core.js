@@ -659,8 +659,39 @@
       .filter(Boolean);
   }
 
+  // The game's background picture: one for the whole game, behind every
+  // screen on the big screen (view.js). Its field sits right under the
+  // game's name, created here so both editors get it without markup of
+  // their own.
+  function renderBackground(nameInput, value) {
+    let field = nameInput.parentNode.querySelector('.game-background-field');
+    if (!field) {
+      field = document.createElement('div');
+      field.className = 'game-background-field';
+      field.innerHTML = `
+        <input type="text" class="game-background-input" placeholder="Fono nuotraukos URL visam žaidimui (nebūtina)">
+        <div class="question-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Fono nuotrauka"></div>
+      `;
+      nameInput.after(field);
+      const input = field.querySelector('.game-background-input');
+      attachFilePicker(input, 'image');
+      const thumbWrap = field.querySelector('.question-img-thumb-wrap');
+      const thumb = thumbWrap.querySelector('img');
+      field.syncThumb = () => {
+        const url = input.value.trim();
+        const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
+        thumbWrap.hidden = !src;
+        if (src && thumb.getAttribute('src') !== src) thumb.src = src;
+      };
+      input.addEventListener('change', field.syncThumb);
+    }
+    field.querySelector('.game-background-input').value = value || '';
+    field.syncThumb();
+  }
+
   function renderGame(stagesContainer, nameInput, game) {
     nameInput.value = (game && game.name) || '';
+    renderBackground(nameInput, game && game.background);
     renderRules(stagesContainer, game && game.rules);
     stagesContainer.innerHTML = '';
     const stages =
@@ -723,7 +754,9 @@
       };
     });
 
-    return { name: nameInput.value.trim(), rules, stages };
+    const backgroundInput = nameInput.parentNode.querySelector('.game-background-input');
+    const background = backgroundInput ? backgroundInput.value.trim() : '';
+    return { name: nameInput.value.trim(), background, rules, stages };
   }
 
   // An imported file with several games in it (e.g. an "Eksportuoti visus"

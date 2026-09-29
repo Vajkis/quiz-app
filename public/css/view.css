@@ -468,6 +468,10 @@ h1 {
   margin-right: 10px;
 }
 
+.bonus-answer-text {
+  color: #6b21a8;
+}
+
 #view-bonus-question {
   flex-shrink: 0;
   margin: 8px 0 0;
@@ -503,4 +507,42 @@ h1 {
 .view-app:has(#view-question:not([hidden]) #view-options.image-options),
 .view-app:has(#view-question:not([hidden]) #view-question-box.has-image) {
   height: calc(100vh - 32px);
+}
+
+body.has-game-bg {
+  background: #f4f4f8 var(--game-bg) center/cover no-repeat fixed;
+}
+body.has-game-bg .question,
+body.has-game-bg .leaderboard-row {
+  background: rgba(255, 255, 255, 0.8);
+}
+body.has-game-bg .view-option {
+  background: rgba(250, 250, 250, 0.75);
+}
+body.has-game-bg .view-text-answer-hint {
+  background: rgba(255, 255, 255, 0.8);
+}
+body.has-game-bg #game-intro-screen .stage-intro-name,
+body.has-game-bg #stage-intro-screen,
+body.has-game-bg #game-rules-screen,
+body.has-game-bg .leaderboard-title {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+body.has-game-bg #stage-intro-screen,
+body.has-game-bg #game-rules-screen {
+  flex: 0 1 auto;
+  margin: auto;
+  padding: 32px 40px;
+}
+body.has-game-bg #game-intro-screen .stage-intro-name {
+  padding: 24px 40px;
+}
+body.has-game-bg .leaderboard-title {
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 8px 24px;
 }

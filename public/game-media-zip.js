@@ -70,6 +70,7 @@
   function mapMediaFields(game, fn) {
     return {
       ...game,
+      ...(game.background ? { background: fn(game.background) } : {}),
       stages: (game.stages || []).map((stage) => ({
         ...stage,
         questions: (stage.questions || []).map((q) => {

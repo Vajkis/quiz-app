@@ -6,7 +6,7 @@
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/view.css">
 </head>
-<body data-room="<%= roomId %>">
+<body data-room="<%= roomId %>"<% if (background) { %> class="has-game-bg" style="--game-bg: url(<%= JSON.stringify(background) %>)"<% } %>>
 <div id="app" class="view-app">
   <div id="game-intro-screen" hidden>
     <p class="stage-intro-name" id="game-intro-name"></p>

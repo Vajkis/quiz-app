@@ -1,3 +1,21 @@
+// "Bendros taisyklės": the rules every new game starts with (see
+// /host/games/new), saved to the server as they're edited.
+QuizGameEditorCore.mountDefaultRules(
+  document.getElementById('default-rules'),
+  JSON.parse(document.getElementById('default-rules-data').textContent),
+  async (rules) => {
+    const res = await fetch('/api/host/default-rules', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rules }),
+      keepalive: true,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Nepavyko išsaugoti taisyklių');
+  },
+  document.getElementById('default-rules-status')
+);
+
 document.querySelectorAll('.game-delete-btn').forEach((btn) => {
   btn.addEventListener('click', async (e) => {
     e.preventDefault();

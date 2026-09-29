@@ -25,6 +25,12 @@
     <button type="button" id="export-all-games-btn" class="secondary-btn">⭳ Eksportuoti visus</button>
   <% } %>
 
+  <script id="default-rules-data" type="application/json"><%- JSON.stringify(defaultRules).replace(/</g, '\\u003c') %></script>
+  <div id="default-rules">
+    <p class="hint-text">Šios taisyklės automatiškai pridedamos kiekvienam naujam žaidimui.</p>
+    <p id="default-rules-status" class="hint-text"></p>
+  </div>
+
   <% if (draftList.length) { %>
     <div id="drafts-section">
       <p class="section-label">Juodraščiai:</p>
@@ -53,6 +59,7 @@
 <script src="/game-shared.js"></script>
 <script src="/game-media-zip.js"></script>
 <script src="/game-export.js"></script>
+<script src="/game-editor-core.js"></script>
 <script src="/games-list.js"></script>
 </body>
 </html>

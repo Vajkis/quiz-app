@@ -6,11 +6,12 @@
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
 </head>
-<body data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-draft="<%= isDraft ? 'true' : '' %>"data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
+<body data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-draft="<%= isDraft ? 'true' : '' %>" data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
 <div id="app">
   <h1><%= gameId ? 'Redaguoti žaidimą' : isDraft ? 'Juodraštis' : 'Naujas žaidimas' %></h1>
   <a class="option" href="/host/games">← Atgal į žaidimus</a>
 
+  <script id="default-rules-data" type="application/json"><%- JSON.stringify(defaultRules).replace(/</g, '\\u003c') %></script>
   <% if (game) { %>
     <script id="game-data" type="application/json"><%- JSON.stringify(game).replace(/</g, '\\u003c') %></script>
   <% } %>

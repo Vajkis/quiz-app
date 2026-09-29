@@ -67,6 +67,24 @@
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
   }
 
+  // "Bendros taisyklės": the rules every new game starts with, set on the
+  // games list. A game gets a copy when it's created — changing them later
+  // doesn't touch games already made.
+  const RULES_KEY = 'quizAppDefaultRules';
+
+  function loadDefaultRules() {
+    try {
+      const rules = JSON.parse(localStorage.getItem(RULES_KEY));
+      return Array.isArray(rules) ? rules : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveDefaultRules(rules) {
+    localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+  }
+
   // Every game and draft — what the media store must keep files for.
   function allGamesAndDrafts() {
     return [...Object.values(loadAll()), ...Object.values(loadDrafts()).map((d) => d.game)];
@@ -89,5 +107,7 @@
     saveDraft,
     deleteDraft,
     allGamesAndDrafts,
+    loadDefaultRules,
+    saveDefaultRules,
   };
 })(window);

@@ -42,6 +42,10 @@ if (gameId) {
 } else if (openedDraft) {
   initialGame = QuizGameStorage.getDraft(draftId);
   if (!initialGame) errorEl.textContent = 'Juodraštis nerastas šios naršyklės atmintyje';
+} else {
+  // A new game starts with the shared rules (set on the games list), if any.
+  const rules = QuizGameStorage.loadDefaultRules();
+  if (rules.length) initialGame = { rules };
 }
 titleEl.textContent = gameId ? 'Redaguoti žaidimą' : openedDraft ? 'Juodraštis' : 'Naujas žaidimas';
 if (draftStatusEl) {
@@ -90,6 +94,11 @@ function scheduleDraftSave() {
 }
 
 showGame(initialGame).then(() => {
+  // A saved game or a draft gets the shared rules only on request (a new
+  // game already started with them).
+  if (gameId || openedDraft) {
+    QuizGameEditorCore.addDefaultRulesButton(stagesContainer, QuizGameStorage.loadDefaultRules());
+  }
   if (gameId) return;
   // What the form holds untouched: until it changes, there's no draft yet.
   lastDraftJson = JSON.stringify(collectPayload(stagesContainer, nameInput));

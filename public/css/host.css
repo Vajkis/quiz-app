@@ -734,6 +734,16 @@ body:has(#host-bar) {
   margin-top: 12px;
 }
 
+.rules-body .add-rule-btn,
+.rules-body .use-default-rules-btn {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.use-default-rules-btn {
+  margin-left: 8px;
+}
+
 .rules-container {
   display: flex;
   flex-direction: column;

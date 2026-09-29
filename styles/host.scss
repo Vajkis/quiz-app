@@ -605,6 +605,17 @@ $season-control-height: 32px;
   margin-top: 12px;
 }
 
+// "+ Taisyklė" and "Naudoti bendras taisykles" side by side.
+.rules-body .add-rule-btn,
+.rules-body .use-default-rules-btn {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.use-default-rules-btn {
+  margin-left: 8px;
+}
+
 .rules-container {
   display: flex;
   flex-direction: column;

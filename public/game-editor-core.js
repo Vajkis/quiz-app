@@ -537,51 +537,120 @@
   // collapses just like a stage's — and starts collapsed. Created here,
   // right before the stages, so both editors get it without markup of
   // their own.
-  function renderRules(stagesContainer, rules) {
-    let card = stagesContainer.parentNode.querySelector('.rules-card');
-    if (!card) {
-      card = document.createElement('div');
-      card.className = 'stage-card rules-card';
-      card.innerHTML = `
-        <div class="stage-header rules-header">
-          <button type="button" class="toggle-stage-btn" title="Suskleisti/išskleisti taisykles"><span class="chevron-icon"></span></button>
-          <span class="rules-title">Taisyklės <span class="rules-count"></span></span>
+  // The collapsible rules card itself, filled with `rules`; card.setRules()
+  // refills it. Also used on its own by the games list, for the rules every
+  // new game starts with (title: "Bendros taisyklės").
+  function createRulesCard(rules, title = 'Taisyklės') {
+    const card = document.createElement('div');
+    card.className = 'stage-card rules-card';
+    card.innerHTML = `
+      <div class="stage-header rules-header">
+        <button type="button" class="toggle-stage-btn" title="Suskleisti/išskleisti taisykles"><span class="chevron-icon"></span></button>
+        <span class="rules-title"><span class="rules-title-text"></span> <span class="rules-count"></span></span>
+      </div>
+      <div class="stage-body">
+        <div class="rules-body">
+          <div class="rules-container"></div>
+          <button type="button" class="add-rule-btn secondary-btn">+ Taisyklė</button>
         </div>
-        <div class="stage-body">
-          <div class="rules-body">
-            <div class="rules-container"></div>
-            <button type="button" class="add-rule-btn secondary-btn">+ Taisyklė</button>
-          </div>
-        </div>
-      `;
-      stagesContainer.parentNode.insertBefore(card, stagesContainer);
-      attachCollapse(
-        card.querySelector('.toggle-stage-btn'),
-        card.querySelector('.stage-body'),
-        true
-      );
-      const container = card.querySelector('.rules-container');
-      card.querySelector('.add-rule-btn').addEventListener('click', () => {
-        const row = createRuleRow('');
-        container.appendChild(row);
-        row.querySelector('.rule-input').focus();
-      });
-      // How many rules there are, so it shows even while collapsed.
-      const count = card.querySelector('.rules-count');
-      card.syncCount = () => {
-        const n = collectRules(card).length;
-        count.textContent = n ? `(${n})` : '';
-      };
-      card.addEventListener('input', card.syncCount);
-      new MutationObserver(card.syncCount).observe(container, {
-        childList: true
-      });
-    }
+      </div>
+    `;
+    card.querySelector('.rules-title-text').textContent = title;
+    attachCollapse(
+      card.querySelector('.toggle-stage-btn'),
+      card.querySelector('.stage-body'),
+      true
+    );
     const container = card.querySelector('.rules-container');
-    container.innerHTML = '';
-    const list = rules && rules.length ? rules : [''];
-    list.forEach((rule) => container.appendChild(createRuleRow(rule)));
-    card.syncCount();
+    card.querySelector('.add-rule-btn').addEventListener('click', () => {
+      const row = createRuleRow('');
+      container.appendChild(row);
+      row.querySelector('.rule-input').focus();
+    });
+    // How many rules there are, so it shows even while collapsed.
+    const count = card.querySelector('.rules-count');
+    card.syncCount = () => {
+      const n = collectRules(card).length;
+      count.textContent = n ? `(${n})` : '';
+    };
+    card.addEventListener('input', card.syncCount);
+    new MutationObserver(card.syncCount).observe(container, {
+      childList: true
+    });
+    card.setRules = (list) => {
+      container.innerHTML = '';
+      (list && list.length ? list : ['']).forEach((rule) =>
+        container.appendChild(createRuleRow(rule))
+      );
+      card.syncCount();
+    };
+    card.setRules(rules);
+    return card;
+  }
+
+  // "Bendros taisyklės" on the games list: a rules card put first in `el`,
+  // saved as it's edited — save(rules) is the page's own (the server, or
+  // this browser's storage) and may return a promise; statusEl says how
+  // it went.
+  function mountDefaultRules(el, rules, save, statusEl) {
+    const card = createRulesCard(rules, 'Bendros taisyklės');
+    el.insertBefore(card, el.firstChild);
+    let last = JSON.stringify(collectRules(card));
+    let timer = null;
+    async function flush() {
+      clearTimeout(timer);
+      timer = null;
+      const list = collectRules(card);
+      const json = JSON.stringify(list);
+      if (json === last) return;
+      last = json;
+      try {
+        await save(list);
+        if (statusEl) statusEl.textContent = 'Taisyklės išsaugotos';
+      } catch (err) {
+        last = null; // try again on the next change
+        if (statusEl) statusEl.textContent = (err && err.message) || 'Nepavyko išsaugoti taisyklių';
+      }
+    }
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(flush, 600);
+    };
+    card.addEventListener('input', schedule);
+    new MutationObserver(schedule).observe(card.querySelector('.rules-container'), {
+      childList: true
+    });
+    // Leaving before the delay's up still saves what was typed last.
+    global.addEventListener('pagehide', () => {
+      if (timer) flush();
+    });
+    return card;
+  }
+
+  // A saved game or a draft being edited doesn't get the shared rules on
+  // its own (only a brand-new game does) — this button, next to
+  // "+ Taisyklė", puts them in instead of the game's current ones.
+  function addDefaultRulesButton(stagesContainer, defaultRules) {
+    if (!defaultRules || !defaultRules.length) return;
+    const card = stagesContainer.parentNode.querySelector('.rules-card');
+    if (!card || card.querySelector('.use-default-rules-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'use-default-rules-btn secondary-btn';
+    btn.textContent = 'Naudoti bendras taisykles';
+    btn.addEventListener('click', () => {
+      const current = collectRules(card);
+      if (JSON.stringify(current) === JSON.stringify(defaultRules)) return;
+      if (current.length && !confirm('Pakeisti šio žaidimo taisykles bendrosiomis?')) return;
+      card.setRules(defaultRules);
+    });
+    card.querySelector('.add-rule-btn').after(btn);
+  }
+
+  function renderRules(stagesContainer, rules) {
+    const card = stagesContainer.parentNode.querySelector('.rules-card');
+    if (card) card.setRules(rules);
+    else stagesContainer.parentNode.insertBefore(createRulesCard(rules), stagesContainer);
   }
 
   function collectRules(card) {
@@ -740,6 +809,10 @@
     createStageCard,
     renderGame,
     collectPayload,
+    createRulesCard,
+    collectRules,
+    mountDefaultRules,
+    addDefaultRulesButton,
     chooseImportGame
   };
 })(window);

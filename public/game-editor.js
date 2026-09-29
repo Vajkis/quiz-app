@@ -56,6 +56,10 @@ const initialGame = initialDataEl
   ? JSON.parse(initialDataEl.textContent)
   : null;
 renderGame(stagesContainer, nameInput, initialGame);
+QuizGameEditorCore.addDefaultRulesButton(
+  stagesContainer,
+  JSON.parse(document.getElementById('default-rules-data').textContent)
+);
 
 // A new game is saved as a draft while it's filled in (see PUT
 // /api/host/drafts): nothing checked, so a half-made one is kept too. It's

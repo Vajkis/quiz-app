@@ -177,6 +177,20 @@ const YES_NO_OPTIONS = [
 // id-less import — gets a fresh one, unique within the game. So editing
 // never reshuffles ids, and a team's history (keyed by stage id) keeps
 // pointing at the same stage even after it's renamed or moved.
+// A list of rules as typed: blank lines dropped, anything else ignored.
+function normalizeRules(rules) {
+  return (Array.isArray(rules) ? rules : [])
+    .map((r) => (typeof r === 'string' ? r.trim() : ''))
+    .filter(Boolean);
+}
+
+// The rules every new game starts with ("Bendros taisyklės" on the games
+// page), kept in settings.json. A game gets a copy when it's created —
+// changing them later doesn't touch games already made.
+function loadDefaultRules() {
+  return normalizeRules(loadSettings().defaultRules);
+}
+
 function normalizeGamePayload(body) {
   const name = (body.name || '').trim();
   if (!name) return { error: 'Įvesk žaidimo pavadinimą' };
@@ -345,9 +359,7 @@ function normalizeGamePayload(body) {
   // The game's rules, one per line, shown on their own slide right after
   // the game's name — optional; blank lines are dropped.
   const game = { name };
-  const rules = (Array.isArray(body.rules) ? body.rules : [])
-    .map((r) => (typeof r === 'string' ? r.trim() : ''))
-    .filter(Boolean);
+  const rules = normalizeRules(body.rules);
   if (rules.length) game.rules = rules;
   game.stages = stages;
   return { game };
@@ -1464,6 +1476,7 @@ function renderGamesList(res, error) {
     title: 'Quiz - Žaidimai',
     gameList,
     draftList,
+    defaultRules: loadDefaultRules(),
     error
   });
 }
@@ -1536,8 +1549,10 @@ app.get('/host/games/new', (req, res) => {
     // then saves the game under it.
     // (Not a draft's either — the draft is saved under it.)
     newGameId: generateId({ ...games, ...drafts }),
-    game: null,
+    // A new game starts with the shared rules, if there are any.
+    game: loadDefaultRules().length ? { rules: loadDefaultRules() } : null,
     isDraft: false,
+    defaultRules: [],
     nativeFilePicker: canUseNativeFilePicker(req)
   });
 });
@@ -1553,6 +1568,9 @@ app.get('/host/drafts/:draftId/edit', (req, res) => {
     newGameId: req.params.draftId,
     game: draft.game,
     isDraft: true,
+    // For "Naudoti bendras taisykles" — a draft or a saved game only gets
+    // them on request.
+    defaultRules: loadDefaultRules(),
     nativeFilePicker: canUseNativeFilePicker(req)
   });
 });
@@ -1566,6 +1584,7 @@ app.get('/host/games/:gameId/edit', (req, res) => {
     newGameId: null,
     game,
     isDraft: false,
+    defaultRules: loadDefaultRules(),
     nativeFilePicker: canUseNativeFilePicker(req)
   });
 });
@@ -1666,6 +1685,16 @@ app.put('/api/host/drafts/:draftId', (req, res) => {
     return res.status(400).json({ error: 'Netinkamas juodraštis' });
   drafts[draftId] = { game: req.body, updatedAt: Date.now() };
   saveDrafts();
+  res.json({ ok: true });
+});
+
+// "Bendros taisyklės" on the games page, saved as they're typed.
+app.put('/api/host/default-rules', (req, res) => {
+  const rules = normalizeRules(req.body && req.body.rules);
+  const settings = loadSettings();
+  if (rules.length) settings.defaultRules = rules;
+  else delete settings.defaultRules;
+  saveSettings(settings);
   res.json({ ok: true });
 });
 

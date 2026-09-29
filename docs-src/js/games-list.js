@@ -3,6 +3,15 @@ const errorEl = document.getElementById('games-error');
 const exportAllBtn = document.getElementById('export-all-btn');
 const importInput = document.getElementById('import-games-input');
 
+// "Bendros taisyklės": the rules every new game starts with (see
+// editor.js), saved in this browser as they're edited.
+QuizGameEditorCore.mountDefaultRules(
+  document.getElementById('default-rules'),
+  QuizGameStorage.loadDefaultRules(),
+  (rules) => QuizGameStorage.saveDefaultRules(rules),
+  document.getElementById('default-rules-status')
+);
+
 const draftsSection = document.getElementById('drafts-section');
 const draftListEl = document.getElementById('draft-list');
 

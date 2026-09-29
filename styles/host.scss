@@ -819,6 +819,15 @@ $clip-control-height: 38px;
   }
 }
 
+// The question's picture preview, under its field (reuses .option-img-thumb).
+.question-img-thumb-wrap {
+  margin-bottom: 8px;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
 .option-img-thumb {
   display: block;
   max-width: 100%;
@@ -1468,6 +1477,11 @@ $clip-control-height: 38px;
     flex: 1;
     min-width: 0;
     margin-bottom: 0;
+  }
+
+  // a question's picture or music field, while the other one is filled in
+  &[hidden] {
+    display: none;
   }
 }
 

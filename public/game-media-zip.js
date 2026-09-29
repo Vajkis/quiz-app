@@ -20,6 +20,12 @@
   const MIME_BY_EXT = {
     jpg: 'image/jpeg',
     jpeg: 'image/jpeg',
+    // Also JPEG — Windows saves some downloads (e.g. from Gemini) as .jfif,
+    // and the browser's file picker happily takes them.
+    jfif: 'image/jpeg',
+    jpe: 'image/jpeg',
+    pjpeg: 'image/jpeg',
+    pjp: 'image/jpeg',
     png: 'image/png',
     gif: 'image/gif',
     webp: 'image/webp',

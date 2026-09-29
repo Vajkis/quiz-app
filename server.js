@@ -924,22 +924,33 @@ app.get('/api/local-audio', (req, res) => {
 // Not host-gated: the view screen loads them during play.
 const MEDIA_DIR = path.join(__dirname, 'data', 'media');
 const MEDIA_MAX_BYTES = 100 * 1024 * 1024;
-const MEDIA_EXTENSIONS = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/gif': '.gif',
-  'image/webp': '.webp',
-  'image/svg+xml': '.svg',
-  'audio/mpeg': '.mp3',
-  'audio/mp4': '.m4a',
-  'audio/x-m4a': '.m4a',
-  'audio/aac': '.aac',
-  'audio/wav': '.wav',
-  'audio/x-wav': '.wav',
-  'audio/ogg': '.ogg',
-  'audio/flac': '.flac',
-  'audio/webm': '.webm'
-};
+// What a file really is, read from its first bytes (every picture/audio
+// format starts with a fixed signature) — not from its name or the type the
+// browser reports, which can be missing or wrong (e.g. a JPEG saved as
+// .jfif). Returns the extension it's stored under, or null if it's neither.
+function detectMediaExtension(buf) {
+  if (buf.length < 4) return null;
+  const ascii = (start, end) => buf.toString('latin1', start, end);
+
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return '.jpg';
+  if (buf.toString('hex', 0, 8) === '89504e470d0a1a0a') return '.png';
+  if (ascii(0, 4) === 'GIF8') return '.gif';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return '.webp';
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WAVE') return '.wav';
+  if (ascii(0, 4) === 'OggS') return '.ogg';
+  if (ascii(0, 4) === 'fLaC') return '.flac';
+  if (buf.readUInt32BE(0) === 0x1a45dfa3) return '.webm';
+  if (ascii(4, 8) === 'ftyp') return '.m4a';
+  if (ascii(0, 3) === 'ID3') return '.mp3';
+  // No header, straight into audio frames: 11 sync bits, then the layer
+  // bits tell AAC (00) from MP3 (anything else).
+  if (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0) {
+    return (buf[1] & 0x06) === 0 ? '.aac' : '.mp3';
+  }
+  // SVG is text: an <svg> tag near the top (after any <?xml ...?>/comments).
+  if (/<svg[\s>]/i.test(ascii(0, 1024))) return '.svg';
+  return null;
+}
 
 app.use(
   '/media',
@@ -950,14 +961,13 @@ app.post(
   '/api/host/upload',
   express.raw({ type: () => true, limit: MEDIA_MAX_BYTES }),
   (req, res) => {
-    const type = (req.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
-    const ext = MEDIA_EXTENSIONS[type];
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0)
+      return res.status(400).json({ error: 'Failas tuščias' });
+    const ext = detectMediaExtension(req.body);
     if (!ext)
       return res
         .status(400)
         .json({ error: 'Galima įkelti tik nuotraukas ir garso failus' });
-    if (!Buffer.isBuffer(req.body) || req.body.length === 0)
-      return res.status(400).json({ error: 'Failas tuščias' });
 
     // Same shape as the ids generateId makes — and never anything that
     // could climb out of MEDIA_DIR.

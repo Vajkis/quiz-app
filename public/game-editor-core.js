@@ -151,6 +151,7 @@
         <button type="button" class="remove-question-btn" title="Pašalinti klausimą">×</button>
       </div>
       <input type="text" class="question-img-input" placeholder="Klausimo nuotraukos URL (nebūtina)">
+      <div class="question-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></div>
       <input type="text" class="question-audio-input" placeholder="Klausimo muzikos/garso URL (nebūtina)">
       <div class="audio-clip-controls" hidden>
         <audio class="question-audio-preview" controls></audio>
@@ -174,9 +175,22 @@
     card.querySelector('.question-text-input').value =
       (question && question.question) || '';
     if (question && question.id) card.dataset.questionId = question.id;
-    card.querySelector('.question-img-input').value =
-      (question && question.img) || '';
-    attachFilePicker(card.querySelector('.question-img-input'), 'image');
+    const imgInput = card.querySelector('.question-img-input');
+    imgInput.value = (question && question.img) || '';
+    attachFilePicker(imgInput, 'image');
+
+    // A small preview of the question's picture under its field, the same
+    // thumbnail a picture option gets (see createOptionRow).
+    const imgThumbWrap = card.querySelector('.question-img-thumb-wrap');
+    const imgThumb = imgThumbWrap.querySelector('img');
+    function syncQuestionImage() {
+      const url = imgInput.value.trim();
+      const src = url ? resolveAudioSrc(url) : '';
+      imgThumbWrap.hidden = !src;
+      if (src && imgThumb.getAttribute('src') !== src) imgThumb.src = src;
+    }
+    syncQuestionImage();
+    imgInput.addEventListener('change', syncQuestionImage);
     card
       .querySelector('.remove-question-btn')
       .addEventListener('click', () => card.remove());
@@ -208,6 +222,23 @@
     }
     syncAudioPreview();
     audioInput.addEventListener('change', syncAudioPreview);
+
+    // A question has a picture or music, not both: once one is filled in,
+    // the other's field (with its 📁 button, if any) goes away until it's
+    // cleared again. One that somehow has both keeps both, to clear one.
+    const imgField = imgInput.closest('.file-url-field') || imgInput;
+    const audioField = audioInput.closest('.file-url-field') || audioInput;
+    function syncMediaFields() {
+      const hasImg = !!imgInput.value.trim();
+      const hasAudio = !!audioInput.value.trim();
+      imgField.hidden = !hasImg && hasAudio;
+      audioField.hidden = !hasAudio && hasImg;
+    }
+    syncMediaFields();
+    [imgInput, audioInput].forEach((input) => {
+      input.addEventListener('input', syncMediaFields);
+      input.addEventListener('change', syncMediaFields);
+    });
 
     card.querySelector('.set-audio-start-btn').addEventListener('click', () => {
       audioStartInput.value = Math.floor(audioPreview.currentTime);

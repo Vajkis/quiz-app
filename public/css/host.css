@@ -917,6 +917,13 @@ body:has(#host-bar) {
   display: none;
 }
 
+.question-img-thumb-wrap {
+  margin-bottom: 8px;
+}
+.question-img-thumb-wrap[hidden] {
+  display: none;
+}
+
 .option-img-thumb {
   display: block;
   max-width: 100%;
@@ -1507,6 +1514,9 @@ body:has(#host-bar) {
   flex: 1;
   min-width: 0;
   margin-bottom: 0;
+}
+.file-url-field[hidden] {
+  display: none;
 }
 
 .option-row .file-url-field {

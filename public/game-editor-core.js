@@ -188,7 +188,7 @@
         <button type="button" class="add-chain-link-btn secondary-btn">+ Užuomina</button>
       </div>
       <div class="bonus-section">
-        <button type="button" class="add-bonus-btn secondary-btn">+ Papildomas atsakymas</button>
+        <button type="button" class="add-bonus-btn secondary-btn">+ Papildomas klausimas</button>
         <div class="bonus-fields">
           <div class="bonus-header">
             <span class="bonus-title">Papildomas klausimas: +1 taškas, tik jei pagrindinis teisingas</span>
@@ -405,7 +405,7 @@
       questionTextInput.placeholder =
         type === 'chain'
           ? 'Grandinėlės pavadinimas (nebūtina)'
-          : 'Klausimo tekstas';
+          : 'Klausimo tekstas (nebūtina, jei yra nuotrauka ar garsas)';
       optionsContainer
         .querySelectorAll('.option-row')
         .forEach((row) => row.syncOptionImage());

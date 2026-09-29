@@ -15,6 +15,26 @@ document.querySelectorAll('.game-delete-btn').forEach((btn) => {
   });
 });
 
+document.querySelectorAll('.draft-delete-btn').forEach((btn) => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!confirm('Ištrinti šį juodraštį?')) return;
+
+    const res = await fetch(`/api/host/drafts/${btn.dataset.id}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      alert(data.error || 'Nepavyko ištrinti juodraščio');
+      return;
+    }
+
+    btn.closest('.room-row').remove();
+    // the last draft gone: its heading and the divider under it go too
+    const section = document.getElementById('drafts-section');
+    if (section && !section.querySelector('.draft-row')) section.remove();
+  });
+});
+
 // ⭳ per game and "Eksportuoti visus": fetched from the server as stored
 // (with ids and the correct option named by id), turned portable — no ids,
 // correct option first, like every exported file — and exported as .json,

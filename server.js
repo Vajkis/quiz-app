@@ -91,6 +91,18 @@ function saveGames() {
   saveJsonFile(GAMES_FILE, games);
 }
 
+// New games being written: the editor saves one here as it's filled in —
+// as-is, nothing checked — so leaving the page (or the server stopping)
+// loses nothing. Kept apart from games.json, so a half-made game can never
+// be picked for a room. Keyed by the id reserved for the game (its media
+// folder too); saving it as a game takes that id and deletes the draft.
+const DRAFTS_FILE = path.join(__dirname, 'data', 'drafts.json');
+let drafts = loadJsonFile(DRAFTS_FILE);
+
+function saveDrafts() {
+  saveJsonFile(DRAFTS_FILE, drafts);
+}
+
 // Games saved before stages had ids get them once, on startup.
 function ensureStageIds() {
   let changed = false;
@@ -138,9 +150,10 @@ function questionType(q) {
 }
 
 // What a question is called wherever it's listed — a chain needs no text of
-// its own, its clues being the question.
+// its own, its clues being the question. A picture or song question with no
+// text stays blank: the picture or the song is the question.
 function questionTitle(q) {
-  return q.question || 'Grandinėlė';
+  return q.question || (q.type === 'chain' ? 'Grandinėlė' : '');
 }
 
 // A yes/no question's two answers, always in this order — never shuffled.
@@ -194,10 +207,19 @@ function normalizeGamePayload(body) {
       if (!q) return { error: 'Kiekvienas klausimas turi turėti tekstą' };
       const type = questionType(q);
       const questionText = (q.question || '').trim();
-      // A chain's clues are its question — a title of its own is optional.
-      if (!questionText && type !== 'chain')
-        return { error: 'Kiekvienas klausimas turi turėti tekstą' };
-      const label = questionText || 'Grandinėlė';
+      // A chain's clues are its question, and a picture or a song can be one
+      // too (the stage name says what to answer) — then the text is optional.
+      const hasMedia = !!((q.img || '').trim() || (q.audio || '').trim());
+      if (!questionText && type !== 'chain' && !hasMedia)
+        return {
+          error:
+            'Kiekvienas klausimas turi turėti tekstą, nuotrauką arba garso įrašą'
+        };
+      const label =
+        questionText ||
+        (type === 'chain'
+          ? 'Grandinėlė'
+          : `${stageName} nr. ${questions.length + 1}`);
       const chainLabel = questionText ? `Grandinėlė "${questionText}"` : 'Grandinėlė';
       const question = {
         id: pickId(q.id, usedQuestionIds),
@@ -1414,14 +1436,40 @@ app.get('/host', (req, res) => {
   renderHostDashboard(req, res);
 });
 
-app.get('/host/games', (req, res) => {
+// The games page's two lists: drafts (newest first) above the saved games.
+// A draft is whatever the editor had, so any part of it may be missing.
+function renderGamesList(res, error) {
   const gameList = Object.entries(games).map(([id, g]) => ({
     id,
     name: g.name,
     stageCount: g.stages.length,
     questionCount: g.stages.reduce((n, s) => n + s.questions.length, 0)
   }));
-  res.render('host/games', { title: 'Quiz - Žaidimai', gameList, error: null });
+  const draftList = Object.entries(drafts)
+    .map(([id, d]) => {
+      const stages = Array.isArray(d.game && d.game.stages) ? d.game.stages : [];
+      return {
+        id,
+        name: (d.game && d.game.name) || '',
+        stageCount: stages.length,
+        questionCount: stages.reduce(
+          (n, s) => n + ((s && Array.isArray(s.questions) && s.questions.length) || 0),
+          0
+        ),
+        updatedAt: d.updatedAt || 0
+      };
+    })
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  res.status(error ? 404 : 200).render('host/games', {
+    title: 'Quiz - Žaidimai',
+    gameList,
+    draftList,
+    error
+  });
+}
+
+app.get('/host/games', (req, res) => {
+  renderGamesList(res, null);
 });
 
 // Regroups each team's seasons -> game -> stage breakdown (see
@@ -1486,34 +1534,38 @@ app.get('/host/games/new', (req, res) => {
     // Reserved now so files uploaded before the first save (📁, a .zip
     // import) already go in this game's media folder; POST /api/games
     // then saves the game under it.
-    newGameId: generateId(games),
+    // (Not a draft's either — the draft is saved under it.)
+    newGameId: generateId({ ...games, ...drafts }),
     game: null,
+    isDraft: false,
+    nativeFilePicker: canUseNativeFilePicker(req)
+  });
+});
+
+// A draft goes back into the same new-game editor, under the id it was
+// saved with (so its uploads stay in the same media folder).
+app.get('/host/drafts/:draftId/edit', (req, res) => {
+  const draft = drafts[req.params.draftId];
+  if (!draft) return renderGamesList(res, 'Juodraštis nerastas');
+  res.render('host/game-editor', {
+    title: 'Quiz - Juodraštis',
+    gameId: null,
+    newGameId: req.params.draftId,
+    game: draft.game,
+    isDraft: true,
     nativeFilePicker: canUseNativeFilePicker(req)
   });
 });
 
 app.get('/host/games/:gameId/edit', (req, res) => {
   const game = games[req.params.gameId];
-  if (!game) {
-    const gameList = Object.entries(games).map(([id, g]) => ({
-      id,
-      name: g.name,
-      stageCount: g.stages.length,
-      questionCount: g.stages.reduce((n, s) => n + s.questions.length, 0)
-    }));
-    return res
-      .status(404)
-      .render('host/games', {
-        title: 'Quiz - Žaidimai',
-        gameList,
-        error: 'Žaidimas nerastas'
-      });
-  }
+  if (!game) return renderGamesList(res, 'Žaidimas nerastas');
   res.render('host/game-editor', {
     title: 'Quiz - Redaguoti žaidimą',
     gameId: req.params.gameId,
     newGameId: null,
     game,
+    isDraft: false,
     nativeFilePicker: canUseNativeFilePicker(req)
   });
 });
@@ -1591,10 +1643,39 @@ app.post('/api/games', (req, res) => {
     GAME_ID_PATTERN.test(requested) &&
     !games[requested]
       ? requested
-      : generateId(games);
+      : generateId({ ...games, ...drafts });
   games[gameId] = result.game;
   saveGames();
+  // Saved as a game now, so its draft (under the same reserved id) goes.
+  if (typeof requested === 'string' && drafts[requested]) {
+    delete drafts[requested];
+    saveDrafts();
+  }
   res.json({ gameId });
+});
+
+// The editor's autosave: whatever it has, stored as-is — no checks, a
+// draft is allowed to be unfinished. Only the id's shape and the payload
+// being an object are checked; the game itself is checked when it's saved
+// as a game (POST /api/games).
+app.put('/api/host/drafts/:draftId', (req, res) => {
+  const draftId = req.params.draftId;
+  if (!GAME_ID_PATTERN.test(draftId) || games[draftId])
+    return res.status(400).json({ error: 'Netinkamas juodraščio id' });
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body))
+    return res.status(400).json({ error: 'Netinkamas juodraštis' });
+  drafts[draftId] = { game: req.body, updatedAt: Date.now() };
+  saveDrafts();
+  res.json({ ok: true });
+});
+
+app.delete('/api/host/drafts/:draftId', (req, res) => {
+  const draftId = req.params.draftId;
+  if (!drafts[draftId])
+    return res.status(404).json({ error: 'Juodraštis nerastas' });
+  delete drafts[draftId];
+  saveDrafts();
+  res.json({ ok: true });
 });
 
 app.put('/api/games/:gameId', (req, res) => {

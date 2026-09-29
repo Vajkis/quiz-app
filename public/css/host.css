@@ -1592,6 +1592,16 @@ body:has(#host-bar) {
   margin: 16px 0;
 }
 
+.section-divider.games-divider {
+  margin: 16px 0 4px;
+}
+
+#draft-status {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
 .team-status-divider + .team-status {
   margin-top: 0;
 }

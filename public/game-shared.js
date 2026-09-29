@@ -69,9 +69,15 @@
         if (!q) return { error: 'Kiekvienas klausimas turi turėti tekstą' };
         const type = questionType(q);
         const questionText = (q.question || '').trim();
-        // A chain's clues are its question — a title of its own is optional.
-        if (!questionText && type !== 'chain') return { error: 'Kiekvienas klausimas turi turėti tekstą' };
-        const label = questionText || 'Grandinėlė';
+        // A chain's clues are its question, and a picture or a song can be
+        // one too (the stage name says what to answer) — then the text is
+        // optional.
+        const hasMedia = !!((q.img || '').trim() || (q.audio || '').trim());
+        if (!questionText && type !== 'chain' && !hasMedia) {
+          return { error: 'Kiekvienas klausimas turi turėti tekstą, nuotrauką arba garso įrašą' };
+        }
+        const label =
+          questionText || (type === 'chain' ? 'Grandinėlė' : `${stageName} nr. ${questions.length + 1}`);
         const chainLabel = questionText ? `Grandinėlė "${questionText}"` : 'Grandinėlė';
         const question = { type, question: questionText };
 

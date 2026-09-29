@@ -155,7 +155,8 @@ socket.on('room-closed', () => {
 socket.on('question', (q) => {
   hideAll(`question-${q.index}`);
   questionAreaEl.hidden = false;
-  questionTextEl.textContent = `${q.number}. ${q.question}`;
+  // No text (a picture or song question): just which question it is.
+  questionTextEl.textContent = q.question ? `${q.number}. ${q.question}` : `${q.number} klausimas`;
 
   audioEl.src = q.audio ? resolveAudioSrc(q.audio) : '';
   audioClipMode = false;

@@ -223,7 +223,7 @@ function renderQuestion(q, socket) {
 
   const p = document.createElement('p');
   p.className = 'question-text';
-  p.textContent = `Klausimas ${q.number}`;
+  p.textContent = `${q.number} klausimas`;
   quizEl.appendChild(p);
 
   // Explicit index: a debounced typed answer can fire after the host has
@@ -260,7 +260,7 @@ function renderPreviousQuestions(q, socket, openIndexes) {
     if (openIndexes.has(prev.index)) details.open = true;
 
     const summary = document.createElement('summary');
-    summary.textContent = `Klausimas ${prev.number}`;
+    summary.textContent = `${prev.number} klausimas`;
     const status = document.createElement('span');
     function showStatus(selection) {
       const answered = isAnswered(selection);

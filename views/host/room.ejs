@@ -13,8 +13,8 @@
   <p id="stage-info">Etapas <%= stageNumber %> / <%= stageCount %>: <strong><%= stageName %></strong></p>
 
   <div class="question">
-    <% if (currentQuestionText) { %>
-      <p><%= currentQuestionNumber %>. <%= currentQuestionText %></p>
+    <% if (currentQuestionText != null) { %>
+      <p><%= currentQuestionText ? currentQuestionNumber + '. ' + currentQuestionText : currentQuestionNumber + ' klausimas' %></p>
       <% if (currentQuestionType === 'text') { %>
         <p class="question-type-label">Įvedamas atsakymas (be variantų)</p>
       <% } else if (currentQuestionType === 'yesno') { %>

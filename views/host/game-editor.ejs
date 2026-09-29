@@ -6,9 +6,9 @@
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
 </head>
-<body data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
+<body data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-draft="<%= isDraft ? 'true' : '' %>"data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
 <div id="app">
-  <h1><%= gameId ? 'Redaguoti žaidimą' : 'Naujas žaidimas' %></h1>
+  <h1><%= gameId ? 'Redaguoti žaidimą' : isDraft ? 'Juodraštis' : 'Naujas žaidimas' %></h1>
   <a class="option" href="/host/games">← Atgal į žaidimus</a>
 
   <% if (game) { %>
@@ -29,6 +29,9 @@
     </div>
 
     <p id="editor-error"></p>
+    <% if (!gameId) { %>
+      <p id="draft-status"><%= isDraft ? 'Juodraštis išsaugotas' : 'Pildant žaidimas automatiškai saugomas kaip juodraštis' %></p>
+    <% } %>
   </div>
 </div>
 <script src="/vendor/jszip.min.js"></script>

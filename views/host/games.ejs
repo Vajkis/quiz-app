@@ -23,6 +23,22 @@
 
   <% if (gameList.length) { %>
     <button type="button" id="export-all-games-btn" class="secondary-btn">⭳ Eksportuoti visus</button>
+  <% } %>
+
+  <% if (draftList.length) { %>
+    <div id="drafts-section">
+      <p class="section-label">Juodraščiai:</p>
+      <% draftList.forEach(function(d) { %>
+        <div class="room-row draft-row">
+          <a class="option" href="/host/drafts/<%= d.id %>/edit"><%= d.name || 'Be pavadinimo' %> (<%= d.stageCount %> etapai, <%= d.questionCount %> klausimai)</a>
+          <button class="room-close-btn draft-delete-btn" data-id="<%= d.id %>" title="Ištrinti juodraštį">×</button>
+        </div>
+      <% }); %>
+      <% if (gameList.length) { %><hr class="section-divider games-divider"><% } %>
+    </div>
+  <% } %>
+
+  <% if (gameList.length) { %>
     <p class="section-label">Sukurti žaidimai:</p>
     <% gameList.forEach(function(g) { %>
       <div class="room-row">

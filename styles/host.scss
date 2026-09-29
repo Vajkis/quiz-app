@@ -1575,6 +1575,19 @@ $clip-control-height: 38px;
   margin: 16px 0;
 }
 
+// Games page: between the drafts and the saved games.
+.section-divider.games-divider {
+  margin: 16px 0 4px;
+}
+
+// Game editor: "Juodraštis išsaugotas" under the buttons, while a new game
+// is being filled in.
+#draft-status {
+  margin-top: 8px;
+  font-size: 14px;
+  color: v.$color-muted;
+}
+
 .team-status-divider + .team-status {
   margin-top: 0;
 }

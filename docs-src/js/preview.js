@@ -142,7 +142,9 @@ function hideAll() {
 function showQuestion(screen) {
   const q = screen.question;
   questionAreaEl.hidden = false;
-  questionTextEl.textContent = `${screen.number}. ${q.question || 'Grandinėlė'}`;
+  // No text (a picture or song question): just which question it is.
+  const title = q.question || (q.type === 'chain' ? 'Grandinėlė' : '');
+  questionTextEl.textContent = title ? `${screen.number}. ${title}` : `${screen.number} klausimas`;
 
   const audioSrc = resolveMedia(q.audio);
   clipStart = q.audioStart || 0;
@@ -239,7 +241,7 @@ function showStageAnswers(stage, shownOptions) {
     const box = document.createElement('div');
     box.className = 'question';
     const questionP = document.createElement('p');
-    questionP.textContent = `${i + 1}. ${q.question || 'Grandinėlė'}`;
+    questionP.textContent = `${i + 1}. ${q.question || (q.type === 'chain' ? 'Grandinėlė' : '')}`;
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
     const answer = correctAnswerText(q, shownOptions[i]);

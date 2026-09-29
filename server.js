@@ -126,9 +126,34 @@ function saveSettings(settings) {
   saveJsonFile(SETTINGS_FILE, settings);
 }
 
+// A question's kind: 'choice' (options, one correct), 'text' (a single
+// option, whose text players type in), 'yesno' (fixed Taip / Ne, answer
+// 'yes' or 'no'), or 'chain' (several clues, each with its own typed answer,
+// in order). Games saved before there was a type field are told apart by
+// their option count, as they always were. Mirrors game-shared.js.
+const QUESTION_TYPES = ['choice', 'text', 'yesno', 'chain'];
+function questionType(q) {
+  if (QUESTION_TYPES.includes(q.type)) return q.type;
+  return Array.isArray(q.options) && q.options.length === 1 ? 'text' : 'choice';
+}
+
+// What a question is called wherever it's listed — a chain needs no text of
+// its own, its clues being the question.
+function questionTitle(q) {
+  return q.question || 'Grandinėlė';
+}
+
+// A yes/no question's two answers, always in this order — never shuffled.
+const YES_NO_OPTIONS = [
+  { id: 'yes', text: 'Taip' },
+  { id: 'no', text: 'Ne' }
+];
+
 // Turns an editor form submission ({ name, stages: [{ id?, name, questions:
-// [{ id?, question, img, audio, audioStart, audioEnd, options: [{ id?, text,
-// img }] }] }] }) into the games.json shape. The first option in the array
+// [{ id?, type, question, img, audio, audioStart, audioEnd, bonus?: {
+// question, answer }, and by type: options: [{ id?, text, img }]
+// (choice/text), answer: 'yes'|'no' (yesno) or links: [{ clue, answer }]
+// (chain) }] }] }) into the games.json shape. The first option in the array
 // is always taken as the correct answer (see the editor's createOptionRow).
 //
 // Ids are only ever created here, on the server — never by the GitHub Pages
@@ -166,69 +191,99 @@ function normalizeGamePayload(body) {
 
     const questions = [];
     for (const q of stage.questions) {
-      const questionText = ((q && q.question) || '').trim();
-      if (!questionText)
+      if (!q) return { error: 'Kiekvienas klausimas turi turėti tekstą' };
+      const type = questionType(q);
+      const questionText = (q.question || '').trim();
+      // A chain's clues are its question — a title of its own is optional.
+      if (!questionText && type !== 'chain')
         return { error: 'Kiekvienas klausimas turi turėti tekstą' };
-      if (!q || !Array.isArray(q.options) || q.options.length < 1) {
-        return {
-          error: `Klausimas "${questionText}" turi turėti bent 1 atsakymo variantą (vienas = atsakymas įvedamas)`
-        };
+      const label = questionText || 'Grandinėlė';
+      const chainLabel = questionText ? `Grandinėlė "${questionText}"` : 'Grandinėlė';
+      const question = {
+        id: pickId(q.id, usedQuestionIds),
+        type,
+        question: questionText
+      };
+
+      let optionImgs = [];
+      if (type === 'choice' || type === 'text') {
+        const raw = Array.isArray(q.options) ? q.options : [];
+        if (type === 'choice' && raw.length < 2)
+          return {
+            error: `Klausimas "${label}" turi turėti bent 2 atsakymo variantus`
+          };
+        if (type === 'text' && raw.length !== 1)
+          return {
+            error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
+          };
+        const authored = raw.map((o) => ({
+          id: o && o.id,
+          text: ((o && o.text) || '').trim(),
+          img: ((o && o.img) || '').trim()
+        }));
+        // A picture option has no text at all — the view screen and the
+        // answers show it by its letter (A, B, C…), and any text it kept
+        // (e.g. "Italija") would give the answer away, even as an alt. A
+        // typed-answer question's single option is the answer to type,
+        // though, so that one always has text.
+        if (type === 'choice') {
+          authored.forEach((o) => {
+            if (o.img) o.text = '';
+          });
+        }
+        if (type === 'text' && !authored[0].text) {
+          return {
+            error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
+          };
+        }
+        if (authored.some((o) => !o.text && !o.img)) {
+          return {
+            error: `Klausimas "${label}" turi tuščią atsakymo variantą`
+          };
+        }
+        optionImgs = authored.map((o) => o.img);
+        authored.forEach((o) => {
+          o.id = pickId(o.id, usedOptionIds);
+        });
+        question.answer = authored[0].id;
+
+        // Stored in shuffled order so the file itself doesn't give away the
+        // answer by position (display order is reshuffled per room anyway, in
+        // createHistoryEntry). Fresh ids are random, so they don't either.
+        question.options = shuffle(authored).map((o) => {
+          const option = { id: o.id, text: o.text };
+          if (o.img) option.img = o.img;
+          return option;
+        });
+      } else if (type === 'yesno') {
+        if (q.answer !== 'yes' && q.answer !== 'no')
+          return {
+            error: `Klausimas "${label}": pažymėk teisingą atsakymą – Taip arba Ne`
+          };
+        question.answer = q.answer;
+      } else {
+        const links = (Array.isArray(q.links) ? q.links : []).map((l) => ({
+          clue: ((l && l.clue) || '').trim(),
+          answer: ((l && l.answer) || '').trim()
+        }));
+        if (links.length < 2)
+          return { error: `${chainLabel} turi turėti bent 2 užuominas` };
+        if (links.some((l) => !l.clue || !l.answer))
+          return {
+            error: `${chainLabel}: kiekviena užuomina turi turėti tekstą ir atsakymą`
+          };
+        question.links = links;
       }
 
-      const authored = q.options.map((o) => ({
-        id: o && o.id,
-        text: ((o && o.text) || '').trim(),
-        img: ((o && o.img) || '').trim()
-      }));
-      // A picture option has no text at all — the view screen and the
-      // answers show it by its letter (A, B, C…), and any text it kept
-      // (e.g. "Italija") would give the answer away, even as an alt. A
-      // typed-answer question's single option is the answer to type,
-      // though, so that one always has text.
-      if (authored.length > 1) {
-        authored.forEach((o) => {
-          if (o.img) o.text = '';
-        });
-      }
-      if (authored.length === 1 && !authored[0].text) {
-        return {
-          error: `Klausimas "${questionText}" turi turėti įrašytą teisingą atsakymą`
-        };
-      }
-      if (authored.some((o) => !o.text && !o.img)) {
-        return {
-          error: `Klausimas "${questionText}" turi tuščią atsakymo variantą`
-        };
-      }
       // "media:..." points at a file kept in the GitHub Pages editor's
       // browser — it only works once imported from that editor's .zip export
       // (the file is uploaded then), never as-is.
-      const mediaValues = [q.img, q.audio, ...authored.map((o) => o.img)];
+      const mediaValues = [q.img, q.audio, ...optionImgs];
       if (mediaValues.some((v) => typeof v === 'string' && v.startsWith('media:')))
         return {
-          error: `Klausimas "${questionText}" nurodo failą, kurio nėra — importuok žaidimą iš .zip failo`
+          error: `Klausimas "${label}" nurodo failą, kurio nėra — importuok žaidimą iš .zip failo`
         };
-      const questionId = pickId(q.id, usedQuestionIds);
-      authored.forEach((o) => {
-        o.id = pickId(o.id, usedOptionIds);
-      });
-      const answer = authored[0].id;
 
-      // Stored in shuffled order so the file itself doesn't give away the
-      // answer by position (display order is reshuffled per room anyway, in
-      // createHistoryEntry). Fresh ids are random, so they don't either.
-      const options = shuffle(authored).map((o) => {
-        const option = { id: o.id, text: o.text };
-        if (o.img) option.img = o.img;
-        return option;
-      });
-
-      const question = {
-        id: questionId,
-        question: questionText,
-        options,
-        answer
-      };
       const img = (q.img || '').trim();
       if (img) question.img = img;
       const audio = (q.audio || '').trim();
@@ -245,17 +300,35 @@ function normalizeGamePayload(body) {
           question.audioEnd <= (question.audioStart || 0)
         ) {
           return {
-            error: `Klausimas "${questionText}" turi "iki" laiką didesnį už "nuo" laiką`
+            error: `Klausimas "${label}" turi "iki" laiką didesnį už "nuo" laiką`
           };
         }
       }
+
+      // The optional extra answer (e.g. the artist, after the song): typed
+      // in, worth a point only when the main answer is right. Its question
+      // is optional; with neither filled in, there's none.
+      const bonusQuestion = ((q.bonus && q.bonus.question) || '').trim();
+      const bonusAnswer = ((q.bonus && q.bonus.answer) || '').trim();
+      if (bonusQuestion && !bonusAnswer)
+        return { error: `Klausimas "${label}": įrašyk papildomą atsakymą` };
+      if (bonusAnswer)
+        question.bonus = { question: bonusQuestion, answer: bonusAnswer };
       questions.push(question);
     }
 
     stages.push({ id: stageId, name: stageName, questions });
   }
 
-  return { game: { name, stages } };
+  // The game's rules, one per line, shown on their own slide right after
+  // the game's name — optional; blank lines are dropped.
+  const game = { name };
+  const rules = (Array.isArray(body.rules) ? body.rules : [])
+    .map((r) => (typeof r === 'string' ? r.trim() : ''))
+    .filter(Boolean);
+  if (rules.length) game.rules = rules;
+  game.stages = stages;
+  return { game };
 }
 
 // Keeps a requested id if it's well-formed and not yet used (within the
@@ -324,9 +397,10 @@ function shuffle(arr) {
 }
 
 // roomId -> { name, gameId, stageIndex, questionIndex, questionHistory, phase, scores, leaderboard, stageReview }
-// phase: 'game-intro' | 'stage-intro' | 'question' | 'stage-answers' | 'stage-results' | 'finished'
+// phase: 'game-intro' | 'game-rules' | 'stage-intro' | 'question' | 'stage-answers' | 'stage-results' | 'finished'
 // game-intro is a one-time title slide with just the game's name, shown only
-// once at the very start of a room, before the first stage-intro.
+// once at the very start of a room, before the first stage-intro. game-rules
+// comes right after it — only for a game that has rules.
 // stage-intro is a title slide ("Etapas 2 / 3: Muzikinis") shown before that
 // stage's first question — both after game-intro and after each stage-results
 // screen, before questionIndex/questionHistory reset into a fresh stage.
@@ -351,9 +425,14 @@ function currentStage(room) {
 function publicQuestion(room, index = room.questionIndex) {
   const entry = room.questionHistory[index];
   return {
-    question: currentStage(room).questions[index].question,
+    question: questionTitle(currentStage(room).questions[index]),
+    type: entry.type,
     options: entry.options,
     textAnswer: entry.textAnswer,
+    clues: entry.clues,
+    linkCount: entry.clues ? entry.clues.length : 0,
+    hasBonus: entry.bonusAnswer != null,
+    bonusQuestion: entry.bonusQuestion,
     img: entry.img,
     audio: entry.audio,
     audioStart: entry.audioStart,
@@ -361,34 +440,101 @@ function publicQuestion(room, index = room.questionIndex) {
   };
 }
 
-// Host-only: for each typed-answer question in the stage (keyed by its
-// index), what every team typed and whether it currently counts — so the
-// host can accept a misspelling or reject a lucky match. Every team that
-// joined the room is listed, even with nothing typed: a team answering on
-// paper still gets marked right by hand here (typing on a phone is the
-// hard part; tapping an option isn't, so choice questions don't need this).
-function typedAnswersForReview(room) {
+// How a picked option reads in the host's review: its text, or for a
+// picture option the letter it had on the view screen.
+function optionLabel(entry, optionId) {
+  const i = entry.options.findIndex((o) => o.id === optionId);
+  if (i < 0) return '';
+  return entry.options[i].img
+    ? String.fromCharCode(65 + i)
+    : entry.options[i].text;
+}
+
+// Host-only: for each question in the stage with something typed in — a
+// typed answer, a chain, or an extra answer (keyed by its index) — what
+// every team answered and whether it currently counts, so the host can
+// accept a misspelling or reject a lucky match. Every team that joined the
+// room is listed, even with nothing typed: a team answering on paper still
+// gets marked right by hand here (typing on a phone is the hard part;
+// tapping an option isn't, so a choice question's own answer isn't
+// markable — only its extra answer, if it has one).
+function answersForReview(room) {
   const teams = loadTeams();
   const out = {};
   room.questionHistory.forEach((entry, index) => {
-    if (!entry || !entry.textAnswer) return;
+    if (!entry) return;
+    const mainEditable = entry.type === 'text' || entry.type === 'chain';
+    const hasBonus = entry.bonusAnswer != null;
+    if (!mainEditable && !hasBonus) return;
     const teamIds = new Set([
       ...room.joinedTeams,
-      ...Object.keys(entry.selections)
+      ...Object.keys(entry.selections),
+      ...Object.keys(entry.bonusSelections)
     ]);
-    out[index] = Array.from(teamIds)
+    const rows = Array.from(teamIds)
       .map((teamId) => {
-        const typed = entry.selections[teamId];
-        return {
+        const selected = entry.selections[teamId];
+        const bonusTyped = entry.bonusSelections[teamId];
+        const row = {
           teamId,
           teamName: teams[teamId] ? teams[teamId].name : teamId,
-          typed: typeof typed === 'string' ? typed.trim() : '',
-          correct: isTypedAnswerCorrect(entry, teamId)
+          mainCorrect: isMainCorrect(entry, teamId),
+          bonusTyped: typeof bonusTyped === 'string' ? bonusTyped.trim() : '',
+          bonusCorrect: isBonusCorrect(entry, teamId)
         };
+        if (entry.type === 'chain') {
+          row.links = entry.clues.map((_, i) =>
+            Array.isArray(selected) && typeof selected[i] === 'string'
+              ? selected[i].trim()
+              : ''
+          );
+        } else if (entry.type === 'text') {
+          row.typed = typeof selected === 'string' ? selected.trim() : '';
+        } else {
+          row.typed = optionLabel(entry, selected);
+        }
+        return row;
       })
       .sort((a, b) => a.teamName.localeCompare(b.teamName, 'lt'));
+    out[index] = {
+      type: entry.type,
+      mainEditable,
+      hasBonus,
+      bonusQuestion: entry.bonusQuestion,
+      rows
+    };
   });
   return out;
+}
+
+// What the stage-answers screen shows as a question's correct answer: the
+// option (a picture one by the letter it had on the view screen in this
+// room — its shuffled order, kept in the history entry — the same A, B, C…
+// players picked by, not the picture's file or text), Taip/Ne, or for a
+// chain each clue's answer in order (the clues come along in `chain`).
+function correctAnswerFor(q, entry) {
+  const type = questionType(q);
+  if (type === 'chain')
+    return {
+      correctAnswer: q.links.map((l) => l.answer).join(' → '),
+      correctAnswerImg: null
+    };
+  if (type === 'yesno')
+    return {
+      correctAnswer: q.answer === 'yes' ? 'Taip' : 'Ne',
+      correctAnswerImg: null
+    };
+  const correctOption = q.options.find((o) => o.id === q.answer);
+  const shownIndex = entry
+    ? entry.options.findIndex((o) => o.id === q.answer)
+    : -1;
+  return {
+    correctAnswer:
+      correctOption.img && shownIndex >= 0
+        ? String.fromCharCode(65 + shownIndex)
+        : correctOption.text || '—',
+    correctAnswerImg: resolveMediaSrc(correctOption.img)
+  };
 }
 
 function buildStageReview(room) {
@@ -396,24 +542,22 @@ function buildStageReview(room) {
   return {
     stageName: stage.name,
     questions: stage.questions.map((q, i) => {
-      const correctOption = q.options.find((o) => o.id === q.answer);
-      // A picture option is named by the letter it had on the view screen
-      // in this room (its shuffled order, kept in the history entry) — the
-      // same A, B, C… players picked by, not the picture's file or text.
-      const entry = room.questionHistory[i];
-      const shownIndex = entry
-        ? entry.options.findIndex((o) => o.id === q.answer)
-        : -1;
-      const correctAnswer =
-        correctOption.img && shownIndex >= 0
-          ? String.fromCharCode(65 + shownIndex)
-          : correctOption.text || '—';
+      const { correctAnswer, correctAnswerImg } = correctAnswerFor(
+        q,
+        room.questionHistory[i]
+      );
       return {
         number: i + 1,
-        question: q.question,
+        question: questionTitle(q),
         correctAnswer,
+        chain: q.links
+          ? q.links.map((l) => ({ clue: l.clue, answer: l.answer }))
+          : null,
+        bonus: q.bonus
+          ? { question: q.bonus.question, answer: q.bonus.answer }
+          : null,
         img: resolveMediaSrc(q.img),
-        correctAnswerImg: resolveMediaSrc(correctOption.img),
+        correctAnswerImg,
         audio: resolveMediaSrc(q.audio),
         audioStart: q.audioStart || null,
         audioEnd: q.audioEnd || null
@@ -515,14 +659,6 @@ function finalLeaderboardPayload(room) {
     : { rows: room.leaderboard, final: true };
 }
 
-// A question authored with a single option is a typed-answer question: that
-// option's text is the answer, so it's kept only in correctText (server-side)
-// and options stays empty — publicQuestion/otherShownQuestions send options
-// as-is, so nothing about the answer ever reaches a player or view screen.
-function isTextAnswerQuestion(q) {
-  return q.options.length === 1;
-}
-
 // Lenient comparison for typed answers: case, Lithuanian diacritics,
 // punctuation and extra spaces don't matter ("Vilnius!" == " vilnius").
 function normalizeTypedAnswer(text) {
@@ -534,80 +670,118 @@ function normalizeTypedAnswer(text) {
     .trim();
 }
 
+// A room's copy of a question. Anything typed in is checked against answers
+// kept only here, server-side — a typed-answer question gets no options, a
+// chain sends only its clues (to the view screen) — so nothing about an
+// answer ever reaches a player or view screen. A yes/no question's Taip / Ne
+// keep their order; only a choice question's options are shuffled.
 function createHistoryEntry(q) {
-  const textAnswer = isTextAnswerQuestion(q);
+  const type = questionType(q);
+  let options = [];
+  if (type === 'choice')
+    options = shuffle(q.options).map((o) =>
+      // text dropped here too, for games saved before picture options
+      // lost theirs (see normalizeGamePayload) — this is what the view
+      // screen gets
+      o.img ? { id: o.id, text: '', img: resolveMediaSrc(o.img) } : o
+    );
+  else if (type === 'yesno') options = YES_NO_OPTIONS.map((o) => ({ ...o }));
   return {
-    options: textAnswer
-      ? []
-      : shuffle(q.options).map((o) =>
-          // text dropped here too, for games saved before picture options
-          // lost theirs (see normalizeGamePayload) — this is what the view
-          // screen gets
-          o.img ? { id: o.id, text: '', img: resolveMediaSrc(o.img) } : o
-        ),
-    textAnswer,
-    correctText: textAnswer ? q.options[0].text : null,
+    type,
+    options,
+    textAnswer: type === 'text',
+    correctText: type === 'text' ? q.options[0].text : null,
     answer: q.answer,
+    clues: type === 'chain' ? q.links.map((l) => l.clue) : null,
+    correctLinks: type === 'chain' ? q.links.map((l) => l.answer) : null,
+    bonusQuestion: q.bonus ? q.bonus.question || '' : null,
+    bonusAnswer: q.bonus ? q.bonus.answer : null,
     img: resolveMediaSrc(q.img),
     audio: q.audio || null,
     audioStart: q.audioStart || null,
     audioEnd: q.audioEnd || null,
+    // Per team: the option id, the typed string, or (chain) an array of
+    // typed strings, one per clue.
     selections: {},
-    // Typed-answer only: the host's manual correct/incorrect call per team
-    // (from the stage-answers review), overriding the automatic match.
+    bonusSelections: {},
+    // Typed-answer and chain only: the host's manual correct/incorrect call
+    // per team (from the stage-answers review), overriding the automatic
+    // match. bonusOverrides is the same for the extra answer.
     textOverrides: {},
+    bonusOverrides: {},
     finalized: false,
     awardedPoints: {}
   };
 }
 
-// Whether a team's typed answer counts: the host's call if they made one,
-// otherwise the lenient automatic match (see normalizeTypedAnswer).
-function isTypedAnswerCorrect(entry, teamId) {
-  if (teamId in entry.textOverrides) return entry.textOverrides[teamId];
-  const typed = entry.selections[teamId];
+// The lenient automatic match (see normalizeTypedAnswer). Blank (or
+// punctuation-only) never matches.
+function typedMatches(typed, correct) {
   if (typeof typed !== 'string') return false;
   const normalized = normalizeTypedAnswer(typed);
-  // Blank (or punctuation-only) never matches.
-  return (
-    normalized !== '' &&
-    normalized === normalizeTypedAnswer(entry.correctText)
-  );
+  return normalized !== '' && normalized === normalizeTypedAnswer(correct);
+}
+
+// Whether a team's main answer counts: the right option, or — typed in —
+// the host's call if they made one, otherwise the automatic match (for a
+// chain, every clue's answer has to match).
+function isMainCorrect(entry, teamId) {
+  const selected = entry.selections[teamId];
+  if (entry.type === 'text' || entry.type === 'chain') {
+    if (teamId in entry.textOverrides) return entry.textOverrides[teamId];
+    if (entry.type === 'text') return typedMatches(selected, entry.correctText);
+    return (
+      Array.isArray(selected) &&
+      entry.correctLinks.every((answer, i) => typedMatches(selected[i], answer))
+    );
+  }
+  return selected !== undefined && selected === entry.answer;
+}
+
+// Whether a team's extra answer is right (the host's call, else the
+// automatic match) — it only earns a point on top of a right main answer.
+function isBonusCorrect(entry, teamId) {
+  if (entry.bonusAnswer == null) return false;
+  if (teamId in entry.bonusOverrides) return entry.bonusOverrides[teamId];
+  return typedMatches(entry.bonusSelections[teamId], entry.bonusAnswer);
 }
 
 // Scores whoever answered the question, using the last pick each team sent:
-// 1 point for the correct option (or, for a typed-answer question, a match —
-// see normalizeTypedAnswer), 0 otherwise. Records what was awarded per team so
-// unfinalizeEntry can reverse it exactly if the host steps back to this question.
+// 1 point for a right main answer (see isMainCorrect), plus 1 for a right
+// extra answer on top of it, 0 otherwise. Records what was awarded per team
+// so unfinalizeEntry can reverse it exactly if the host steps back to this
+// question.
 function finalizeEntry(room, index) {
   const entry = room.questionHistory[index];
   if (!entry || entry.finalized) return;
   const awarded = {};
 
-  if (entry.textAnswer) {
-    // Teams the host marked by hand count too, typed or not (paper answers).
-    const teamIds = new Set([
-      ...Object.keys(entry.selections),
-      ...Object.keys(entry.textOverrides)
-    ]);
-    teamIds.forEach((teamId) => {
-      if (!isTypedAnswerCorrect(entry, teamId)) return;
-      awarded[teamId] = 1;
-      room.scores[teamId] = (room.scores[teamId] || 0) + 1;
-    });
-    entry.awardedPoints = awarded;
-    entry.finalized = true;
-    return;
-  }
-
-  Object.entries(entry.selections).forEach(([teamId, selected]) => {
-    if (selected !== entry.answer) return;
-    awarded[teamId] = 1;
-    room.scores[teamId] = (room.scores[teamId] || 0) + 1;
+  // Teams the host marked by hand count too, typed or not (paper answers).
+  const teamIds = new Set([
+    ...Object.keys(entry.selections),
+    ...Object.keys(entry.textOverrides),
+    ...Object.keys(entry.bonusSelections),
+    ...Object.keys(entry.bonusOverrides)
+  ]);
+  teamIds.forEach((teamId) => {
+    if (!isMainCorrect(entry, teamId)) return;
+    const points = isBonusCorrect(entry, teamId) ? 2 : 1;
+    awarded[teamId] = points;
+    room.scores[teamId] = (room.scores[teamId] || 0) + points;
   });
 
   entry.awardedPoints = awarded;
   entry.finalized = true;
+}
+
+// Changes an entry's picks or the host's calls on them: an already-scored
+// question is unscored first and re-scored after, so points never double up.
+function updateEntry(room, index, change) {
+  const entry = room.questionHistory[index];
+  if (!entry.finalized) return change();
+  unfinalizeEntry(room, index);
+  change();
+  finalizeEntry(room, index);
 }
 
 function unfinalizeEntry(room, index) {
@@ -643,6 +817,22 @@ function optionsForPlayer(options) {
   );
 }
 
+// What a phone needs to answer a question: how to answer it (options, a
+// text field, one per chain clue, an extra answer field) and this team's
+// answers so far — but never the question itself, a chain's clues or the
+// extra answer's question, which are only on the view screen.
+function answerFieldsFor(entry, teamId) {
+  return {
+    type: entry.type,
+    options: optionsForPlayer(entry.options),
+    textAnswer: entry.textAnswer,
+    linkCount: entry.clues ? entry.clues.length : 0,
+    hasBonus: entry.bonusAnswer != null,
+    mySelection: mySelectionFor(entry, teamId),
+    myBonus: mySelectionFor(entry, teamId, entry.bonusSelections)
+  };
+}
+
 function otherShownQuestions(room, teamId, mainIndex) {
   const out = [];
   room.questionHistory.forEach((entry, index) => {
@@ -650,18 +840,21 @@ function otherShownQuestions(room, teamId, mainIndex) {
     out.push({
       index,
       number: index + 1,
-      options: optionsForPlayer(entry.options),
-      textAnswer: entry.textAnswer,
-      mySelection: mySelectionFor(entry, teamId)
+      ...answerFieldsFor(entry, teamId)
     });
   });
   return out;
 }
 
 // A team's current pick: the option id for a choice question, the typed
-// string for a typed-answer one ('' if nothing yet).
-function mySelectionFor(entry, teamId) {
-  const value = teamId && entry.selections[teamId];
+// string for a typed-answer one ('' if nothing yet), or for a chain an array
+// with a typed string per clue.
+function mySelectionFor(entry, teamId, selections = entry.selections) {
+  const value = teamId && selections[teamId];
+  if (entry.type === 'chain' && selections === entry.selections)
+    return entry.clues.map((_, i) =>
+      Array.isArray(value) && typeof value[i] === 'string' ? value[i] : ''
+    );
   return typeof value === 'string' ? value : '';
 }
 
@@ -677,20 +870,13 @@ function questionPayloadFor(room, teamId) {
   }
   const mainIndex = latestShownIndex(room);
   const entry = room.questionHistory[mainIndex];
+  // The question itself — its text, picture, music, a chain's clues — is
+  // only on the view screen; phones just get "Klausimas N", so there's
+  // nothing to paste into an AI or feed to Google Lens / Shazam.
   return {
-    ...publicQuestion(room, mainIndex),
-    options: optionsForPlayer(entry.options),
-    // The question itself — its text, picture and music — is only on the
-    // view screen; phones just get "Klausimas N", so there's nothing to
-    // paste into an AI or feed to Google Lens / Shazam.
-    question: null,
-    img: null,
-    audio: null,
-    audioStart: null,
-    audioEnd: null,
+    ...answerFieldsFor(entry, teamId),
     index: mainIndex,
     number: mainIndex + 1,
-    mySelection: mySelectionFor(entry, teamId),
     previous: otherShownQuestions(room, teamId, mainIndex)
   };
 }
@@ -860,7 +1046,7 @@ function referencedLocalPaths() {
       stage.questions.forEach((q) => {
         add(q.img);
         add(q.audio);
-        q.options.forEach((o) => add(o.img));
+        (q.options || []).forEach((o) => add(o.img));
       })
     )
   );
@@ -1087,11 +1273,21 @@ function renderHostRoom(req, res, roomId) {
   const stage = currentStage(room);
   const isLastStage = room.stageIndex === game.stages.length - 1;
 
+  if (room.phase === 'game-rules') {
+    return res.render('host/game-rules', {
+      title: 'Quiz - Host',
+      roomId,
+      roomName: room.name,
+      rules: game.rules || []
+    });
+  }
+
   if (room.phase === 'game-intro') {
     return res.render('host/game-intro', {
       title: 'Quiz - Host',
       roomId,
-      roomName: room.name
+      roomName: room.name,
+      hasRules: !!(game.rules && game.rules.length)
     });
   }
 
@@ -1112,7 +1308,7 @@ function renderHostRoom(req, res, roomId) {
       roomId,
       roomName: room.name,
       review: room.stageReview,
-      typedAnswers: typedAnswersForReview(room)
+      typedAnswers: answersForReview(room)
     });
   }
 
@@ -1143,7 +1339,7 @@ function renderHostRoom(req, res, roomId) {
     stageName: stage.name,
     stageNumber: room.stageIndex + 1,
     stageCount: game.stages.length,
-    currentQuestionText: currentQuestion ? currentQuestion.question : null,
+    currentQuestionText: currentQuestion ? questionTitle(currentQuestion) : null,
     currentQuestionNumber: room.questionIndex + 1,
     currentQuestionAudio: currentQuestion
       ? resolveMediaSrc(currentQuestion.audio)
@@ -1155,9 +1351,9 @@ function renderHostRoom(req, res, roomId) {
       ? currentQuestion.audioEnd || null
       : null,
     currentQuestionImg: currentQuestion ? resolveMediaSrc(currentQuestion.img) : null,
-    currentQuestionTextAnswer: currentQuestion
-      ? isTextAnswerQuestion(currentQuestion)
-      : false,
+    currentQuestionType: currentQuestion ? questionType(currentQuestion) : null,
+    currentQuestionLinks: currentQuestion ? currentQuestion.links || null : null,
+    currentQuestionBonus: currentQuestion ? currentQuestion.bonus || null : null,
     // Taken from the room's history entry, not the stored question — that
     // entry holds this room's shuffled order, the one players and the view
     // screen actually see, so the fullscreen grid matches it.
@@ -1345,6 +1541,20 @@ app.get('/api/qr', (req, res) => {
   });
 });
 
+// The players' join page and the view dashboard poll this to keep their
+// "Aktyvūs kambariai" list current as the host opens and closes rooms.
+app.get('/api/rooms', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ rooms: activeRoomList() });
+});
+
+// The view dashboard polls this and reloads the QR when it changes, e.g.
+// when the hotspot is switched on after the page was opened.
+app.get('/api/join-url', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ url: joinUrl() });
+});
+
 app.get('/view/:roomId(\\d{6})', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
@@ -1447,14 +1657,16 @@ app.post('/api/host/season', (req, res) => {
   // Rooms that haven't started yet (e.g. the long-lived dev room) pick up
   // the new season; ones already mid-game keep the season they began under.
   Object.values(rooms).forEach((room) => {
-    if (room.phase === 'game-intro') room.seasonId = season;
+    if (room.phase === 'game-intro' || room.phase === 'game-rules')
+      room.seasonId = season;
   });
   res.json({ activeSeason: settings.activeSeason });
 });
 
-// Stage-answers review: the host marks a team's typed answer right or wrong
-// by hand (e.g. a typo), re-scoring that question for everyone. Only until
-// the host moves on — the stage's points are recorded right after.
+// Stage-answers review: the host marks a team's typed answer (part 'main' —
+// a typed-answer question or a whole chain) or extra answer (part 'bonus')
+// right or wrong by hand (e.g. a typo), re-scoring that question. Only
+// until the host moves on — the stage's points are recorded right after.
 app.post('/api/host/room/:roomId/typed-answer', (req, res) => {
   const room = rooms[req.params.roomId];
   if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
@@ -1463,21 +1675,37 @@ app.post('/api/host/room/:roomId/typed-answer', (req, res) => {
       .status(400)
       .json({ error: 'Vertinti galima tik rodant etapo atsakymus' });
   const { index, teamId, correct } = req.body || {};
+  const part = (req.body && req.body.part) || 'main';
   const entry = Number.isInteger(index) && room.questionHistory[index];
+  const markable =
+    entry &&
+    (part === 'bonus'
+      ? entry.bonusAnswer != null
+      : part === 'main' && (entry.type === 'text' || entry.type === 'chain'));
   // Any team in the room — one that typed nothing (answered on paper) can
   // still be marked right.
   if (
-    !entry ||
-    !entry.textAnswer ||
+    !markable ||
     typeof teamId !== 'string' ||
-    !(room.joinedTeams.has(teamId) || teamId in entry.selections)
+    !(
+      room.joinedTeams.has(teamId) ||
+      teamId in entry.selections ||
+      teamId in entry.bonusSelections
+    )
   )
     return res.status(400).json({ error: 'Atsakymas nerastas' });
 
-  unfinalizeEntry(room, index);
-  entry.textOverrides[teamId] = !!correct;
-  finalizeEntry(room, index);
-  res.json({ correct: isTypedAnswerCorrect(entry, teamId) });
+  updateEntry(room, index, () => {
+    const overrides =
+      part === 'bonus' ? entry.bonusOverrides : entry.textOverrides;
+    overrides[teamId] = !!correct;
+  });
+  res.json({
+    correct:
+      part === 'bonus'
+        ? isBonusCorrect(entry, teamId)
+        : isMainCorrect(entry, teamId)
+  });
 });
 
 app.post('/api/host/room/:roomId/prev', (req, res) => {
@@ -1501,7 +1729,14 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
   if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
   const game = games[room.gameId];
 
-  if (room.phase === 'game-intro') {
+  // The rules get their own slide after the game's name, if it has any.
+  if (room.phase === 'game-intro' && game.rules && game.rules.length) {
+    room.phase = 'game-rules';
+    io.to(roomId).emit('game-rules', { rules: game.rules });
+    return res.json({ phase: 'game-rules' });
+  }
+
+  if (room.phase === 'game-intro' || room.phase === 'game-rules') {
     room.phase = 'stage-intro';
     io.to(roomId).emit('stage-intro', {
       stageName: currentStage(room).name,
@@ -1708,6 +1943,8 @@ io.on('connection', (socket) => {
       socket.emit('stage-answers', room.stageReview);
     } else if (room.phase === 'game-intro') {
       socket.emit('game-intro', { gameName: room.name });
+    } else if (room.phase === 'game-rules') {
+      socket.emit('game-rules', { rules: games[room.gameId].rules });
     } else if (room.phase === 'stage-intro') {
       socket.emit('stage-intro', {
         stageName: currentStage(room).name,
@@ -1758,35 +1995,58 @@ io.on('connection', (socket) => {
   // index defaults to the live question. An earlier (already finalized)
   // question of the same stage can still be changed while the stage is
   // running — its score is reversed, the new pick stored, and re-scored.
-  // The value is the picked option's id, or for a typed-answer question the
-  // typed string.
-  socket.on('select', (value, index) => {
+  // The value is the picked option's id, for a typed-answer question the
+  // typed string, or for a chain an array of typed strings, one per clue.
+  // 'select-bonus' is the same for the extra answer's typed string.
+  function answerTarget(index) {
     const room = rooms[socket.data.roomId];
-    if (!room || room.phase !== 'question' || room.questionIndex < 0) return;
-    if (!socket.data.teamId) return;
+    if (!room || room.phase !== 'question' || room.questionIndex < 0) return null;
+    if (!socket.data.teamId) return null;
     const targetIndex = Number.isInteger(index) ? index : room.questionIndex;
     const entry = room.questionHistory[targetIndex];
-    if (!entry) return;
-    if (typeof value !== 'string') return;
+    return entry ? { room, targetIndex, entry } : null;
+  }
+
+  socket.on('select', (value, index) => {
+    const target = answerTarget(index);
+    if (!target) return;
+    const { room, targetIndex, entry } = target;
+    const teamId = socket.data.teamId;
     let selection;
-    if (entry.textAnswer) {
+    if (entry.type === 'chain') {
+      if (!Array.isArray(value)) return;
+      selection = entry.clues.map((_, i) =>
+        typeof value[i] === 'string' ? value[i].slice(0, 200) : ''
+      );
+    } else if (typeof value !== 'string') {
+      return;
+    } else if (entry.type === 'text') {
       selection = value.slice(0, 200);
     } else {
       if (!entry.options.some((o) => o.id === value)) return;
       selection = value;
     }
 
-    // A changed typed answer drops the host's earlier call on the old one.
-    if (entry.textAnswer && entry.selections[socket.data.teamId] !== selection)
-      delete entry.textOverrides[socket.data.teamId];
+    updateEntry(room, targetIndex, () => {
+      // A changed typed answer drops the host's earlier call on the old one.
+      if (JSON.stringify(entry.selections[teamId]) !== JSON.stringify(selection))
+        delete entry.textOverrides[teamId];
+      entry.selections[teamId] = selection;
+    });
+  });
 
-    if (entry.finalized) {
-      unfinalizeEntry(room, targetIndex);
-      entry.selections[socket.data.teamId] = selection;
-      finalizeEntry(room, targetIndex);
-    } else {
-      entry.selections[socket.data.teamId] = selection;
-    }
+  socket.on('select-bonus', (value, index) => {
+    const target = answerTarget(index);
+    if (!target || typeof value !== 'string') return;
+    const { room, targetIndex, entry } = target;
+    if (entry.bonusAnswer == null) return;
+    const teamId = socket.data.teamId;
+    const selection = value.slice(0, 200);
+    updateEntry(room, targetIndex, () => {
+      if (entry.bonusSelections[teamId] !== selection)
+        delete entry.bonusOverrides[teamId];
+      entry.bonusSelections[teamId] = selection;
+    });
   });
 
   // The host's <audio> element is muted — it's just there so the host can see
@@ -1837,8 +2097,17 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Quiz server running on http://0.0.0.0:${PORT}`);
-  console.log('Players join at: ' + joinUrl());
+  let announcedUrl = joinUrl();
+  console.log('Players join at: ' + announcedUrl);
   if (!process.env.LAN_IP) {
+    // The startup line goes stale if the hotspot is switched on (or off)
+    // later, so print the new address whenever it changes.
+    setInterval(() => {
+      const url = joinUrl();
+      if (url === announcedUrl) return;
+      announcedUrl = url;
+      console.log('Network changed — players join at: ' + url);
+    }, 3000).unref();
     const candidates = lanAddressCandidates();
     if (candidates.length === 0) {
       console.log(

@@ -77,6 +77,27 @@
   font-weight: 700;
 }
 
+// The game's rules slide (host/game-rules.ejs).
+.game-rules {
+  text-align: left;
+
+  .game-rules-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .game-rules-list {
+    margin: 0;
+    padding-left: 22px;
+
+    li + li {
+      margin-top: 6px;
+    }
+  }
+}
+
 .audio-player-block {
   margin-top: 8px;
 }
@@ -345,6 +366,7 @@ body:has(#host-bar) {
   display: block;
   width: 100%;
   padding: 12px;
+  margin-top: 16px;
   margin-bottom: 16px;
   font-size: 16px;
   background: v.$color-purple;
@@ -558,6 +580,52 @@ $season-control-height: 32px;
   box-shadow: v.$shadow-card;
 }
 
+// The game's rules, above the first stage (see renderRules in
+// game-editor-core.js): a stage card (.stage-card / .stage-header /
+// .toggle-stage-btn / .stage-body), so only the differences live here.
+.rules-header {
+  align-items: center;
+}
+
+.rules-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+
+  .rules-count {
+    font-weight: 400;
+    color: v.$color-muted;
+  }
+}
+
+// Inside the clipped body (like .questions-container), so the gap under the
+// header collapses along with it.
+.rules-body {
+  margin-top: 12px;
+}
+
+.rules-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rule-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .rule-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px;
+    font-size: 15px;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+}
+
 .stage-header {
   display: flex;
   gap: 6px;
@@ -623,6 +691,7 @@ $season-control-height: 32px;
   // persisting below the header regardless of collapsed state.
   .questions-container {
     margin-top: 16px;
+    counter-reset: question;
   }
 }
 
@@ -631,21 +700,42 @@ $season-control-height: 32px;
   border-radius: v.$radius-sm;
   padding: 10px;
   margin: 10px 0;
+  counter-increment: question;
+
+  // "N klausimas" above each question, numbered within its stage — a CSS
+  // counter, so it renumbers itself on add/remove/move with no JS.
+  &::before {
+    content: counter(question) ' klausimas';
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: v.$color-muted;
+    margin-bottom: 6px;
+  }
 }
 
+// The type picker first, beside the move/remove buttons — the fields under
+// it (question text included) depend on it.
 .question-header {
   display: flex;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 
-  .question-text-input {
+  .question-type-select {
     flex: 1;
     min-width: 0;
-    padding: 8px;
-    font-size: 15px;
-    border: 1px solid v.$color-border;
-    border-radius: v.$radius-sm;
+    margin-bottom: 0;
   }
+}
+
+.question-text-input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  font-size: 15px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
 }
 
 .question-img-input,
@@ -878,10 +968,166 @@ $clip-control-height: 38px;
   display: flex;
 }
 
+// The question type picker, drawn like the other fields in the card (same
+// chevron as #game-select).
+.question-type-select {
+  display: block;
+  width: 100%;
+  padding: 7px 32px 7px 8px;
+  margin-bottom: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: v.$color-primary;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.options-section,
+.yesno-section,
+.chain-section,
+.bonus-fields {
+  &[hidden] {
+    display: none;
+  }
+}
+
+// A typed-answer question keeps only its first option row — the answer —
+// with no picture, no remove button and nothing to add. The other rows stay
+// (hidden) in case the type is switched back.
+.question-card.text-answer {
+  .option-row:not(:first-child),
+  .add-option-btn,
+  .remove-option-btn,
+  .option-row > .option-img-input,
+  .option-row > .file-url-field {
+    display: none;
+  }
+}
+
+// Taip / Ne: the right one is filled in, like the review's ✓.
+.yesno-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.yesno-btn {
+  padding: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: v.$color-text;
+  background: #fff;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+
+  &.active {
+    color: #fff;
+    background: v.$color-success;
+    border-color: v.$color-success;
+  }
+}
+
+// A chain's clues, numbered in the order players answer them. Each clue
+// sits above its answer (a clue can be a whole question, too long to share
+// a line), with a dashed line between one clue and the next.
+.chain-links-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  counter-reset: chain-link;
+}
+
+.chain-link-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  counter-increment: chain-link;
+
+  & + & {
+    padding-top: 10px;
+    border-top: 1px dashed v.$color-border;
+  }
+
+  .chain-link-number::before {
+    content: counter(chain-link) '.';
+  }
+
+  .chain-link-number {
+    flex: 0 0 20px;
+    padding-top: 7px; // level with the clue field's text
+    font-weight: 600;
+    color: v.$color-muted;
+  }
+
+  .chain-link-fields {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  input {
+    width: 100%;
+    padding: 7px;
+    font-size: 14px;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+}
+
+// The extra answer, under the main one.
+.bonus-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed v.$color-border;
+
+  .add-bonus-btn[hidden] {
+    display: none;
+  }
+}
+
+.bonus-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bonus-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$color-purple;
+}
+
+.bonus-question-input,
+.bonus-answer-input {
+  width: 100%;
+  padding: 7px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+}
+
 .move-btn,
 .remove-stage-btn,
 .remove-question-btn,
-.remove-option-btn {
+.remove-option-btn,
+.remove-chain-link-btn,
+.remove-bonus-btn,
+.remove-rule-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -904,7 +1150,10 @@ $clip-control-height: 38px;
 
 .remove-stage-btn,
 .remove-question-btn,
-.remove-option-btn {
+.remove-option-btn,
+.remove-chain-link-btn,
+.remove-bonus-btn,
+.remove-rule-btn {
   color: v.$color-danger;
 
   @include v.hover-only {
@@ -920,7 +1169,10 @@ $clip-control-height: 38px;
   }
 }
 
-.remove-option-btn {
+.remove-option-btn,
+.remove-chain-link-btn,
+.remove-bonus-btn,
+.remove-rule-btn {
   width: 32px;
   height: 32px;
 }
@@ -1270,8 +1522,8 @@ $clip-control-height: 38px;
   padding: 2px 0;
 }
 
-// Question kind indicator in the editor — a question left with a single
-// option becomes a typed-answer question (see syncQuestionType).
+// Question kind indicator on the host's room page (typed answer, Taip / Ne,
+// chain, and the extra answer).
 .question-type-label {
   display: inline-block;
   font-size: 12px;
@@ -1281,11 +1533,12 @@ $clip-control-height: 38px;
   border-radius: v.$radius-sm;
   padding: 2px 8px;
   margin-bottom: 6px;
-}
 
-.question-card.text-answer .question-type-label {
-  color: v.$color-purple;
-  background: rgba(v.$color-purple, 0.1);
+  &.bonus-label {
+    margin-left: 4px;
+    color: v.$color-purple;
+    background: rgba(v.$color-purple, 0.1);
+  }
 }
 
 // Stage answers: all typed-answer questions gathered in one section under
@@ -1306,14 +1559,91 @@ $clip-control-height: 38px;
   font-weight: 400 !important;
 }
 
+// Stage answers: between a question's info and the teams' answers, between
+// one team's answers and the next, and above the teams-and-internet box.
+.section-divider {
+  margin: 8px 0;
+  border: none;
+  border-top: 1px solid v.$color-border;
+}
+
+// Above the teams-and-internet box on every game-flow page (it's part of
+// _team-status.ejs), with the box's own top margin moved onto it — the same
+// gap above and below, so the line sits halfway between. (The card above's
+// own bottom margin is smaller and collapses into this one.)
+.section-divider.team-status-divider {
+  margin: 16px 0;
+}
+
+.team-status-divider + .team-status {
+  margin-top: 0;
+}
+
+// One team's answers: the main one, and under it the extra answer, if the
+// question has one. The dividers around it (.section-divider) give the
+// spacing, so the rows themselves have none.
+.typed-answer-team-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .typed-answer-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
 
-  & + & {
-    border-top: 1px solid v.$color-border;
+  &.is-bonus {
+    .typed-answer-team {
+      font-weight: 400;
+      color: v.$color-muted;
+    }
+  }
+}
+
+// A chain's answers, one per clue, in order.
+.typed-answer-links {
+  margin: 0;
+  padding-left: 20px;
+
+  li.is-empty {
+    color: v.$color-muted;
+    font-style: italic;
+  }
+}
+
+// A picked option's result — right or wrong as it is, so just shown.
+.typed-answer-status {
+  flex: 0 0 88px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+
+  &.is-correct {
+    color: v.$color-success;
+  }
+
+  &.is-wrong {
+    color: v.$color-danger;
+  }
+}
+
+.bonus-answer {
+  font-weight: 400 !important;
+
+  .bonus-note {
+    color: v.$color-muted;
+    font-size: 13px;
+  }
+}
+
+// A chain's clues (host room) or clues with their answers (stage answers).
+.chain-clues {
+  margin: 4px 0 8px;
+  padding-left: 22px;
+
+  li {
+    margin: 2px 0;
   }
 }
 

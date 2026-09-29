@@ -24,16 +24,20 @@
   <%# Same list as the view screen's dashboard (view/dashboard.ejs). %>
   <div id="room-form" hidden>
     <p id="room-error"><%= error || '' %></p>
-    <% if (roomList.length) { %>
-      <p class="section-label">Aktyvūs kambariai:</p>
-      <% roomList.forEach(function(r) { %>
-        <a class="option" href="/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
-      <% }); %>
-    <% } else { %>
-      <p>Nėra aktyvių kambarių.</p>
-    <% } %>
+    <%# Kept current by room-list.js. %>
+    <div id="room-list" data-href-prefix="/">
+      <% if (roomList.length) { %>
+        <p class="section-label">Aktyvūs kambariai:</p>
+        <% roomList.forEach(function(r) { %>
+          <a class="option" href="/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
+        <% }); %>
+      <% } else { %>
+        <p>Nėra aktyvių kambarių.</p>
+      <% } %>
+    </div>
   </div>
 </div>
 <script src="/room.js"></script>
+<script src="/room-list.js"></script>
 </body>
 </html>

@@ -16,15 +16,38 @@
   <div class="join-qr">
     <img src="/api/qr" alt="QR kodas prisijungti prie žaidimo" class="join-qr-code">
   </div>
+  <script>
+    // The join address changes when the hotspot is switched on/off after
+    // this page was opened — reload the QR code when it does.
+    (function () {
+      var qr = document.querySelector('.join-qr-code');
+      var shownUrl = null;
+      function check() {
+        fetch('/api/join-url', { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.url !== shownUrl) qr.src = '/api/qr?t=' + Date.now();
+            shownUrl = data.url;
+          })
+          .catch(function () {});
+      }
+      check();
+      setInterval(check, 3000);
+    })();
+  </script>
 
-  <% if (roomList.length) { %>
-    <p class="section-label">Aktyvūs kambariai:</p>
-    <% roomList.forEach(function(r) { %>
-      <a class="option" href="/view/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
-    <% }); %>
-  <% } else { %>
-    <p>Nėra aktyvių kambarių.</p>
-  <% } %>
+  <%# Same list as the players' join page (player/join.ejs); kept current by room-list.js. %>
+  <div id="room-list" data-href-prefix="/view/">
+    <% if (roomList.length) { %>
+      <p class="section-label">Aktyvūs kambariai:</p>
+      <% roomList.forEach(function(r) { %>
+        <a class="option" href="/view/<%= r.id %>"><%= r.name %> (<%= r.id %>)</a>
+      <% }); %>
+    <% } else { %>
+      <p>Nėra aktyvių kambarių.</p>
+    <% } %>
+  </div>
 </div>
+<script src="/room-list.js"></script>
 </body>
 </html>

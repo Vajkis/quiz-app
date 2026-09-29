@@ -149,6 +149,13 @@ if (!currentTeam) {
     resultEl.textContent = '';
   });
 
+  // The rules are on the big screen only, like the game's name.
+  socket.on('game-rules', () => {
+    quizEl.hidden = true;
+    leaderboardEl.hidden = true;
+    resultEl.textContent = '';
+  });
+
   socket.on('stage-intro', () => {
     quizEl.hidden = true;
     leaderboardEl.hidden = true;
@@ -219,11 +226,14 @@ function renderQuestion(q, socket) {
   p.textContent = `Klausimas ${q.number}`;
   quizEl.appendChild(p);
 
-  renderAnswerInput(quizEl, q, (value) => {
-    // Explicit index: a debounced typed answer can fire after the host has
-    // already moved on, and must still land on the question it was typed for.
-    socket.emit('select', value, q.index);
-  });
+  // Explicit index: a debounced typed answer can fire after the host has
+  // already moved on, and must still land on the question it was typed for.
+  renderAnswerInput(
+    quizEl,
+    q,
+    (value) => socket.emit('select', value, q.index),
+    (value) => socket.emit('select-bonus', value, q.index)
+  );
 
   renderPreviousQuestions(q, socket, openIndexes);
 }
@@ -250,11 +260,14 @@ function renderPreviousQuestions(q, socket, openIndexes) {
     if (openIndexes.has(prev.index)) details.open = true;
 
     const summary = document.createElement('summary');
-    const answered = prev.mySelection.length > 0; // option id or typed string
     summary.textContent = `Klausimas ${prev.number}`;
     const status = document.createElement('span');
-    status.className = 'previous-question-status' + (answered ? '' : ' unanswered');
-    status.textContent = answered ? 'Atsakyta' : 'Neatsakyta';
+    function showStatus(selection) {
+      const answered = isAnswered(selection);
+      status.className = 'previous-question-status' + (answered ? '' : ' unanswered');
+      status.textContent = answered ? 'Atsakyta' : 'Neatsakyta';
+    }
+    showStatus(prev.mySelection);
     summary.appendChild(status);
     details.appendChild(summary);
 
@@ -279,12 +292,15 @@ function renderPreviousQuestions(q, socket, openIndexes) {
       expandQuestion(details);
     });
 
-    renderAnswerInput(inner, prev, (value) => {
-      socket.emit('select', value, prev.index);
-      const nowAnswered = value.length > 0;
-      status.className = 'previous-question-status' + (nowAnswered ? '' : ' unanswered');
-      status.textContent = nowAnswered ? 'Atsakyta' : 'Neatsakyta';
-    });
+    renderAnswerInput(
+      inner,
+      prev,
+      (value) => {
+        socket.emit('select', value, prev.index);
+        showStatus(value);
+      },
+      (value) => socket.emit('select-bonus', value, prev.index)
+    );
 
     section.appendChild(details);
   });
@@ -331,23 +347,62 @@ function collapseQuestion(details) {
   });
 }
 
+// A pick is an option id or typed string — or, for a chain, one typed
+// string per clue, answered once any of them is filled in.
+function isAnswered(selection) {
+  return Array.isArray(selection) ? selection.some((s) => s.length > 0) : selection.length > 0;
+}
+
 // A typed-answer question (textAnswer) gets an empty text field instead of
-// option buttons — the server never sends it any options or the answer.
-// Typing is sent after a short pause, and immediately when the field is left.
-function renderAnswerInput(container, q, onChange) {
-  if (!q.textAnswer) {
-    renderOptions(container, q.options, q.mySelection || '', onChange);
-    return;
+// option buttons — the server never sends it any options or the answer. A
+// chain gets one numbered field per clue (the clues themselves are only on
+// the view screen), sent together, in order. A question with an extra
+// answer gets one more field under it, sent through onBonusChange.
+function renderAnswerInput(container, q, onChange, onBonusChange) {
+  if (q.type === 'chain') {
+    const values = (q.mySelection || []).slice();
+    const list = document.createElement('div');
+    list.className = 'chain-answer-list';
+    for (let i = 0; i < q.linkCount; i++) {
+      const row = document.createElement('label');
+      row.className = 'chain-answer-row';
+      const number = document.createElement('span');
+      number.className = 'chain-answer-number';
+      number.textContent = `${i + 1}.`;
+      row.appendChild(number);
+      row.appendChild(
+        createTypedInput(values[i] || '', 'Įrašyk atsakymą', (value) => {
+          values[i] = value;
+          onChange(Array.from({ length: q.linkCount }, (_, j) => values[j] || ''));
+        })
+      );
+      list.appendChild(row);
+    }
+    container.appendChild(list);
+  } else if (q.textAnswer) {
+    container.appendChild(createTypedInput(q.mySelection || '', 'Įrašyk atsakymą', onChange));
+  } else {
+    renderOptions(container, q.options, q.mySelection || '', onChange, q.type === 'yesno');
   }
 
+  if (q.hasBonus) {
+    const label = document.createElement('p');
+    label.className = 'bonus-answer-label';
+    label.textContent = 'Papildomas atsakymas';
+    container.appendChild(label);
+    container.appendChild(createTypedInput(q.myBonus || '', 'Įrašyk papildomą atsakymą', onBonusChange));
+  }
+}
+
+// Typing is sent after a short pause, and immediately when the field is left.
+function createTypedInput(initialValue, placeholder, onChange) {
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'text-answer-input';
-  input.placeholder = 'Įrašyk atsakymą';
+  input.placeholder = placeholder;
   input.maxLength = 200;
   input.autocomplete = 'off';
-  input.value = q.mySelection || '';
-  container.appendChild(input);
+  input.value = initialValue;
 
   let lastSent = input.value;
   let timer = null;
@@ -366,14 +421,15 @@ function renderAnswerInput(container, q, onChange) {
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') input.blur();
   });
+  return input;
 }
 
 // Renders one question's option buttons into container — one pick at a
 // time, starting from selectedId — and reports every new pick (its option
-// id) through onChange.
-function renderOptions(container, options, selectedId, onChange) {
+// id) through onChange. Taip / Ne (yesNo) sit side by side.
+function renderOptions(container, options, selectedId, onChange, yesNo) {
   const grid = document.createElement('div');
-  grid.className = 'options-list';
+  grid.className = yesNo ? 'options-list yes-no-options' : 'options-list';
   container.appendChild(grid);
 
   options.forEach((opt) => {

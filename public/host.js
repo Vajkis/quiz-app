@@ -287,11 +287,12 @@ if (prevBtn) {
   });
 }
 
-// Stage answers: mark a team's typed answer right (✓) or wrong (✗) — the
-// active one is pre-set from the automatic match, and the server re-scores
-// the question at once.
+// Stage answers: mark a team's typed answer (or chain, or extra answer —
+// the row's data-part) right (✓) or wrong (✗) — the active one is pre-set
+// from the automatic match, and the server re-scores the question at once.
 document.querySelectorAll('.typed-answer-row').forEach((row) => {
   const buttons = row.querySelectorAll('.typed-answer-btn');
+  if (buttons.length === 0) return;
 
   function show(correct) {
     buttons.forEach((b) =>
@@ -310,6 +311,7 @@ document.querySelectorAll('.typed-answer-row').forEach((row) => {
           body: JSON.stringify({
             index: Number(row.dataset.index),
             teamId: row.dataset.team,
+            part: row.dataset.part,
             correct: btn.dataset.correct === 'true'
           })
         });

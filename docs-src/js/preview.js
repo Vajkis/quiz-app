@@ -12,6 +12,8 @@ const gameId = params.get('id');
 
 const gameIntroEl = document.getElementById('game-intro-screen');
 const gameIntroNameEl = document.getElementById('game-intro-name');
+const gameRulesEl = document.getElementById('game-rules-screen');
+const gameRulesListEl = document.getElementById('game-rules-list');
 
 const stageIntroEl = document.getElementById('stage-intro-screen');
 const stageIntroLabelEl = document.getElementById('stage-intro-label');
@@ -23,6 +25,7 @@ const imageWrapEl = document.getElementById('view-image-wrap');
 const imageEl = document.getElementById('view-image');
 const questionTextEl = document.getElementById('view-question-text');
 const optionsEl = document.getElementById('view-options');
+const bonusQuestionEl = document.getElementById('view-bonus-question');
 const stageReviewEl = document.getElementById('stage-review');
 const errorEl = document.getElementById('preview-error');
 
@@ -76,25 +79,45 @@ function createOptionLetter(index) {
 }
 
 // The first option is the correct one in a stored game (see
-// normalizeGamePayload), so options are shuffled — once, when the preview
-// opens, so going back and forth doesn't reorder them — as the server does.
+// normalizeGamePayload), so a choice question's options are shuffled —
+// once, when the preview opens, so going back and forth doesn't reorder
+// them — as the server does. Taip / Ne always keep their order.
+const YES_NO_OPTIONS = [{ text: 'Taip' }, { text: 'Ne' }];
+function shownOptionsFor(q) {
+  const type = QuizGameShared.questionType(q);
+  if (type === 'choice') return shuffle(q.options);
+  if (type === 'yesno') return YES_NO_OPTIONS;
+  return [];
+}
+
 function buildScreens(game) {
   const list = [{ type: 'game-intro', name: game.name }];
+  if (game.rules && game.rules.length) list.push({ type: 'game-rules', rules: game.rules });
   game.stages.forEach((stage, s) => {
     list.push({ type: 'stage-intro', name: stage.name, number: s + 1, count: game.stages.length });
-    const shownOptions = stage.questions.map((q) => (q.options.length === 1 ? [] : shuffle(q.options)));
+    const shownOptions = stage.questions.map(shownOptionsFor);
     stage.questions.forEach((q, i) => {
       list.push({
         type: 'question',
         number: i + 1,
         question: q,
-        textAnswer: q.options.length === 1,
+        questionType: QuizGameShared.questionType(q),
         options: shownOptions[i],
       });
     });
     list.push({ type: 'stage-answers', stage, shownOptions });
   });
   return list;
+}
+
+// The game's rules, one list item each — the slide after its name.
+function renderRules(rules) {
+  gameRulesListEl.innerHTML = '';
+  rules.forEach((rule) => {
+    const li = document.createElement('li');
+    li.textContent = rule;
+    gameRulesListEl.appendChild(li);
+  });
 }
 
 function stopAudio() {
@@ -105,6 +128,7 @@ function stopAudio() {
 
 function hideAll() {
   gameIntroEl.hidden = true;
+  gameRulesEl.hidden = true;
   stageIntroEl.hidden = true;
   questionAreaEl.hidden = true;
   stageReviewEl.hidden = true;
@@ -118,7 +142,7 @@ function hideAll() {
 function showQuestion(screen) {
   const q = screen.question;
   questionAreaEl.hidden = false;
-  questionTextEl.textContent = `${screen.number}. ${q.question}`;
+  questionTextEl.textContent = `${screen.number}. ${q.question || 'Grandinėlė'}`;
 
   const audioSrc = resolveMedia(q.audio);
   clipStart = q.audioStart || 0;
@@ -149,7 +173,25 @@ function showQuestion(screen) {
     optionsEl.style.setProperty('--rows', rows);
   }
 
-  if (screen.textAnswer) {
+  bonusQuestionEl.hidden = !q.bonus;
+  bonusQuestionEl.textContent =
+    q.bonus && q.bonus.question ? `Papildomas klausimas: ${q.bonus.question}` : 'Papildomas atsakymas';
+
+  // A chain: its clues, numbered like the fields teams type each answer in.
+  if (screen.questionType === 'chain') {
+    q.links.forEach((link, i) => {
+      const div = document.createElement('div');
+      div.className = 'view-option view-chain-clue';
+      const number = document.createElement('span');
+      number.className = 'chain-clue-number';
+      number.textContent = `${i + 1}.`;
+      div.append(number, document.createTextNode(link.clue));
+      optionsEl.appendChild(div);
+    });
+    return;
+  }
+
+  if (screen.questionType === 'text') {
     const hint = document.createElement('div');
     hint.className = 'view-text-answer-hint';
     hint.textContent = 'Įrašykite atsakymą';
@@ -175,6 +217,9 @@ function showQuestion(screen) {
 // named by the letter it had on its question's screen, like buildStageReview
 // in server.js does.
 function correctAnswerText(q, shown) {
+  const type = QuizGameShared.questionType(q);
+  if (type === 'chain') return q.links.map((l) => l.answer).join(' → ');
+  if (type === 'yesno') return q.answer === 'yes' ? 'Taip' : 'Ne';
   const correct = q.options[0];
   const shownIndex = shown.indexOf(correct);
   if (correct.img && shownIndex >= 0) return String.fromCharCode(65 + shownIndex);
@@ -194,10 +239,11 @@ function showStageAnswers(stage, shownOptions) {
     const box = document.createElement('div');
     box.className = 'question';
     const questionP = document.createElement('p');
-    questionP.textContent = `${i + 1}. ${q.question}`;
+    questionP.textContent = `${i + 1}. ${q.question || 'Grandinėlė'}`;
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
-    answerP.textContent = correctAnswerText(q, shownOptions[i]);
+    const answer = correctAnswerText(q, shownOptions[i]);
+    answerP.textContent = q.bonus ? `${answer} + ${q.bonus.answer}` : answer;
     box.append(questionP, answerP);
     stageReviewEl.appendChild(box);
   });
@@ -209,6 +255,9 @@ function render() {
   if (screen.type === 'game-intro') {
     gameIntroEl.hidden = false;
     gameIntroNameEl.textContent = screen.name;
+  } else if (screen.type === 'game-rules') {
+    gameRulesEl.hidden = false;
+    renderRules(screen.rules);
   } else if (screen.type === 'stage-intro') {
     stageIntroEl.hidden = false;
     stageIntroLabelEl.textContent = `Etapas ${screen.number} / ${screen.count}`;

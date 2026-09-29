@@ -2,6 +2,8 @@ const ROOM_ID = document.body.dataset.room;
 
 const gameIntroEl = document.getElementById('game-intro-screen');
 const gameIntroNameEl = document.getElementById('game-intro-name');
+const gameRulesEl = document.getElementById('game-rules-screen');
+const gameRulesListEl = document.getElementById('game-rules-list');
 
 const stageIntroEl = document.getElementById('stage-intro-screen');
 const stageIntroLabelEl = document.getElementById('stage-intro-label');
@@ -13,6 +15,7 @@ const imageWrapEl = document.getElementById('view-image-wrap');
 const imageEl = document.getElementById('view-image');
 const questionTextEl = document.getElementById('view-question-text');
 const optionsEl = document.getElementById('view-options');
+const bonusQuestionEl = document.getElementById('view-bonus-question');
 const stageReviewEl = document.getElementById('stage-review');
 const leaderboardEl = document.getElementById('leaderboard');
 
@@ -92,6 +95,7 @@ function hideAll(screenKey) {
     closeFullscreen();
   }
   gameIntroEl.hidden = true;
+  gameRulesEl.hidden = true;
   stageIntroEl.hidden = true;
   questionAreaEl.hidden = true;
   stageReviewEl.hidden = true;
@@ -179,6 +183,14 @@ socket.on('question', (q) => {
     optionsEl.style.setProperty('--rows', rows);
   }
 
+  showBonusQuestion(bonusQuestionEl, q.hasBonus, q.bonusQuestion);
+
+  // A chain: its clues, numbered like the fields teams type each answer in.
+  if (q.type === 'chain') {
+    renderChainClues(optionsEl, q.clues);
+    return;
+  }
+
   // Typed-answer question: no options exist on this side at all (the server
   // never sends the answer), just a prompt telling teams to type it in.
   if (q.textAnswer) {
@@ -203,6 +215,35 @@ socket.on('question', (q) => {
     optionsEl.appendChild(div);
   });
 });
+
+function renderChainClues(container, clues) {
+  clues.forEach((clue, i) => {
+    const div = document.createElement('div');
+    div.className = 'view-option view-chain-clue';
+    const number = document.createElement('span');
+    number.className = 'chain-clue-number';
+    number.textContent = `${i + 1}.`;
+    div.append(number, document.createTextNode(clue));
+    container.appendChild(div);
+  });
+}
+
+// Under the question text, in its box: the extra answer's question (e.g.
+// "Atlikėjas"), which teams type in their own field on their phones.
+function showBonusQuestion(el, hasBonus, question) {
+  el.hidden = !hasBonus;
+  el.textContent = question ? `Papildomas klausimas: ${question}` : 'Papildomas atsakymas';
+}
+
+// The game's rules, one list item each — the slide after its name.
+function renderRules(rules) {
+  gameRulesListEl.innerHTML = '';
+  rules.forEach((rule) => {
+    const li = document.createElement('li');
+    li.textContent = rule;
+    gameRulesListEl.appendChild(li);
+  });
+}
 
 // Every picture on this screen (question, options, fullscreen) gets an
 // empty alt on purpose: no question or option text ever rides along with
@@ -286,6 +327,12 @@ socket.on('game-intro', ({ gameName }) => {
   gameIntroNameEl.textContent = gameName;
 });
 
+socket.on('game-rules', ({ rules }) => {
+  hideAll('game-rules');
+  gameRulesEl.hidden = false;
+  renderRules(rules || []);
+});
+
 socket.on('stage-intro', ({ stageName, stageNumber, stageCount }) => {
   hideAll(`stage-intro-${stageNumber}`);
   stageIntroEl.hidden = false;
@@ -312,7 +359,7 @@ socket.on('stage-answers', (review) => {
 
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
-    answerP.textContent = q.correctAnswer;
+    answerP.textContent = q.bonus ? `${q.correctAnswer} + ${q.bonus.answer}` : q.correctAnswer;
 
     box.append(questionP, answerP);
 

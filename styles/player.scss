@@ -136,6 +136,45 @@
   border-radius: v.$radius-sm;
 }
 
+// A chain: one numbered field per clue (the clues are on the big screen).
+.chain-answer-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+
+  .text-answer-input {
+    flex: 1;
+    min-width: 0;
+    margin-top: 0;
+  }
+}
+
+.chain-answer-number {
+  flex: 0 0 24px;
+  font-weight: 700;
+}
+
+// The extra answer's field, under the main answer.
+.bonus-answer-label {
+  margin: 16px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: v.$color-purple;
+}
+
+// Taip / Ne side by side.
+.yes-no-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+
+  .option {
+    margin: 0;
+    text-align: center;
+  }
+}
+
 // The main question's text, bold so it stands out from the options below.
 .question-text {
   font-weight: 700;

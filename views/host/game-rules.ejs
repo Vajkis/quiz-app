@@ -11,8 +11,14 @@
   <h1><%= roomName %></h1>
   <p id="room-code">Kambario kodas: <strong><%= roomId %></strong></p>
 
-  <div class="stage-intro">
-    <p class="stage-intro-name"><%= roomName %></p>
+  <%# The game's rules — the slide right after its name (game-intro). %>
+  <div class="stage-intro game-rules">
+    <p class="game-rules-title">Taisyklės</p>
+    <ul class="game-rules-list">
+      <% rules.forEach(function(rule) { %>
+        <li><%= rule %></li>
+      <% }); %>
+    </ul>
   </div>
 
   <nav id="host-bar">
@@ -20,7 +26,7 @@
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
     </div>
     <div class="host-bar-main">
-      <button id="next-btn" data-room="<%= roomId %>"><%= hasRules ? 'Rodyti taisykles' : 'Pradėti žaidimą' %></button>
+      <button id="next-btn" data-room="<%= roomId %>">Pradėti žaidimą</button>
     </div>
   </nav>
   <%- include('_team-status', { roomId }) %>

@@ -29,6 +29,7 @@
 
   #view-question,
   #game-intro-screen,
+  #game-rules-screen,
   #stage-intro-screen {
     display: flex;
     flex-direction: column;
@@ -41,10 +42,17 @@
   }
 
   #game-intro-screen,
+  #game-rules-screen,
   #stage-intro-screen {
     align-items: center;
     justify-content: center;
     text-align: center;
+  }
+
+  // The rules can run long, so they start at the top instead.
+  #game-rules-screen {
+    justify-content: flex-start;
+    padding-top: 48px;
   }
 
   .question {
@@ -74,6 +82,21 @@
   padding: 0 24px;
 }
 
+// The game's rules (the slide after its name): a readable-from-the-room
+// list, left-aligned so multi-line rules line up under their bullets.
+.game-rules-list {
+  max-width: 1100px;
+  margin: 0;
+  padding: 0 24px 0 1.2em;
+  font-size: 32px;
+  line-height: 1.35;
+  text-align: left;
+
+  li + li {
+    margin-top: 16px;
+  }
+}
+
 .view-option {
   position: relative;
   display: block;
@@ -95,6 +118,22 @@
     border-radius: 4px;
     margin: 0 auto;
   }
+}
+
+// A thin black outline around every picture on this screen, so a white one
+// (e.g. Estonia's flag) doesn't melt into the white background. Pictures
+// fill their box with object-fit: contain, so a border would outline the
+// box, not the picture; drop-shadow follows the drawn pixels instead.
+%picture-outline {
+  filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000)
+    drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
+}
+
+.view-option img,
+#view-image,
+#fullscreen-content img,
+.fullscreen-grid img {
+  @extend %picture-outline;
 }
 
 #view-image-wrap {
@@ -329,6 +368,26 @@
   text-align: center;
   font-size: 20px;
   color: v.$color-muted;
+}
+
+// A chain's clues: numbered like the answer fields on the phones.
+.view-chain-clue .chain-clue-number {
+  font-weight: 700;
+  margin-right: 10px;
+}
+
+// The extra answer's question, in the question's own box right under it.
+#view-bonus-question {
+  flex-shrink: 0;
+  margin: 8px 0 0;
+  font-size: 20px;
+  font-weight: 600;
+  text-align: center;
+  color: v.$color-purple;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 // Image options take up all the room left under the question instead of

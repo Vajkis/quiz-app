@@ -15,7 +15,18 @@
     <% review.questions.forEach(function(q) { %>
       <div class="question">
         <p><%= q.number %>. <%= q.question %></p>
-        <p class="correct-answer"><%= q.correctAnswer %></p>
+        <% if (q.chain) { %>
+          <ol class="chain-clues">
+            <% q.chain.forEach(function(l) { %>
+              <li><%= l.clue %> — <strong><%= l.answer %></strong></li>
+            <% }); %>
+          </ol>
+        <% } else { %>
+          <p class="correct-answer"><%= q.correctAnswer %></p>
+        <% } %>
+        <% if (q.bonus) { %>
+          <p class="bonus-answer">+ <%= q.bonus.question || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong></p>
+        <% } %>
         <%- include('_audio-player', { roomId, audio: q.audio, audioStart: q.audioStart, audioEnd: q.audioEnd }) %>
         <%
           const imgButtons = [];
@@ -31,22 +42,57 @@
   <% if (typedQuestions.length) { %>
     <div id="typed-answers-review">
       <p class="typed-answers-title">Įrašyti atsakymai</p>
-      <% typedQuestions.forEach(function(q) { const typed = typedAnswers[q.number - 1]; %>
+      <% typedQuestions.forEach(function(q) { const review = typedAnswers[q.number - 1]; %>
         <div class="question typed-answers">
           <p><%= q.number %>. <%= q.question %></p>
           <p class="correct-answer"><%= q.correctAnswer %></p>
-          <% if (typed.length === 0) { %>
+          <% if (review.hasBonus) { %>
+            <p class="bonus-answer">+ <%= review.bonusQuestion || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong> <span class="bonus-note">(tik jei pagrindinis teisingas)</span></p>
+          <% } %>
+          <hr class="section-divider">
+          <% if (review.rows.length === 0) { %>
             <p class="typed-answers-empty">Kambaryje nėra komandų.</p>
           <% } %>
-          <% typed.forEach(function(a) { %>
-            <div class="typed-answer-row"
-              data-room="<%= roomId %>"
-              data-index="<%= q.number - 1 %>"
-              data-team="<%= a.teamId %>">
-              <span class="typed-answer-team"><%= a.teamName %></span>
-              <span class="typed-answer-text<%= a.typed ? '' : ' is-empty' %>"><%= a.typed || '(neįrašė)' %></span>
-              <button type="button" class="typed-answer-btn correct-btn<%= a.correct ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>
-              <button type="button" class="typed-answer-btn wrong-btn<%= a.correct ? '' : ' active' %>" data-correct="false" title="Neteisinga">✗</button>
+          <% review.rows.forEach(function(a, i) {
+            const answered = a.links ? a.links.some(Boolean) : !!a.typed;
+          %>
+            <% if (i > 0) { %><hr class="section-divider"><% } %>
+            <div class="typed-answer-team-block">
+              <div class="typed-answer-row"
+                data-room="<%= roomId %>"
+                data-index="<%= q.number - 1 %>"
+                data-team="<%= a.teamId %>"
+                data-part="main">
+                <span class="typed-answer-team"><%= a.teamName %></span>
+                <% if (a.links) { %>
+                  <ol class="typed-answer-text typed-answer-links">
+                    <% a.links.forEach(function(link) { %>
+                      <li class="<%= link ? '' : 'is-empty' %>"><%= link || '(neįrašė)' %></li>
+                    <% }); %>
+                  </ol>
+                <% } else { %>
+                  <span class="typed-answer-text<%= answered ? '' : ' is-empty' %>"><%= a.typed || (review.mainEditable ? '(neįrašė)' : '(nepasirinko)') %></span>
+                <% } %>
+                <% if (review.mainEditable) { %>
+                  <button type="button" class="typed-answer-btn correct-btn<%= a.mainCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>
+                  <button type="button" class="typed-answer-btn wrong-btn<%= a.mainCorrect ? '' : ' active' %>" data-correct="false" title="Neteisinga">✗</button>
+                <% } else { %>
+                  <%# A picked option is right or wrong as it is — only shown, not markable. %>
+                  <span class="typed-answer-status <%= a.mainCorrect ? 'is-correct' : 'is-wrong' %>"><%= a.mainCorrect ? '✓' : '✗' %></span>
+                <% } %>
+              </div>
+              <% if (review.hasBonus) { %>
+                <div class="typed-answer-row is-bonus"
+                  data-room="<%= roomId %>"
+                  data-index="<%= q.number - 1 %>"
+                  data-team="<%= a.teamId %>"
+                  data-part="bonus">
+                  <span class="typed-answer-team">+ <%= review.bonusQuestion || 'Papildomas' %></span>
+                  <span class="typed-answer-text<%= a.bonusTyped ? '' : ' is-empty' %>"><%= a.bonusTyped || '(neįrašė)' %></span>
+                  <button type="button" class="typed-answer-btn correct-btn<%= a.bonusCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>
+                  <button type="button" class="typed-answer-btn wrong-btn<%= a.bonusCorrect ? '' : ' active' %>" data-correct="false" title="Neteisinga">✗</button>
+                </div>
+              <% } %>
             </div>
           <% }); %>
         </div>

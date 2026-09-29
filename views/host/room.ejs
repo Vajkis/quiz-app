@@ -15,8 +15,20 @@
   <div class="question">
     <% if (currentQuestionText) { %>
       <p><%= currentQuestionNumber %>. <%= currentQuestionText %></p>
-      <% if (currentQuestionTextAnswer) { %>
+      <% if (currentQuestionType === 'text') { %>
         <p class="question-type-label">Įvedamas atsakymas (be variantų)</p>
+      <% } else if (currentQuestionType === 'yesno') { %>
+        <p class="question-type-label">Taip / Ne</p>
+      <% } else if (currentQuestionType === 'chain') { %>
+        <p class="question-type-label">Grandinėlė</p>
+        <ol class="chain-clues">
+          <% currentQuestionLinks.forEach(function(l) { %>
+            <li><%= l.clue %></li>
+          <% }); %>
+        </ol>
+      <% } %>
+      <% if (currentQuestionBonus) { %>
+        <p class="question-type-label bonus-label">Papildomas klausimas<%= currentQuestionBonus.question ? ': ' + currentQuestionBonus.question : '' %></p>
       <% } %>
     <% } else { %>
       <p>Dar neparodytas nė vienas klausimas.</p>

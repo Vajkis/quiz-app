@@ -76,7 +76,7 @@
           const out = { ...q };
           if (q.img) out.img = fn(q.img);
           if (q.audio) out.audio = fn(q.audio);
-          out.options = (q.options || []).map((o) => (o && o.img ? { ...o, img: fn(o.img) } : o));
+          if (q.options) out.options = q.options.map((o) => (o && o.img ? { ...o, img: fn(o.img) } : o));
           return out;
         }),
       })),

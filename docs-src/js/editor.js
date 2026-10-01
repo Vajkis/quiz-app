@@ -30,6 +30,8 @@ QuizGameEditorCore.uploadFile = async (file) => {
   return ref;
 };
 
+QuizGameEditorCore.mountSidePanel(stagesContainer);
+
 async function showGame(game) {
   await QuizMediaPreview.load(game);
   renderGame(stagesContainer, nameInput, game);
@@ -99,6 +101,19 @@ showGame(initialGame).then(() => {
   if (gameId || openedDraft) {
     QuizGameEditorCore.addDefaultRulesButton(stagesContainer, QuizGameStorage.loadDefaultRules());
   }
+
+  // Going back: a saved game's changes would be lost; a new game (or a
+  // draft) would stay just a draft, not a game.
+  const openedJson = JSON.stringify(collectPayload(stagesContainer, nameInput));
+  QuizGameEditorCore.guardBackLink(() => {
+    const json = JSON.stringify(collectPayload(stagesContainer, nameInput));
+    if (gameId)
+      return json !== openedJson ? 'Pakeitimai neišsaugoti. Ar tikrai nori išeiti?' : null;
+    return draftSaved || json !== openedJson
+      ? 'Žaidimas dar neišsaugotas – liks tik juodraštis. Ar tikrai nori išeiti?'
+      : null;
+  });
+
   if (gameId) return;
   // What the form holds untouched: until it changes, there's no draft yet.
   lastDraftJson = JSON.stringify(collectPayload(stagesContainer, nameInput));
@@ -122,6 +137,7 @@ saveBtn.addEventListener('click', async () => {
   const result = normalizeGamePayload(collectPayload(stagesContainer, nameInput));
   if (result.error) {
     errorEl.textContent = result.error;
+    QuizGameEditorCore.markStageErrors(stagesContainer, nameInput);
     return;
   }
 
@@ -142,6 +158,7 @@ exportBtn.addEventListener('click', async () => {
   const result = normalizeGamePayload(collectPayload(stagesContainer, nameInput));
   if (result.error) {
     errorEl.textContent = result.error;
+    QuizGameEditorCore.markStageErrors(stagesContainer, nameInput);
     return;
   }
   // Portable, id-less file (.zip if it has picked files) — the main app

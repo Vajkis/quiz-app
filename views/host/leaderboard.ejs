@@ -9,10 +9,10 @@
 <body>
 <div id="app">
   <h1><%= roomName %></h1>
-  <p id="room-code"><% if (showSeason) { %>Sezono rezultatai<% } else { %>Rezultatai<% } %></p>
+  <p id="room-code"><% if (leaderboardView === 'season') { %>Sezono rezultatai<% } else if (leaderboardView === 'penalties') { %>Nuobaudos taškai<% } else { %>Rezultatai<% } %></p>
   <div id="leaderboard">
     <% if (leaderboard.length === 0) { %>
-      <p>Nė viena komanda neatsakė į klausimus.</p>
+      <p><%= leaderboardView === 'penalties' ? 'Nė viena komanda negavo nuobaudos taškų.' : 'Nė viena komanda neatsakė į klausimus.' %></p>
     <% } %>
     <% leaderboard.forEach(function(row, i) { %>
       <div class="leaderboard-row">
@@ -27,8 +27,13 @@
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
     </div>
     <div class="host-bar-main">
+      <%# One button per view not shown now, always in this order; each flips every screen to it. %>
       <% if (seasonId) { %>
-        <button id="season-toggle-btn" data-id="<%= roomId %>"><%= showSeason ? 'Rodyti žaidimo taškus' : 'Rodyti sezono taškus' %></button>
+        <% [['game', 'Rodyti žaidimo taškus'], ['season', 'Rodyti sezono taškus'], ['penalties', 'Rodyti nuobaudos taškus']].forEach(function(v) { %>
+          <% if (v[0] !== leaderboardView) { %>
+            <button class="leaderboard-view-btn" data-id="<%= roomId %>" data-view="<%= v[0] %>"><%= v[1] %></button>
+          <% } %>
+        <% }); %>
       <% } %>
       <button id="finish-game-btn" data-id="<%= roomId %>">Baigti žaidimą</button>
     </div>

@@ -231,7 +231,7 @@ h1 {
   text-align: left;
 }
 .game-rules-list li + li {
-  margin-top: 16px;
+  margin-top: 0.5em;
 }
 
 .view-option {

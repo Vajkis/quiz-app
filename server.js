@@ -690,16 +690,47 @@ function buildSeasonLeaderboard(room) {
     .sort((a, b) => b.score - a.score);
 }
 
+// A team's penalty points for a season — kept apart from its scores (in
+// teams.json under penalties -> season id) and never taken off them.
+function seasonPenalty(team, seasonId) {
+  return (team && team.penalties && team.penalties[seasonId]) || 0;
+}
+
+// Every team with penalty points this season, most first. Teams in this room
+// always show up, even with none (0) — same as buildSeasonLeaderboard.
+function buildPenaltyLeaderboard(room) {
+  const seasonId = room.seasonId;
+  const teams = loadTeams();
+  return Object.entries(teams)
+    .filter(
+      ([teamId, t]) =>
+        seasonPenalty(t, seasonId) > 0 || room.joinedTeams.has(teamId)
+    )
+    .map(([teamId, t]) => ({
+      teamId,
+      name: t.name,
+      score: seasonPenalty(t, seasonId)
+    }))
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'lt'));
+}
+
 // What the finished screen shows: this game's totals, or — once the host
-// toggles to them — the whole active season's standings.
+// toggles to them — the whole active season's standings or penalty points.
 function finalLeaderboardPayload(room) {
-  return room.showSeason
-    ? {
-        rows: buildSeasonLeaderboard(room),
-        final: true,
-        seasonId: room.seasonId
-      }
-    : { rows: room.leaderboard, final: true };
+  if (room.leaderboardView === 'season')
+    return {
+      rows: buildSeasonLeaderboard(room),
+      final: true,
+      seasonId: room.seasonId
+    };
+  if (room.leaderboardView === 'penalties')
+    return {
+      rows: buildPenaltyLeaderboard(room),
+      final: true,
+      seasonId: room.seasonId,
+      penalties: true
+    };
+  return { rows: room.leaderboard, final: true };
 }
 
 // Lenient comparison for typed answers: case, Lithuanian diacritics,
@@ -1294,10 +1325,14 @@ function resolveMediaSrc(value) {
 }
 
 function renderHostDashboard(req, res, error) {
-  const gameList = Object.keys(games).map((id) => ({
-    id,
-    name: games[id].name
-  }));
+  // Newest first: games.json keeps games in the order they were created
+  // (saving an edit doesn't move one), so that order reversed.
+  const gameList = Object.keys(games)
+    .map((id) => ({
+      id,
+      name: games[id].name
+    }))
+    .reverse();
   const roomList = Object.keys(rooms).map((id) => ({
     id,
     name: rooms[id].name
@@ -1420,7 +1455,7 @@ function renderLeaderboard(req, res, roomId) {
     roomName: room.name,
     leaderboard: finalLeaderboardPayload(room).rows,
     seasonId: room.seasonId,
-    showSeason: !!room.showSeason
+    leaderboardView: room.leaderboardView || 'game'
   });
 }
 
@@ -1458,15 +1493,18 @@ app.get('/host', (req, res) => {
   renderHostDashboard(req, res);
 });
 
-// The games page's two lists: drafts (newest first) above the saved games.
-// A draft is whatever the editor had, so any part of it may be missing.
+// The games page's two lists: drafts (newest first) above the saved games
+// (newest first too — see renderHostDashboard). A draft is whatever the
+// editor had, so any part of it may be missing.
 function renderGamesList(res, error) {
-  const gameList = Object.entries(games).map(([id, g]) => ({
-    id,
-    name: g.name,
-    stageCount: g.stages.length,
-    questionCount: g.stages.reduce((n, s) => n + s.questions.length, 0)
-  }));
+  const gameList = Object.entries(games)
+    .map(([id, g]) => ({
+      id,
+      name: g.name,
+      stageCount: g.stages.length,
+      questionCount: g.stages.reduce((n, s) => n + s.questions.length, 0)
+    }))
+    .reverse();
   const draftList = Object.entries(drafts)
     .map(([id, d]) => {
       const stages = Array.isArray(d.game && d.game.stages) ? d.game.stages : [];
@@ -1528,6 +1566,7 @@ app.get('/host/teams', (req, res) => {
         id,
         name: t.name,
         games: gameList,
+        penalty: seasonPenalty(t, seasonId),
         total: gameList.reduce((sum, g) => sum + g.total, 0)
       });
     });
@@ -1916,7 +1955,7 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
       });
       Object.assign(finalScores, room.scores);
       room.leaderboard = buildLeaderboard(room, finalScores);
-      room.showSeason = false;
+      room.leaderboardView = 'game';
       io.to(roomId).emit('leaderboard', finalLeaderboardPayload(room));
       return res.json({ phase: 'finished' });
     }
@@ -1956,16 +1995,45 @@ app.post('/api/host/room/:roomId/internet-warning-toggle', (req, res) => {
 });
 
 // Finished screen: flips every screen between this game's totals and the
-// active season's standings.
-app.post('/api/host/room/:roomId/season-toggle', (req, res) => {
+// active season's standings ('season') or penalty points ('penalties').
+app.post('/api/host/room/:roomId/leaderboard-view', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
   if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
-  if (room.phase !== 'finished' || !room.seasonId)
+  const view = req.body.view;
+  if (!['game', 'season', 'penalties'].includes(view))
+    return res.status(400).json({ error: 'Nežinomas rodinys' });
+  if (room.phase !== 'finished' || (view !== 'game' && !room.seasonId))
     return res.status(400).json({ error: 'Sezono taškų parodyti negalima' });
-  room.showSeason = !room.showSeason;
+  room.leaderboardView = view;
   io.to(roomId).emit('leaderboard', finalLeaderboardPayload(room));
-  res.json({ showSeason: room.showSeason });
+  res.json({ view });
+});
+
+// Host's − / + beside a team in the team status list: one penalty point
+// more or less for the room's season (never below 0).
+app.post('/api/host/room/:roomId/penalty', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  if (!room.seasonId)
+    return res.status(400).json({ error: 'Kambarys be sezono' });
+  const { teamId, delta } = req.body;
+  if (delta !== 1 && delta !== -1)
+    return res.status(400).json({ error: 'Netinkamas pokytis' });
+  const teams = loadTeams();
+  const team = teams[teamId];
+  if (!team || !room.joinedTeams.has(teamId))
+    return res.status(404).json({ error: 'Komanda nerasta' });
+  const penalty = Math.max(0, seasonPenalty(team, room.seasonId) + delta);
+  team.penalties = team.penalties || {};
+  team.penalties[room.seasonId] = penalty;
+  saveTeams(teams);
+  console.log(`[nuobaudos] ${team.name}: ${penalty} (sezonas ${room.seasonId})`);
+  emitTeamStatus(roomId);
+  if (room.phase === 'finished' && room.leaderboardView === 'penalties')
+    io.to(roomId).emit('leaderboard', finalLeaderboardPayload(room));
+  res.json({ penalty });
 });
 
 app.delete('/api/host/room/:roomId', (req, res) => {
@@ -2004,9 +2072,10 @@ function hostWatchChannel(roomId) {
   return `host-watch:${roomId}`;
 }
 
-// Every team that joined the room: whether its phone is connected right now
-// and its last internet check (online, and how long ago — the host page
-// treats an old check as unknown).
+// Every team that joined the room: whether its phone is connected right now,
+// its last internet check (online, and how long ago — the host page treats
+// an old check as unknown) and its penalty points this season (null when
+// the room has no season, so there's nowhere to keep them).
 function teamStatusPayload(roomId) {
   const room = rooms[roomId];
   const teams = loadTeams();
@@ -2024,7 +2093,8 @@ function teamStatusPayload(roomId) {
         name: teams[teamId] ? teams[teamId].name : teamId,
         connected: connected.has(teamId),
         online: status ? status.online : null,
-        checkedAgoMs: status ? now - status.at : null
+        checkedAgoMs: status ? now - status.at : null,
+        penalty: room.seasonId ? seasonPenalty(teams[teamId], room.seasonId) : null
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'lt'));

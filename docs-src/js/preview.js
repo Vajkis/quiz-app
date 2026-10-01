@@ -118,7 +118,33 @@ function renderRules(rules) {
     li.textContent = rule;
     gameRulesListEl.appendChild(li);
   });
+  fitRules();
 }
+
+// When there are too many rules for the screen, their text shrinks (from the
+// stylesheet's size down to RULES_MIN_FONT_PX at most) until the whole slide
+// fits above the bar without scrolling. Re-fitted when the window resizes or
+// the font loads.
+const RULES_MIN_FONT_PX = 14;
+function fitRules() {
+  if (gameRulesEl.hidden) return;
+  const fits = () => document.documentElement.scrollHeight <= window.innerHeight;
+  gameRulesListEl.style.fontSize = '';
+  if (fits()) return;
+  let lo = RULES_MIN_FONT_PX;
+  let hi = parseFloat(getComputedStyle(gameRulesListEl).fontSize);
+  while (hi - lo > 0.5) {
+    const mid = (lo + hi) / 2;
+    gameRulesListEl.style.fontSize = `${mid}px`;
+    if (fits()) lo = mid;
+    else hi = mid;
+  }
+  gameRulesListEl.style.fontSize = `${lo}px`;
+}
+window.addEventListener('resize', fitRules);
+// A font finishing loading (Mulish, usually after the first fit on a fresh
+// load — fonts.ready would already have resolved by then) changes the size.
+document.fonts.addEventListener('loadingdone', fitRules);
 
 function stopAudio() {
   clipPaused = false;

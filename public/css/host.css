@@ -296,7 +296,10 @@ h1 {
 
 .room-close-btn {
   flex-shrink: 0;
+  align-self: center;
   width: 40px;
+  height: 40px;
+  padding: 0;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -328,7 +331,7 @@ h1 {
 }
 
 #prev-btn,
-#season-toggle-btn {
+.leaderboard-view-btn {
   display: block;
   width: 100%;
   padding: 12px;
@@ -342,7 +345,7 @@ h1 {
 }
 @media (min-width: 576px) {
   #prev-btn,
-  #season-toggle-btn {
+  .leaderboard-view-btn {
     max-width: 300px;
     margin-left: auto;
     margin-right: auto;
@@ -350,7 +353,7 @@ h1 {
 }
 @media (min-width: 992px) {
   #prev-btn:hover,
-  #season-toggle-btn:hover {
+  .leaderboard-view-btn:hover {
     background: #eaf1ff;
   }
 }
@@ -404,7 +407,7 @@ body:has(#host-bar) {
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
 }
 #host-bar #prev-btn,
-#host-bar #season-toggle-btn,
+#host-bar .leaderboard-view-btn,
 #host-bar #next-btn,
 #host-bar #finish-game-btn {
   width: auto;
@@ -504,7 +507,7 @@ body:has(#host-bar) {
     gap: 6px;
   }
   #host-bar #prev-btn,
-  #host-bar #season-toggle-btn,
+  #host-bar .leaderboard-view-btn,
   #host-bar #next-btn,
   #host-bar #finish-game-btn {
     flex: 1 1 0;
@@ -1514,6 +1517,11 @@ body:has(#host-bar) {
   font-weight: 700;
 }
 
+.team-card-penalty {
+  font-size: 15px;
+  color: #dc2626;
+}
+
 .season-section {
   margin-top: 16px;
 }
@@ -1777,8 +1785,48 @@ body:has(#host-bar) {
 }
 
 .team-status-name {
+  flex: 1;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.team-penalty {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.team-penalty-count {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 700;
+  color: #dc2626;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-penalty-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  background: #fff;
+  color: #3b82f6;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+}
+@media (min-width: 992px) {
+  .team-penalty-btn:hover {
+    background: #eaf1ff;
+  }
+}
+.team-penalty-btn:disabled {
+  color: #6b7280;
+  background: #f3f4f6;
+  cursor: default;
 }
 
 .team-status-badge {
@@ -1877,5 +1925,213 @@ body:has(#host-bar) {
 @keyframes pick-file-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+@media (min-width: 768px) {
+  body.has-side-panel {
+    padding-left: 68px;
+    transition: padding-left 0.2s ease;
+  }
+  body.has-side-panel.side-panel-open {
+    padding-left: 256px;
+  }
+}
+@media not all and (min-width: 768px) {
+  body.has-side-panel {
+    padding-bottom: 84px;
+  }
+}
+
+.stage-card {
+  scroll-margin-top: 16px;
+}
+
+.editor-side-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px;
+  background: #fff;
+  border-right: 1px solid #ddd;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+@media (min-width: 768px) {
+  .editor-side-panel {
+    width: 52px;
+    transition: width 0.2s ease;
+  }
+  .side-panel-open .editor-side-panel {
+    width: 240px;
+  }
+}
+@media not all and (min-width: 768px) {
+  .editor-side-panel {
+    width: min(280px, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: none;
+  }
+  .side-panel-menu-open .editor-side-panel {
+    transform: none;
+    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.side-panel-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side-panel-item {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #222;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (min-width: 992px) {
+  .side-panel-item:hover {
+    background: #eaf1ff;
+  }
+}
+
+@media not all and (min-width: 768px) {
+  .side-panel-toggle {
+    display: none;
+  }
+}
+
+.side-panel-icon {
+  flex: 0 0 24px;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1;
+  color: #3b82f6;
+}
+
+.side-panel-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+}
+
+.side-panel-save .side-panel-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.side-panel-stage .side-panel-icon {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eaf1ff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.side-panel-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (min-width: 768px) {
+  .side-panel-label {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .side-panel-open .side-panel-label {
+    opacity: 1;
+  }
+}
+
+.side-panel-stage.has-error {
+  color: #dc2626;
+  background: #fde8e8;
+}
+.side-panel-stage.has-error .side-panel-icon {
+  background: #dc2626;
+  color: #fff;
+}
+
+.side-panel-heading {
+  flex-shrink: 0;
+  margin: 4px 4px 0;
+  padding: 8px 0 0 4px;
+  border-top: 1px solid #ddd;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+  white-space: nowrap;
+}
+@media (min-width: 768px) {
+  body:not(.side-panel-open) .side-panel-heading {
+    font-size: 0;
+  }
+}
+
+.side-panel-fab {
+  display: none;
+}
+@media not all and (min-width: 768px) {
+  .side-panel-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 95;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 22px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+  }
+}
+
+.side-panel-backdrop {
+  display: none;
+}
+@media not all and (min-width: 768px) {
+  .side-panel-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 85;
+    display: block;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .side-panel-menu-open .side-panel-backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
 }

@@ -370,7 +370,38 @@ if (teamStatusEl) {
       badge.className = 'team-status-badge';
       badge.textContent = text;
       row.append(name, badge);
+      if (team.penalty != null) row.appendChild(penaltyControls(team));
       listEl.appendChild(row);
+    });
+  }
+
+  // − count + for the team's penalty points this season; the new count
+  // comes back with the next team-status push.
+  function penaltyControls(team) {
+    const wrap = document.createElement('span');
+    wrap.className = 'team-penalty';
+    wrap.title = 'Nuobaudos taškai šį sezoną';
+    const count = document.createElement('span');
+    count.className = 'team-penalty-count';
+    count.textContent = team.penalty;
+    const button = (label, delta) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'team-penalty-btn';
+      b.textContent = label;
+      b.disabled = delta < 0 && team.penalty === 0;
+      b.addEventListener('click', () => changePenalty(team.teamId, delta));
+      return b;
+    };
+    wrap.append(button('−', -1), count, button('+', 1));
+    return wrap;
+  }
+
+  async function changePenalty(teamId, delta) {
+    await fetch(`/api/host/room/${teamStatusEl.dataset.room}/penalty`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamId, delta })
     });
   }
 
@@ -406,15 +437,19 @@ if (teamStatusEl) {
   });
 }
 
-// Leaderboard: switch between this game's and the season's standings
-const seasonToggleBtn = document.getElementById('season-toggle-btn');
-if (seasonToggleBtn) {
-  seasonToggleBtn.addEventListener('click', async () => {
-    const res = await fetch(`/api/host/room/${seasonToggleBtn.dataset.id}/season-toggle`, { method: 'POST' });
+// Leaderboard: switch between this game's standings, the season's and the
+// season's penalty points
+document.querySelectorAll('.leaderboard-view-btn').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const res = await fetch(`/api/host/room/${btn.dataset.id}/leaderboard-view`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ view: btn.dataset.view })
+    });
     if (!res.ok) return;
     window.location.reload();
   });
-}
+});
 
 // Leaderboard: finish game (closes the room)
 const finishGameBtn = document.getElementById('finish-game-btn');

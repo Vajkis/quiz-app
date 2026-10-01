@@ -830,6 +830,199 @@
     });
   }
 
+  // After a save (or export) that failed its checks: the checks stop at the
+  // first problem, so each stage is checked again on its own, and every one
+  // with a problem is marked (.has-error, the problem in data-error) — the
+  // side panel shows those in red. From then on the marks follow each edit,
+  // so a fixed stage clears.
+  function markStageErrors(stagesContainer, nameInput) {
+    const check = () => {
+      const { stages } = collectPayload(stagesContainer, nameInput);
+      stagesContainer.querySelectorAll('.stage-card').forEach((card, i) => {
+        const { error } = global.QuizGameShared.normalizeGamePayload({
+          name: '-',
+          stages: [stages[i]]
+        });
+        card.classList.toggle('has-error', !!error);
+        if (error) card.dataset.error = error;
+        else delete card.dataset.error;
+      });
+      stagesContainer.dispatchEvent(new Event('stage-errors'));
+    };
+    check();
+    if (stagesContainer.dataset.errorsFollowed) return;
+    stagesContainer.dataset.errorsFollowed = 'true';
+    ['input', 'change', 'click'].forEach((type) =>
+      // After the click's own handler (Taip/Ne, a removed option…) has run.
+      stagesContainer.addEventListener(type, () => setTimeout(check))
+    );
+    new MutationObserver(() => setTimeout(check)).observe(stagesContainer, { childList: true });
+  }
+
+  // "← Atgal į žaidimus" (and the side panel's, which clicks it) asks first
+  // when leaving would leave something unsaved: getMessage says what, or
+  // returns null when nothing would be.
+  function guardBackLink(getMessage) {
+    document.getElementById('editor-back-link').addEventListener('click', (e) => {
+      const message = getMessage();
+      if (message && !confirm(message)) e.preventDefault();
+    });
+  }
+
+  // A panel along the page's left edge, so a long game needn't be scrolled
+  // to its top or bottom: the editor's main buttons (each just clicks the
+  // real one, which stays where it is) and the stages — clicking one
+  // scrolls to it, opening it if collapsed. On a computer it's part of the
+  // page: collapsed it shows only icons, expanded icons with labels; which
+  // one is remembered in this browser. On a phone it's a menu instead.
+  // Both editors share the buttons' ids, so the panel needs nothing else.
+  const SIDE_PANEL_KEY = 'quiz-editor-side-panel-open';
+
+  // Line icons in the text's own colour, matching the panel's glyph icons
+  // (☰ ← ＋ …) — where no plain character fits.
+  const SIDE_PANEL_SVG = (paths) =>
+    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  const RULES_ICON = SIDE_PANEL_SVG('<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>');
+  const SAVE_ICON = SIDE_PANEL_SVG(
+    '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'
+  );
+
+  function mountSidePanel(stagesContainer) {
+    const editorEl = document.getElementById('game-editor');
+    const errorEl = document.getElementById('editor-error');
+    const panel = document.createElement('nav');
+    panel.className = 'editor-side-panel';
+    panel.innerHTML = `
+      <div class="side-panel-group side-panel-actions"></div>
+      <p class="side-panel-heading">Etapai</p>
+      <div class="side-panel-group side-panel-stages"></div>
+    `;
+    const actionsEl = panel.querySelector('.side-panel-actions');
+    const stagesEl = panel.querySelector('.side-panel-stages');
+
+    function createItem(icon, label, onClick, className = '') {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `side-panel-item ${className}`.trim();
+      btn.title = label;
+      btn.innerHTML = '<span class="side-panel-icon"></span><span class="side-panel-label"></span>';
+      const iconEl = btn.querySelector('.side-panel-icon');
+      if (icon.startsWith('<svg')) iconEl.innerHTML = icon;
+      else iconEl.textContent = icon;
+      btn.querySelector('.side-panel-label').textContent = label;
+      btn.addEventListener('click', () => {
+        // On a phone the menu covers the page — out of the way first.
+        if (mobileQuery.matches) setMenuOpen(false);
+        onClick();
+      });
+      return btn;
+    }
+
+    // Phones (see .side-panel-fab in host.scss): the panel is a menu over
+    // the page, opened by a corner button and closed by any item in it, the
+    // corner button again or a tap on the dimmed page beside it.
+    // Same test as host.scss's side-panel-mobile: anything not desktop-wide.
+    const mobileQuery = window.matchMedia('not all and (min-width: 768px)');
+    const fab = document.createElement('button');
+    fab.type = 'button';
+    fab.className = 'side-panel-fab';
+    const backdrop = document.createElement('div');
+    backdrop.className = 'side-panel-backdrop';
+    function setMenuOpen(open) {
+      document.body.classList.toggle('side-panel-menu-open', open);
+      fab.textContent = open ? '✕' : '☰';
+      fab.title = open ? 'Uždaryti meniu' : 'Meniu';
+    }
+    fab.addEventListener('click', () =>
+      setMenuOpen(!document.body.classList.contains('side-panel-menu-open'))
+    );
+    backdrop.addEventListener('click', () => setMenuOpen(false));
+    setMenuOpen(false);
+
+    // Opens a collapsed card (its chevron) and brings it into view.
+    function showCard(card) {
+      if (!card) return;
+      const toggle = card.querySelector(':scope > .stage-header .toggle-stage-btn');
+      if (toggle && toggle.classList.contains('collapsed')) toggle.click();
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // What a button down at the bottom shows in answer (a save's error, the
+    // pick-a-game list of a multi-game import) is scrolled into view when it
+    // was pressed from here — for a while after, as some of it is async.
+    let followUntil = 0;
+    function clickReal(id) {
+      followUntil = Date.now() + 15000;
+      document.getElementById(id).click();
+    }
+    new MutationObserver((mutations) => {
+      if (Date.now() > followUntil) return;
+      for (const m of mutations) {
+        const shown =
+          m.target === errorEl && errorEl.textContent.trim()
+            ? errorEl
+            : Array.from(m.addedNodes).find((n) => n.classList && n.classList.contains('import-choice'));
+        if (shown) {
+          shown.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          followUntil = 0;
+          return;
+        }
+      }
+    }).observe(editorEl, { childList: true, subtree: true });
+
+    const toggleBtn = createItem('☰', 'Suskleisti', () => setOpen(!document.body.classList.contains('side-panel-open')), 'side-panel-toggle');
+    function setOpen(open) {
+      document.body.classList.toggle('side-panel-open', open);
+      toggleBtn.title = open ? 'Suskleisti' : 'Išskleisti';
+      try {
+        localStorage.setItem(SIDE_PANEL_KEY, open ? '1' : '');
+      } catch {}
+    }
+
+    actionsEl.append(
+      toggleBtn,
+      createItem('←', 'Atgal į žaidimus', () => document.getElementById('editor-back-link').click()),
+      createItem(RULES_ICON, 'Taisyklės', () => showCard(editorEl.querySelector('.rules-card'))),
+      createItem('＋', 'Naujas etapas', () => {
+        clickReal('add-stage-btn');
+        showCard(stagesContainer.lastElementChild);
+      }),
+      createItem(SAVE_ICON, 'Išsaugoti žaidimą', () => clickReal('save-game-btn'), 'side-panel-save'),
+      createItem('⭱', 'Importuoti', () => clickReal('import-game-input')),
+      createItem('⭳', 'Eksportuoti', () => clickReal('export-game-btn'))
+    );
+
+    // Rebuilt whenever a stage is added, removed, moved or renamed.
+    function renderStages() {
+      stagesEl.innerHTML = '';
+      Array.from(stagesContainer.children).forEach((card, i) => {
+        const name = card.querySelector('.stage-name-input').value.trim() || 'Be pavadinimo';
+        const item = createItem(String(i + 1), name, () => showCard(card), 'side-panel-stage');
+        item.title = `${i + 1}. ${name}`;
+        // Marked by a failed save (see markStageErrors).
+        if (card.classList.contains('has-error')) {
+          item.classList.add('has-error');
+          item.title += ` — ${card.dataset.error}`;
+        }
+        stagesEl.appendChild(item);
+      });
+    }
+    new MutationObserver(renderStages).observe(stagesContainer, { childList: true });
+    stagesContainer.addEventListener('stage-errors', renderStages);
+    stagesContainer.addEventListener('input', (e) => {
+      if (e.target.classList.contains('stage-name-input')) renderStages();
+    });
+    renderStages();
+
+    let open = false;
+    try {
+      open = localStorage.getItem(SIDE_PANEL_KEY) === '1';
+    } catch {}
+    setOpen(open);
+    document.body.classList.add('has-side-panel');
+    document.body.append(backdrop, panel, fab);
+  }
+
   global.QuizGameEditorCore = {
     resolveAudioSrc: defaultResolveAudioSrc,
     // Set by a page that can pick/upload files (see attachFilePicker).
@@ -846,6 +1039,9 @@
     collectRules,
     mountDefaultRules,
     addDefaultRulesButton,
-    chooseImportGame
+    chooseImportGame,
+    mountSidePanel,
+    markStageErrors,
+    guardBackLink
   };
 })(window);

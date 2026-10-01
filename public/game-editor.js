@@ -56,6 +56,7 @@ const initialGame = initialDataEl
   ? JSON.parse(initialDataEl.textContent)
   : null;
 renderGame(stagesContainer, nameInput, initialGame);
+QuizGameEditorCore.mountSidePanel(stagesContainer);
 QuizGameEditorCore.addDefaultRulesButton(
   stagesContainer,
   JSON.parse(document.getElementById('default-rules-data').textContent)
@@ -72,6 +73,17 @@ let gameSaved = false;
 // What the form holds untouched: until it changes, there's no draft yet.
 const blankJson = JSON.stringify(collectPayload(stagesContainer, nameInput));
 let lastDraftJson = blankJson;
+
+// Going back: a saved game's changes would be lost; a new game (or a draft)
+// would stay just a draft, not a game.
+QuizGameEditorCore.guardBackLink(() => {
+  const json = JSON.stringify(collectPayload(stagesContainer, nameInput));
+  if (gameId)
+    return json !== blankJson ? 'Pakeitimai neišsaugoti. Ar tikrai nori išeiti?' : null;
+  return draftSaved || json !== blankJson
+    ? 'Žaidimas dar neišsaugotas – liks tik juodraštis. Ar tikrai nori išeiti?'
+    : null;
+});
 let draftTimer = null;
 let draftRequest = null;
 
@@ -153,6 +165,7 @@ saveBtn.addEventListener('click', async () => {
 
   if (!res.ok) {
     errorEl.textContent = data.error || 'Nepavyko išsaugoti žaidimo';
+    QuizGameEditorCore.markStageErrors(stagesContainer, nameInput);
     return;
   }
 
@@ -168,6 +181,7 @@ exportBtn.addEventListener('click', async () => {
   );
   if (result.error) {
     errorEl.textContent = result.error;
+    QuizGameEditorCore.markStageErrors(stagesContainer, nameInput);
     return;
   }
 

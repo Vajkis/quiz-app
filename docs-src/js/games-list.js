@@ -54,7 +54,9 @@ function render() {
   errorEl.textContent = '';
   renderDrafts();
   const games = QuizGameStorage.loadAll();
-  const ids = Object.keys(games);
+  // Newest first: games are kept in the order they were created (saving an
+  // edit doesn't move one), so that order reversed.
+  const ids = Object.keys(games).reverse();
   listEl.innerHTML = '';
 
   if (!ids.length) {

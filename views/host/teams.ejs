@@ -34,7 +34,7 @@
             <div class="team-card">
               <div class="team-card-header">
                 <span class="team-card-name"><%= team.name %></span>
-                <span class="team-card-total"><%= team.total %> tšk.</span>
+                <span class="team-card-total"><%= team.total %> tšk.<% if (team.penalty) { %> <span class="team-card-penalty">· nuobaudos: <%= team.penalty %></span><% } %></span>
               </div>
               <% team.games.forEach(function(game) { %>
                 <div class="game-block">

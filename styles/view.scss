@@ -92,8 +92,9 @@
   line-height: 1.35;
   text-align: left;
 
+  // In em, so the gaps shrink along with the text (see fitRules in view.js).
   li + li {
-    margin-top: 16px;
+    margin-top: 0.5em;
   }
 }
 

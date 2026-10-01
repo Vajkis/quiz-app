@@ -167,7 +167,7 @@ if (!currentTeam) {
   });
 }
 
-function renderLeaderboard({ rows, final, stageName, seasonId }) {
+function renderLeaderboard({ rows, final, stageName, seasonId, penalties }) {
   quizEl.hidden = true;
   resultEl.textContent = '';
   leaderboardEl.hidden = false;
@@ -175,16 +175,20 @@ function renderLeaderboard({ rows, final, stageName, seasonId }) {
 
   const title = document.createElement('p');
   title.className = 'leaderboard-title';
-  title.textContent = seasonId
-    ? 'Sezono rezultatai'
-    : final
-      ? 'Galutiniai rezultatai'
-      : `Rezultatai po etapo: ${stageName}`;
+  title.textContent = penalties
+    ? 'Nuobaudos taškai'
+    : seasonId
+      ? 'Sezono rezultatai'
+      : final
+        ? 'Galutiniai rezultatai'
+        : `Rezultatai po etapo: ${stageName}`;
   leaderboardEl.appendChild(title);
 
   if (rows.length === 0) {
     const empty = document.createElement('p');
-    empty.textContent = 'Nė viena komanda neatsakė į klausimus.';
+    empty.textContent = penalties
+      ? 'Nė viena komanda negavo nuobaudos taškų.'
+      : 'Nė viena komanda neatsakė į klausimus.';
     leaderboardEl.appendChild(empty);
     return;
   }

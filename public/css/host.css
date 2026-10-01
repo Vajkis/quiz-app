@@ -1517,9 +1517,40 @@ body:has(#host-bar) {
   font-weight: 700;
 }
 
-.team-card-penalty {
-  font-size: 15px;
+.team-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.reveal-btn {
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  cursor: pointer;
+}
+@media (min-width: 992px) {
+  .reveal-btn:hover {
+    background: #eaf1ff;
+  }
+}
+
+.team-id-btn.is-shown {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.team-penalty-reveal-btn.is-shown {
   color: #dc2626;
+  border-color: #dc2626;
 }
 
 .season-section {

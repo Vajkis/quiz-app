@@ -1483,9 +1483,41 @@ $clip-control-height: 38px;
   font-weight: 700;
 }
 
-.team-card-penalty {
-  font-size: 15px;
+.team-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+// "ID" / "Nuobaudos" until clicked, then the team's id / penalty points
+// themselves (click again to hide them).
+.reveal-btn {
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  color: v.$color-primary;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+}
+
+.team-id-btn.is-shown {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+}
+
+.team-penalty-reveal-btn.is-shown {
   color: v.$color-danger;
+  border-color: v.$color-danger;
 }
 
 // Team history: one card per season (newest open) — built from the game

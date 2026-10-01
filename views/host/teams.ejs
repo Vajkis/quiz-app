@@ -33,8 +33,13 @@
           <% season.teams.forEach(function(team) { %>
             <div class="team-card">
               <div class="team-card-header">
-                <span class="team-card-name"><%= team.name %></span>
-                <span class="team-card-total"><%= team.total %> tšk.<% if (team.penalty) { %> <span class="team-card-penalty">· nuobaudos: <%= team.penalty %></span><% } %></span>
+                <span class="team-card-title">
+                  <span class="team-card-name"><%= team.name %></span>
+                  <%# Hidden until clicked (host.js), in case this page is shown to anyone: the team's id (to remind a team that forgot it) and its penalty points (every team gets the button, so it gives nothing away). %>
+                  <button type="button" class="reveal-btn team-id-btn" data-label="ID" data-value="<%= team.id %>" title="Rodyti komandos ID">ID</button>
+                  <button type="button" class="reveal-btn team-penalty-reveal-btn" data-label="Nuobaudos" data-value="Nuobaudos: <%= team.penalty %>" title="Rodyti nuobaudos taškus">Nuobaudos</button>
+                </span>
+                <span class="team-card-total"><%= team.total %> tšk.</span>
               </div>
               <% team.games.forEach(function(game) { %>
                 <div class="game-block">

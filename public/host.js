@@ -460,6 +460,17 @@ if (finishGameBtn) {
   });
 }
 
+// Team history: a team's "ID" / "Nuobaudos" buttons show its id / penalty
+// points instead, and hide them again on the next click.
+document.querySelectorAll('.reveal-btn').forEach((btn) => {
+  const hiddenTitle = btn.title;
+  btn.addEventListener('click', () => {
+    const shown = btn.classList.toggle('is-shown');
+    btn.textContent = shown ? btn.dataset.value : btn.dataset.label;
+    btn.title = shown ? 'Slėpti' : hiddenTitle;
+  });
+});
+
 // Team history: each season's chevron collapses/expands its section, the
 // same way (and with the same button) as a stage in the game editor — see
 // createStageCard in game-editor-core.js. Older seasons start collapsed.

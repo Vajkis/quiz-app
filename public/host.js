@@ -96,10 +96,18 @@ audioBlocks.forEach((block) => {
   let clipEndReached = false; // only auto-pause once per pass — otherwise a manual
   // play from the native controls right after would just get paused again instantly
 
+  // currentSrc is absolute with this page's origin — e.g. http://localhost:3000/...
+  // when the host runs on the server's own machine, which a view screen on
+  // another device can't reach. Send same-origin files as a path instead.
+  function audioSrcForView() {
+    const url = new URL(questionAudio.currentSrc || questionAudio.src, location.href);
+    return url.origin === location.origin ? url.pathname + url.search : url.href;
+  }
+
   function sendAudioState() {
     getHostSocket().emit('audio-state', {
       roomId,
-      src: questionAudio.currentSrc || questionAudio.src,
+      src: audioSrcForView(),
       paused: questionAudio.paused,
       time: questionAudio.currentTime,
       volume: questionAudio.volume,

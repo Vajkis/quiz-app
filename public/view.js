@@ -71,6 +71,17 @@ function animateAudioProgress() {
   if (!audioEl.paused) requestAnimationFrame(animateAudioProgress);
 }
 
+// Playback waiting for a new track's metadata. Only the latest state counts —
+// a stale one left behind (e.g. a track that never loaded) would otherwise
+// fire later, when some other track loads, and start it on its own.
+let pendingPlayback = null;
+
+function cancelPendingPlayback() {
+  if (!pendingPlayback) return;
+  audioEl.removeEventListener('loadedmetadata', pendingPlayback);
+  pendingPlayback = null;
+}
+
 audioEl.addEventListener('play', animateAudioProgress);
 audioEl.addEventListener('pause', updateAudioProgress);
 audioEl.addEventListener('seeked', updateAudioProgress);
@@ -100,6 +111,7 @@ function hideAll(screenKey) {
   questionAreaEl.hidden = true;
   stageReviewEl.hidden = true;
   leaderboardEl.hidden = true;
+  cancelPendingPlayback();
   audioEl.pause();
 }
 
@@ -323,9 +335,16 @@ socket.on('audio-state', ({ src, paused, time, volume, clipMode, clipStart, clip
     }
   }
 
-  if (src && audioEl.currentSrc !== src) {
-    audioEl.src = src;
-    audioEl.addEventListener('loadedmetadata', applyPlayback, { once: true });
+  cancelPendingPlayback();
+
+  const absSrc = src ? new URL(src, location.href).href : '';
+  if (absSrc && audioEl.currentSrc !== absSrc) {
+    pendingPlayback = () => {
+      pendingPlayback = null;
+      applyPlayback();
+    };
+    audioEl.addEventListener('loadedmetadata', pendingPlayback, { once: true });
+    audioEl.src = absSrc;
   } else {
     applyPlayback();
   }

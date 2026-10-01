@@ -193,6 +193,7 @@
 
 // One compact row per question — question on the left, cut off with "…"
 // if it's too long, answer on the right — so a whole stage fits on one screen.
+// The answer itself is never cut: a long one wraps onto more lines instead.
 #stage-review .question {
   display: flex;
   flex-direction: row; // .view-app .question stacks its children
@@ -218,6 +219,8 @@
     flex: 0 0 auto; // the question gives way first
     max-width: 60%;
     text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere; // a single long word wraps too, instead of overflowing
   }
 }
 

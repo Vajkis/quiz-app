@@ -185,22 +185,18 @@ socket.on('question', (q) => {
     imageWrapEl.hidden = true;
   }
 
-  const optionsAreImages = q.options.length > 0 && q.options.every((opt) => opt.img);
-  optionsEl.className = optionsAreImages ? 'options-grid image-options' : 'options-list';
+  optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
-  // Image options fill all the space left under the question, laid out the
-  // same way as the fullscreen grid (2x2 for 4, etc.).
-  if (optionsAreImages) {
-    const { cols, rows } = pickGridSize(q.options.length);
-    optionsEl.style.setProperty('--cols', cols);
-    optionsEl.style.setProperty('--rows', rows);
-  }
 
   showBonusQuestion(bonusQuestionEl, q.hasBonus, q.bonusQuestion);
 
-  // A chain: its clues, numbered like the fields teams type each answer in.
   if (q.type === 'chain') {
-    renderChainClues(optionsEl, q.clues);
+    renderChainClues(optionsEl, q.clues, q.clueImgs || []);
+    return;
+  }
+
+  if (q.type === 'hints') {
+    renderHints(optionsEl, q, false);
     return;
   }
 
@@ -209,27 +205,38 @@ socket.on('question', (q) => {
   if (q.textAnswer) {
     const hint = document.createElement('div');
     hint.className = 'view-text-answer-hint';
-    hint.textContent = 'Įrašykite atsakymą';
+    hint.textContent = typedAnswerPrompt(q.answerCount, q.ordered);
     optionsEl.appendChild(hint);
     return;
   }
-  q.options.forEach((opt, i) => {
+  // With a picture among the options, every option gets a cell of the
+  // picture grid — a text one too — badged with its letter.
+  if (q.options.some((opt) => opt.img)) {
+    renderGridCells(
+      optionsEl,
+      q.options.map((opt, i) => ({ img: opt.img, text: opt.text, label: optionLetter(i) }))
+    );
+    return;
+  }
+  q.options.forEach((opt) => {
     const div = document.createElement('div');
     div.className = 'view-option';
-    if (opt.img) {
-      const imgEl = document.createElement('img');
-      imgEl.src = opt.img;
-      imgEl.alt = '';
-      div.appendChild(imgEl);
-      div.appendChild(createOptionLetter(i));
-    } else {
-      div.textContent = opt.text;
-    }
+    div.textContent = opt.text;
     optionsEl.appendChild(div);
   });
 });
 
-function renderChainClues(container, clues) {
+// A chain: its clues, numbered like the fields teams type each answer in.
+// With a picture among them every clue gets a cell of the picture grid,
+// badged with its number (1, 2, 3… where options have A, B, C…).
+function renderChainClues(container, clues, imgs) {
+  if (imgs.some(Boolean)) {
+    renderGridCells(
+      container,
+      clues.map((clue, i) => ({ img: imgs[i], text: clue, label: String(i + 1) }))
+    );
+    return;
+  }
   clues.forEach((clue, i) => {
     const div = document.createElement('div');
     div.className = 'view-option view-chain-clue';
@@ -239,6 +246,77 @@ function renderChainClues(container, clues) {
     div.append(number, document.createTextNode(clue));
     container.appendChild(div);
   });
+}
+
+// A hints question: the hints shown so far (the server never sends one
+// before the host reveals it), numbered — a newly revealed one (animate)
+// fades in — and under them the same "type your answer" note as a
+// typed-answer question.
+function renderHints(container, { hints }, animate) {
+  container.className = 'options-list';
+  container.innerHTML = '';
+  hints.forEach((hint, i) => {
+    const div = document.createElement('div');
+    div.className = 'view-option view-chain-clue';
+    if (animate && i === hints.length - 1) div.classList.add('is-new-hint');
+    const number = document.createElement('span');
+    number.className = 'chain-clue-number';
+    number.textContent = `${i + 1}.`;
+    div.append(number, document.createTextNode(hint));
+    container.appendChild(div);
+  });
+  const note = document.createElement('div');
+  note.className = 'view-text-answer-hint';
+  note.textContent = 'Įrašykite atsakymą';
+  container.appendChild(note);
+}
+
+// The host revealed the next hint of the question on screen.
+socket.on('hints', (progress) => {
+  if (currentScreenKey !== `question-${progress.index}`) return;
+  renderHints(optionsEl, progress, true);
+});
+
+// Picture options (or clues) fill all the space left under the question,
+// laid out the same way as the fullscreen grid (2x2 for 4, etc.).
+function renderGridCells(container, cells) {
+  container.className = 'options-grid image-options';
+  const { cols, rows } = pickGridSize(cells.length);
+  container.style.setProperty('--cols', cols);
+  container.style.setProperty('--rows', rows);
+  cells.forEach((cell) => container.appendChild(createGridCell('view-option', cell)));
+}
+
+// One cell of a picture grid: the picture, or a text option or clue among
+// pictures, with its letter or number badge on top.
+function createGridCell(className, { img, text, label }) {
+  const div = document.createElement('div');
+  div.className = className;
+  if (img) {
+    const imgEl = document.createElement('img');
+    imgEl.src = img;
+    imgEl.alt = '';
+    div.appendChild(imgEl);
+  } else {
+    div.classList.add('grid-text-cell');
+    const span = document.createElement('span');
+    span.className = 'grid-cell-text';
+    span.textContent = text || '';
+    div.appendChild(span);
+  }
+  div.appendChild(createOptionBadge(label));
+  return div;
+}
+
+// What a typed-answer question asks for: one answer, or how many to list
+// (and whether in order) — 21 "atsakymą", 2–9 "atsakymus", 10–20 or
+// ending in 0 "atsakymų".
+function typedAnswerPrompt(count, ordered) {
+  if (!count || count < 2) return 'Įrašykite atsakymą';
+  const n = count % 100;
+  const word =
+    n % 10 === 0 || (n >= 10 && n <= 20) ? 'atsakymų' : n % 10 === 1 ? 'atsakymą' : 'atsakymus';
+  return `Įrašykite ${count} ${word}${ordered ? ' eilės tvarka' : ''}`;
 }
 
 // Under the question text, in its box: the extra answer's question (e.g.
@@ -296,12 +374,17 @@ document.fonts.addEventListener('loadingdone', fitRules);
 // empty alt on purpose: no question or option text ever rides along with
 // one, where it could give an answer away.
 
-// Letter badge on a picture option — players' phones only get this letter
-// (never the picture), so it has to match their A, B, C… order exactly.
-function createOptionLetter(index) {
+// Letter badge on a picture grid's option — players' phones only get this
+// letter for a picture (never the picture), so it has to match their A, B,
+// C… order exactly. A chain's clue gets its number instead.
+function optionLetter(index) {
+  return String.fromCharCode(65 + index);
+}
+
+function createOptionBadge(label) {
   const badge = document.createElement('span');
   badge.className = 'option-letter';
-  badge.textContent = String.fromCharCode(65 + index);
+  badge.textContent = label;
   return badge;
 }
 
@@ -323,13 +406,13 @@ socket.on('fullscreen-command', ({ action, src, images }) => {
     grid.style.setProperty('--cols', cols);
     grid.style.setProperty('--rows', rows);
     list.forEach((opt, i) => {
-      const cell = document.createElement('div');
-      cell.className = 'fullscreen-grid-cell';
-      const img = document.createElement('img');
-      img.src = opt.src;
-      img.alt = '';
-      cell.append(img, createOptionLetter(i));
-      grid.appendChild(cell);
+      grid.appendChild(
+        createGridCell('fullscreen-grid-cell', {
+          img: opt.src,
+          text: opt.text,
+          label: opt.label || optionLetter(i)
+        })
+      );
     });
     openFullscreen(grid);
   } else if (action === 'close') {

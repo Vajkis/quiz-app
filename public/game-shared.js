@@ -16,12 +16,15 @@
     return id;
   }
 
-  // A question's kind: 'choice' (options, the first correct), 'text' (a
-  // single option, whose text players type in), 'yesno' (fixed Taip / Ne,
+  // A question's kind: 'choice' (options, the first correct), 'text' (one
+  // option or several — answers players type in, all of them right for the
+  // point; ordered: in that order), 'yesno' (fixed Taip / Ne,
   // answer 'yes' or 'no'), or 'chain' (several clues, each with its own typed
-  // answer, in order). Games saved before there was a type field are told
-  // apart by their option count, as they always were.
-  const QUESTION_TYPES = ['choice', 'text', 'yesno', 'chain'];
+  // answer, in order), or 'hints' (several hints, shown one at a time, and
+  // one typed answer — the fewer hints shown when a team locks it in, the
+  // more points). Games saved before there was a type field are told apart
+  // by their option count, as they always were.
+  const QUESTION_TYPES = ['choice', 'text', 'yesno', 'chain', 'hints'];
   function questionType(q) {
     if (q && QUESTION_TYPES.includes(q.type)) return q.type;
     return q && Array.isArray(q.options) && q.options.length === 1 ? 'text' : 'choice';
@@ -41,8 +44,10 @@
   // Validates and tidies an editor form submission into the portable game
   // format: { name, rules?: [string], stages: [{ name, questions: [{ type, question, img?,
   // audio?, audioStart?, audioEnd?, bonus?: { question, answer }, and by
-  // type: options: [{ text, img? }] (choice/text), answer: 'yes'|'no'
-  // (yesno) or links: [{ clue, answer }] (chain) }] }] }, the first option
+  // type: options: [{ text, img? }] (choice/text, with ordered?: true on a
+  // text one whose answers go in order), answer: 'yes'|'no'
+  // (yesno), links: [{ clue, img?, answer }] (chain) or hints: [string] and
+  // answer: string (hints) }] }] }, the first option
   // being the correct one (the editor's own convention — see
   // createOptionRow in game-editor-core.js). It carries no ids at all: this
   // runs in the GitHub Pages editor and for exports, and ids are only ever
@@ -69,15 +74,20 @@
         if (!q) return { error: 'Kiekvienas klausimas turi turėti tekstą' };
         const type = questionType(q);
         const questionText = (q.question || '').trim();
-        // A chain's clues are its question, and a picture or a song can be
-        // one too (the stage name says what to answer) — then the text is
-        // optional.
+        // A chain's clues (or the hints) are its question, and a picture or
+        // a song can be one too (the stage name says what to answer) — then
+        // the text is optional.
         const hasMedia = !!((q.img || '').trim() || (q.audio || '').trim());
-        if (!questionText && type !== 'chain' && !hasMedia) {
+        if (!questionText && type !== 'chain' && type !== 'hints' && !hasMedia) {
           return { error: 'Kiekvienas klausimas turi turėti tekstą, nuotrauką arba garso įrašą' };
         }
         const label =
-          questionText || (type === 'chain' ? 'Grandinėlė' : `${stageName} nr. ${questions.length + 1}`);
+          questionText ||
+          (type === 'chain'
+            ? 'Grandinėlė'
+            : type === 'hints'
+              ? 'Užuominos'
+              : `${stageName} nr. ${questions.length + 1}`);
         const chainLabel = questionText ? `Grandinėlė "${questionText}"` : 'Grandinėlė';
         const question = { type, question: questionText };
 
@@ -86,7 +96,7 @@
           if (type === 'choice' && authored.length < 2) {
             return { error: `Klausimas "${label}" turi turėti bent 2 atsakymo variantus` };
           }
-          if (type === 'text' && authored.length !== 1) {
+          if (type === 'text' && authored.length < 1) {
             return { error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą` };
           }
           const options = authored.map((o) => {
@@ -103,26 +113,45 @@
               if (o.img) o.text = '';
             });
           }
-          if (type === 'text' && !options[0].text) {
-            return { error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą` };
+          if (type === 'text' && options.some((o) => !o.text)) {
+            return {
+              error:
+                options.length > 1
+                  ? `Klausimas "${label}" turi tuščią atsakymą`
+                  : `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`,
+            };
           }
           if (options.some((o) => !o.text && !o.img)) {
             return { error: `Klausimas "${label}" turi tuščią atsakymo variantą` };
           }
           question.options = options;
+          if (type === 'text' && options.length > 1 && q.ordered) question.ordered = true;
         } else if (type === 'yesno') {
           if (q.answer !== 'yes' && q.answer !== 'no') {
             return { error: `Klausimas "${label}": pažymėk teisingą atsakymą – Taip arba Ne` };
           }
           question.answer = q.answer;
+        } else if (type === 'hints') {
+          const hints = (Array.isArray(q.hints) ? q.hints : []).map((h) => (typeof h === 'string' ? h.trim() : ''));
+          if (hints.length < 2) return { error: `Klausimas "${label}" turi turėti bent 2 užuominas` };
+          if (hints.some((h) => !h)) return { error: `Klausimas "${label}" turi tuščią užuominą` };
+          const answer = typeof q.answer === 'string' ? q.answer.trim() : '';
+          if (!answer) return { error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą` };
+          question.hints = hints;
+          question.answer = answer;
         } else {
-          const links = (Array.isArray(q.links) ? q.links : []).map((l) => ({
-            clue: ((l && l.clue) || '').trim(),
-            answer: ((l && l.answer) || '').trim(),
-          }));
+          // A clue can be a picture instead of text — shown by its number
+          // (1, 2, 3…) on the view screen, so like a picture option it
+          // keeps no text.
+          const links = (Array.isArray(q.links) ? q.links : []).map((l) => {
+            const img = ((l && l.img) || '').trim();
+            const link = { clue: img ? '' : ((l && l.clue) || '').trim(), answer: ((l && l.answer) || '').trim() };
+            if (img) link.img = img;
+            return link;
+          });
           if (links.length < 2) return { error: `${chainLabel} turi turėti bent 2 užuominas` };
-          if (links.some((l) => !l.clue || !l.answer)) {
-            return { error: `${chainLabel}: kiekviena užuomina turi turėti tekstą ir atsakymą` };
+          if (links.some((l) => (!l.clue && !l.img) || !l.answer)) {
+            return { error: `${chainLabel}: kiekviena užuomina turi turėti tekstą arba nuotrauką ir atsakymą` };
           }
           question.links = links;
         }
@@ -181,9 +210,10 @@
         name: stage && stage.name,
         questions: ((stage && stage.questions) || []).map((q) => {
           const type = questionType(q);
-          // A yes/no question keeps its 'yes'/'no' answer and a chain its
-          // links as they are — neither has options or option ids.
-          if (type === 'yesno' || type === 'chain') {
+          // A yes/no question keeps its 'yes'/'no' answer, a chain its links
+          // and a hints question its hints and answer as they are — none has
+          // options or option ids.
+          if (type === 'yesno' || type === 'chain' || type === 'hints') {
             const out = { ...q, type };
             delete out.id;
             delete out.options;

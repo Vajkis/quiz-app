@@ -11,19 +11,39 @@
   <h1><%= roomName %></h1>
   <p id="room-code">Kambario kodas: <strong><%= roomId %></strong> · <strong><%= gameName %></strong></p>
   <p id="stage-info">Etapas <%= stageNumber %> / <%= stageCount %>: <strong><%= stageName %></strong></p>
+  <% if (shownQuestionCount > 0) { %>
+    <%# Every question of the stage shown so far, to jump to; the one on screen now is active. %>
+    <nav class="question-jump" data-room="<%= roomId %>" aria-label="Parodyti klausimai">
+      <% for (let i = 0; i < shownQuestionCount; i++) { %>
+        <button type="button" class="question-jump-btn<%= i === currentQuestionNumber - 1 ? ' active' : '' %>" data-index="<%= i %>"<% if (i === currentQuestionNumber - 1) { %> aria-current="true"<% } %>><%= i + 1 %></button>
+      <% } %>
+    </nav>
+  <% } %>
 
   <div class="question">
     <% if (currentQuestionText != null) { %>
       <p><%= currentQuestionText ? currentQuestionNumber + '. ' + currentQuestionText : currentQuestionNumber + ' klausimas' %></p>
       <% if (currentQuestionType === 'text') { %>
-        <p class="question-type-label">Įvedamas atsakymas (be variantų)</p>
+        <% if (currentQuestionAnswerCount > 1) { %>
+          <p class="question-type-label">Įvedami atsakymai: <%= currentQuestionAnswerCount %></p>
+          <%- include('_order-label', { ordered: currentQuestionOrdered }) %>
+        <% } else { %>
+          <p class="question-type-label">Įvedamas atsakymas (be variantų)</p>
+        <% } %>
       <% } else if (currentQuestionType === 'yesno') { %>
         <p class="question-type-label">Taip / Ne</p>
       <% } else if (currentQuestionType === 'chain') { %>
         <p class="question-type-label">Grandinėlė</p>
         <ol class="chain-clues">
           <% currentQuestionLinks.forEach(function(l) { %>
-            <li><%= l.clue %></li>
+            <li><% if (l.img) { %><img class="chain-clue-img" src="<%= l.img %>" alt=""><% } else { %><%= l.clue %><% } %></li>
+          <% }); %>
+        </ol>
+      <% } else if (currentQuestionHints) { %>
+        <p class="question-type-label">Užuominos: parodyta <%= revealedHints %> iš <%= currentQuestionHints.length %></p>
+        <ol class="chain-clues hint-list">
+          <% currentQuestionHints.forEach(function(h, i) { %>
+            <li class="<%= i < revealedHints ? '' : 'is-hidden-hint' %>"><%= h %></li>
           <% }); %>
         </ol>
       <% } %>
@@ -38,6 +58,7 @@
       roomId,
       imageButtons: currentQuestionImg ? [{ src: currentQuestionImg, label: '🔍 Nuotrauką per visą ekraną' }] : [],
       optionImages: currentQuestionOptionImages,
+      optionsLabel: currentQuestionType === 'chain' ? '🔍 Užuominas per visą ekraną' : null,
     }) %>
   </div>
 
@@ -53,7 +74,7 @@
       <% if (hasPrevious) { %>
         <button id="prev-btn" data-room="<%= roomId %>">← Ankstesnis</button>
       <% } %>
-      <button id="next-btn" data-room="<%= roomId %>"><%= hasMore ? 'Kitas klausimas →' : 'Rodyti etapo atsakymus' %></button>
+      <button id="next-btn" data-room="<%= roomId %>"><%= currentQuestionHints && revealedHints < currentQuestionHints.length ? 'Kita užuomina →' : hasMore ? 'Kitas klausimas →' : 'Rodyti etapo atsakymus' %></button>
     </div>
     <% if (currentQuestionImg || currentQuestionOptionImages) { %>
       <div class="host-bar-end">

@@ -4,7 +4,7 @@
       <button type="button" class="fullscreen-image-btn secondary-btn" data-src="<%= b.src %>"><%= b.label %></button>
     <% }); %>
     <% if (optionImages) { %>
-      <button type="button" class="fullscreen-options-btn secondary-btn" data-images='<%- JSON.stringify(optionImages).replace(/'/g, "&#39;") %>'>🔍 Atsakymus per visą ekraną</button>
+      <button type="button" class="fullscreen-options-btn secondary-btn" data-images='<%- JSON.stringify(optionImages).replace(/'/g, "&#39;") %>'><%= locals.optionsLabel || '🔍 Atsakymus per visą ekraną' %></button>
     <% } %>
     <button type="button" class="fullscreen-close-btn secondary-btn">✕ Uždaryti pilną ekraną</button>
   </div>

@@ -294,8 +294,9 @@ h1 {
 }
 
 .chain-answer-number {
-  flex: 0 0 24px;
+  flex: 0 0 16px;
   font-weight: 700;
+  text-align: center;
 }
 
 .bonus-answer-label {
@@ -385,4 +386,59 @@ h1 {
 
 #room-error:empty {
   display: none;
+}
+
+.lock-answer-btn,
+.lock-confirm-row button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.lock-answer-btn:disabled,
+.lock-confirm-row button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lock-answer-btn {
+  margin-top: 8px;
+  background: #3b82f6;
+}
+.lock-answer-btn[hidden] {
+  display: none;
+}
+
+.lock-confirm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+.lock-confirm-row[hidden] {
+  display: none;
+}
+.lock-confirm-row .lock-cancel-btn {
+  background: #fff;
+  color: #222;
+  border-color: #ddd;
+}
+.lock-confirm-row .lock-confirm-btn {
+  background: #dc2626;
+}
+
+.hint-locked-message {
+  margin: 8px 0 0;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.hint-lock-error {
+  margin: 8px 0 0;
+  color: #dc2626;
 }

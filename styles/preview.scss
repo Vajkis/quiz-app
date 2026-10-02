@@ -6,17 +6,17 @@
 $bar-height: 64px;
 
 body {
-  padding-bottom: $bar-height + 16px;
+  padding-bottom: $bar-height + 8px;
 }
 
 .view-app {
-  min-height: calc(100vh - 32px - #{$bar-height});
+  min-height: calc(100vh - 16px - #{$bar-height});
 }
 
 // Same pin as at the end of view.scss, minus the bar.
 .view-app:has(#view-question:not([hidden]) #view-options.image-options),
 .view-app:has(#view-question:not([hidden]) #view-question-box.has-image) {
-  height: calc(100vh - 32px - #{$bar-height});
+  height: calc(100vh - 16px - #{$bar-height});
 }
 
 #preview-error {

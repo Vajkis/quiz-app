@@ -118,20 +118,16 @@
     // A picture option is shown (on the view screen, in the answers) by its
     // letter, so it needs no text: once it has a picture, the text field
     // gives way to a thumbnail of it — much like the music field only shows
-    // its clip controls once there's a track. Not on a typed-answer
-    // question (a single option), whose text is the answer to type. Re-run
-    // by the question card whenever its type changes (syncQuestionType).
+    // its clip controls once there's a track.
     const textInput = row.querySelector('.option-text-input');
     const imgInput = row.querySelector('.option-img-input');
     const thumbWrap = row.querySelector('.option-img-thumb-wrap');
     const thumb = row.querySelector('.option-img-thumb');
     row.syncOptionImage = () => {
-      const card = row.closest('.question-card');
-      const isTextAnswer = !!card && card.classList.contains('text-answer');
       const src = imgInput.value.trim()
         ? global.QuizGameEditorCore.resolveAudioSrc(imgInput.value.trim())
         : '';
-      const showThumb = !!src && !isTextAnswer;
+      const showThumb = !!src;
       textInput.hidden = showThumb;
       thumbWrap.hidden = !showThumb;
       if (showThumb && thumb.getAttribute('src') !== src) thumb.src = src;
@@ -151,6 +147,7 @@
           <option value="text">Įvedamas atsakymas</option>
           <option value="yesno">Taip arba Ne</option>
           <option value="chain">Grandinėlė</option>
+          <option value="hints">Užuominos</option>
         </select>
         <button type="button" class="move-question-up-btn move-btn" title="Kelti aukštyn"><span class="chevron-icon chevron-icon--up"></span></button>
         <button type="button" class="move-question-down-btn move-btn" title="Kelti žemyn"><span class="chevron-icon"></span></button>
@@ -179,6 +176,14 @@
         <div class="options-container"></div>
         <button type="button" class="add-option-btn secondary-btn">+ Variantas</button>
       </div>
+      <div class="text-answers-section">
+        <div class="text-answers-container"></div>
+        <button type="button" class="add-text-answer-btn secondary-btn">+ Atsakymas</button>
+        <label class="ordered-answers-toggle">
+          <input type="checkbox" class="ordered-answers-input">
+          Atsakymų tvarka turi sutapti
+        </label>
+      </div>
       <div class="yesno-section">
         <button type="button" class="yesno-btn" data-answer="yes">Taip</button>
         <button type="button" class="yesno-btn" data-answer="no">Ne</button>
@@ -186,6 +191,11 @@
       <div class="chain-section">
         <div class="chain-links-container"></div>
         <button type="button" class="add-chain-link-btn secondary-btn">+ Užuomina</button>
+      </div>
+      <div class="hints-section">
+        <div class="hints-container"></div>
+        <button type="button" class="add-hint-btn secondary-btn">+ Užuomina</button>
+        <input type="text" class="hints-answer-input" placeholder="Teisingas atsakymas">
       </div>
       <div class="bonus-section">
         <button type="button" class="add-bonus-btn secondary-btn">+ Papildomas klausimas</button>
@@ -318,10 +328,23 @@
         rawOptions.unshift(correct);
       }
     }
+    // A typed-answer question's answers (one, or several to list) have
+    // their own fields; a choice question's options are option rows.
+    const textAnswersContainer = card.querySelector('.text-answers-container');
+    const orderedInput = card.querySelector('.ordered-answers-input');
+    const isTextQuestion =
+      global.QuizGameShared.questionType(question || {}) === 'text';
     rawOptions.forEach((o) => {
-      optionsContainer.appendChild(
-        createOptionRow({ id: o.id, text: o.text, img: o.img })
-      );
+      if (isTextQuestion)
+        textAnswersContainer.appendChild(createTextAnswerRow(o.text, o.id));
+      else
+        optionsContainer.appendChild(
+          createOptionRow({ id: o.id, text: o.text, img: o.img })
+        );
+    });
+    orderedInput.checked = !!(question && question.ordered);
+    card.querySelector('.add-text-answer-btn').addEventListener('click', () => {
+      textAnswersContainer.appendChild(createTextAnswerRow(''));
     });
 
     card.querySelector('.add-option-btn').addEventListener('click', () => {
@@ -351,6 +374,17 @@
       chainContainer.appendChild(createChainLinkRow({}));
     });
 
+    // Hints: shown one at a time, in the order here, then one answer.
+    const hintsContainer = card.querySelector('.hints-container');
+    ((question && question.hints) || []).forEach((hint) =>
+      hintsContainer.appendChild(createHintRow(hint))
+    );
+    card.querySelector('.add-hint-btn').addEventListener('click', () => {
+      hintsContainer.appendChild(createHintRow(''));
+    });
+    card.querySelector('.hints-answer-input').value =
+      question && question.type === 'hints' ? question.answer || '' : '';
+
     // Extra answer: hidden behind its "+" button until added.
     const bonusFields = card.querySelector('.bonus-fields');
     const addBonusBtn = card.querySelector('.add-bonus-btn');
@@ -376,36 +410,53 @@
     });
 
     // The type picks which answer fields show. Switching never throws
-    // anything away — a typed-answer question just hides every option row
-    // but the first, which is its answer — so switching back restores them.
+    // anything away — each type keeps its own fields, hidden — so switching
+    // back restores them. A typed-answer question switched to for the first
+    // time starts from the choice question's correct option.
     const typeSelect = card.querySelector('.question-type-select');
     const questionTextInput = card.querySelector('.question-text-input');
     const hint = card.querySelector('.correct-answer-hint');
     const HINTS = {
       choice: '✓ Pirmas variantas = teisingas atsakymas',
-      text: '✎ Žaidėjai įves atsakymą patys — įrašyk teisingą atsakymą',
+      text: '✎ Žaidėjai įves atsakymą patys — įrašyk teisingą atsakymą. Jei reikia ką nors išvardinti, pridėk kelis atsakymus — taškas skiriamas, tik jei teisingi visi.',
       yesno: '✓ Pažymėk teisingą atsakymą',
       chain:
-        '✎ Kiekviena užuomina turi savo atsakymą, kuris nuo ankstesnio skiriasi viena raide — žaidėjai juos įrašys eilės tvarka. Taškas skiriamas, tik jei teisingi visi.'
+        '✎ Kiekviena užuomina turi savo atsakymą, kuris nuo ankstesnio skiriasi viena raide — žaidėjai juos įrašys eilės tvarka. Taškas skiriamas, tik jei teisingi visi. Vietoj užuominos teksto gali būti nuotrauka.',
+      hints:
+        '✎ Užuominos rodomos po vieną. Užrakinus atsakymą po pirmos užuominos gaunama tiek taškų, kiek yra užuominų, po kiekvienos kitos — vienu mažiau; neužrakintas teisingas atsakymas — 1 taškas.'
     };
     typeSelect.value = global.QuizGameShared.questionType(question || {});
     function syncQuestionType() {
       const type = typeSelect.value;
-      const minRows = { choice: 2, text: 1 }[type] || 0;
+      const minRows = type === 'choice' ? 2 : 0;
       while (optionsContainer.querySelectorAll('.option-row').length < minRows)
         optionsContainer.appendChild(createOptionRow({}));
+      if (type === 'text' && !textAnswersContainer.children.length) {
+        const firstOption = optionsContainer.querySelector('.option-text-input');
+        textAnswersContainer.appendChild(
+          createTextAnswerRow(firstOption ? firstOption.value.trim() : '')
+        );
+      }
       while (type === 'chain' && chainContainer.children.length < 2)
         chainContainer.appendChild(createChainLinkRow({}));
+      while (type === 'hints' && hintsContainer.children.length < 2)
+        hintsContainer.appendChild(createHintRow(''));
 
-      card.classList.toggle('text-answer', type === 'text');
       card.querySelector('.options-section').hidden = !minRows;
+      card.querySelector('.text-answers-section').hidden = type !== 'text';
+      // The order only matters with more than one answer.
+      card.querySelector('.ordered-answers-toggle').hidden =
+        textAnswersContainer.children.length < 2;
       card.querySelector('.yesno-section').hidden = type !== 'yesno';
       card.querySelector('.chain-section').hidden = type !== 'chain';
+      card.querySelector('.hints-section').hidden = type !== 'hints';
       hint.textContent = HINTS[type];
       questionTextInput.placeholder =
         type === 'chain'
           ? 'Grandinėlės pavadinimas (nebūtina)'
-          : 'Klausimo tekstas (nebūtina, jei yra nuotrauka ar garsas)';
+          : type === 'hints'
+            ? 'Klausimo tekstas (nebūtina)'
+            : 'Klausimo tekstas (nebūtina, jei yra nuotrauka ar garsas)';
       optionsContainer
         .querySelectorAll('.option-row')
         .forEach((row) => row.syncOptionImage());
@@ -413,6 +464,9 @@
     syncQuestionType();
     typeSelect.addEventListener('change', syncQuestionType);
     new MutationObserver(syncQuestionType).observe(optionsContainer, {
+      childList: true
+    });
+    new MutationObserver(syncQuestionType).observe(textAnswersContainer, {
       childList: true
     });
 
@@ -425,16 +479,72 @@
     row.innerHTML = `
       <span class="chain-link-number"></span>
       <div class="chain-link-fields">
-        <input type="text" class="chain-clue-input" placeholder="Užuomina">
+        <div class="chain-link-main">
+          <input type="text" class="chain-clue-input" placeholder="Užuomina">
+          <span class="chain-clue-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></span>
+          <button type="button" class="remove-chain-link-btn" title="Pašalinti užuominą">×</button>
+        </div>
+        <input type="text" class="chain-clue-img-input" placeholder="Užuominos nuotraukos URL (nebūtina)">
         <input type="text" class="chain-answer-input" placeholder="Atsakymas">
       </div>
-      <button type="button" class="remove-chain-link-btn" title="Pašalinti užuominą">×</button>
     `;
-    row.querySelector('.chain-clue-input').value = (link && link.clue) || '';
+    const clueInput = row.querySelector('.chain-clue-input');
+    const imgInput = row.querySelector('.chain-clue-img-input');
+    clueInput.value = (link && link.clue) || '';
+    imgInput.value = (link && link.img) || '';
     row.querySelector('.chain-answer-input').value =
       (link && link.answer) || '';
+    attachFilePicker(imgInput, 'image');
     row
       .querySelector('.remove-chain-link-btn')
+      .addEventListener('click', () => row.remove());
+
+    // A picture clue is shown by its number (1, 2, 3…) on the view screen,
+    // so it needs no text: once it has a picture, the clue field gives way to
+    // a thumbnail of it, as a picture option's does (see createOptionRow).
+    const thumbWrap = row.querySelector('.chain-clue-thumb-wrap');
+    const thumb = thumbWrap.querySelector('img');
+    function syncClueImage() {
+      const url = imgInput.value.trim();
+      const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
+      clueInput.hidden = !!src;
+      thumbWrap.hidden = !src;
+      if (src && thumb.getAttribute('src') !== src) thumb.src = src;
+    }
+    syncClueImage();
+    imgInput.addEventListener('change', syncClueImage);
+    return row;
+  }
+
+  // One answer of a typed-answer question. The first can't be removed — a
+  // question needs at least one.
+  function createTextAnswerRow(text, id) {
+    const row = document.createElement('div');
+    row.className = 'text-answer-row';
+    row.innerHTML = `
+      <input type="text" class="answer-text-input" placeholder="Teisingas atsakymas">
+      <button type="button" class="remove-text-answer-btn" title="Pašalinti atsakymą">×</button>
+    `;
+    row.querySelector('.answer-text-input').value = text || '';
+    if (id) row.dataset.optionId = id;
+    row
+      .querySelector('.remove-text-answer-btn')
+      .addEventListener('click', () => row.remove());
+    return row;
+  }
+
+  // One hint of a hints question, numbered in the order it's shown.
+  function createHintRow(hint) {
+    const row = document.createElement('div');
+    row.className = 'hint-row';
+    row.innerHTML = `
+      <span class="hint-number"></span>
+      <input type="text" class="hint-input" placeholder="Užuomina">
+      <button type="button" class="remove-hint-btn" title="Pašalinti užuominą">×</button>
+    `;
+    row.querySelector('.hint-input').value = hint || '';
+    row
+      .querySelector('.remove-hint-btn')
       .addEventListener('click', () => row.remove());
     return row;
   }
@@ -609,7 +719,9 @@
         if (statusEl) statusEl.textContent = 'Taisyklės išsaugotos';
       } catch (err) {
         last = null; // try again on the next change
-        if (statusEl) statusEl.textContent = (err && err.message) || 'Nepavyko išsaugoti taisyklių';
+        if (statusEl)
+          statusEl.textContent =
+            (err && err.message) || 'Nepavyko išsaugoti taisyklių';
       }
     }
     const schedule = () => {
@@ -617,9 +729,12 @@
       timer = setTimeout(flush, 600);
     };
     card.addEventListener('input', schedule);
-    new MutationObserver(schedule).observe(card.querySelector('.rules-container'), {
-      childList: true
-    });
+    new MutationObserver(schedule).observe(
+      card.querySelector('.rules-container'),
+      {
+        childList: true
+      }
+    );
     // Leaving before the delay's up still saves what was typed last.
     global.addEventListener('pagehide', () => {
       if (timer) flush();
@@ -641,7 +756,11 @@
     btn.addEventListener('click', () => {
       const current = collectRules(card);
       if (JSON.stringify(current) === JSON.stringify(defaultRules)) return;
-      if (current.length && !confirm('Pakeisti šio žaidimo taisykles bendrosiomis?')) return;
+      if (
+        current.length &&
+        !confirm('Pakeisti šio žaidimo taisykles bendrosiomis?')
+      )
+        return;
       card.setRules(defaultRules);
     });
     card.querySelector('.add-rule-btn').after(btn);
@@ -650,7 +769,11 @@
   function renderRules(stagesContainer, rules) {
     const card = stagesContainer.parentNode.querySelector('.rules-card');
     if (card) card.setRules(rules);
-    else stagesContainer.parentNode.insertBefore(createRulesCard(rules), stagesContainer);
+    else
+      stagesContainer.parentNode.insertBefore(
+        createRulesCard(rules),
+        stagesContainer
+      );
   }
 
   function collectRules(card) {
@@ -718,23 +841,37 @@
           audioStart: qEl.querySelector('.audio-start-input').value.trim(),
           audioEnd: qEl.querySelector('.audio-end-input').value.trim()
         };
-        if (type === 'choice' || type === 'text') {
+        if (type === 'choice') {
           // First option row is always the correct answer (see
-          // createOptionRow); a typed-answer question only has that one.
-          const options = Array.from(qEl.querySelectorAll('.option-row')).map(
+          // createOptionRow).
+          out.options = Array.from(qEl.querySelectorAll('.option-row')).map(
             (oEl) => ({
               id: oEl.dataset.optionId || undefined,
               text: oEl.querySelector('.option-text-input').value.trim(),
               img: oEl.querySelector('.option-img-input').value.trim()
             })
           );
-          out.options = type === 'text' ? options.slice(0, 1) : options;
+        } else if (type === 'text') {
+          // Every answer to type, in order.
+          out.options = Array.from(qEl.querySelectorAll('.text-answer-row')).map(
+            (row) => ({
+              id: row.dataset.optionId || undefined,
+              text: row.querySelector('.answer-text-input').value.trim()
+            })
+          );
+          out.ordered = qEl.querySelector('.ordered-answers-input').checked;
         } else if (type === 'yesno') {
           out.answer = qEl.dataset.yesNo || '';
+        } else if (type === 'hints') {
+          out.hints = Array.from(qEl.querySelectorAll('.hint-input')).map((input) =>
+            input.value.trim()
+          );
+          out.answer = qEl.querySelector('.hints-answer-input').value.trim();
         } else {
           out.links = Array.from(qEl.querySelectorAll('.chain-link-row')).map(
             (row) => ({
               clue: row.querySelector('.chain-clue-input').value.trim(),
+              img: row.querySelector('.chain-clue-img-input').value.trim(),
               answer: row.querySelector('.chain-answer-input').value.trim()
             })
           );
@@ -754,7 +891,9 @@
       };
     });
 
-    const backgroundInput = nameInput.parentNode.querySelector('.game-background-input');
+    const backgroundInput = nameInput.parentNode.querySelector(
+      '.game-background-input'
+    );
     const background = backgroundInput ? backgroundInput.value.trim() : '';
     return { name: nameInput.value.trim(), background, rules, stages };
   }
@@ -856,17 +995,21 @@
       // After the click's own handler (Taip/Ne, a removed option…) has run.
       stagesContainer.addEventListener(type, () => setTimeout(check))
     );
-    new MutationObserver(() => setTimeout(check)).observe(stagesContainer, { childList: true });
+    new MutationObserver(() => setTimeout(check)).observe(stagesContainer, {
+      childList: true
+    });
   }
 
   // "← Atgal į žaidimus" (and the side panel's, which clicks it) asks first
   // when leaving would leave something unsaved: getMessage says what, or
   // returns null when nothing would be.
   function guardBackLink(getMessage) {
-    document.getElementById('editor-back-link').addEventListener('click', (e) => {
-      const message = getMessage();
-      if (message && !confirm(message)) e.preventDefault();
-    });
+    document
+      .getElementById('editor-back-link')
+      .addEventListener('click', (e) => {
+        const message = getMessage();
+        if (message && !confirm(message)) e.preventDefault();
+      });
   }
 
   // A panel along the page's left edge, so a long game needn't be scrolled
@@ -882,7 +1025,9 @@
   // (☰ ← ＋ …) — where no plain character fits.
   const SIDE_PANEL_SVG = (paths) =>
     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-  const RULES_ICON = SIDE_PANEL_SVG('<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>');
+  const RULES_ICON = SIDE_PANEL_SVG(
+    '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'
+  );
   const SAVE_ICON = SIDE_PANEL_SVG(
     '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'
   );
@@ -905,7 +1050,8 @@
       btn.type = 'button';
       btn.className = `side-panel-item ${className}`.trim();
       btn.title = label;
-      btn.innerHTML = '<span class="side-panel-icon"></span><span class="side-panel-label"></span>';
+      btn.innerHTML =
+        '<span class="side-panel-icon"></span><span class="side-panel-label"></span>';
       const iconEl = btn.querySelector('.side-panel-icon');
       if (icon.startsWith('<svg')) iconEl.innerHTML = icon;
       else iconEl.textContent = icon;
@@ -942,7 +1088,9 @@
     // Opens a collapsed card (its chevron) and brings it into view.
     function showCard(card) {
       if (!card) return;
-      const toggle = card.querySelector(':scope > .stage-header .toggle-stage-btn');
+      const toggle = card.querySelector(
+        ':scope > .stage-header .toggle-stage-btn'
+      );
       if (toggle && toggle.classList.contains('collapsed')) toggle.click();
       card.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
@@ -961,7 +1109,9 @@
         const shown =
           m.target === errorEl && errorEl.textContent.trim()
             ? errorEl
-            : Array.from(m.addedNodes).find((n) => n.classList && n.classList.contains('import-choice'));
+            : Array.from(m.addedNodes).find(
+                (n) => n.classList && n.classList.contains('import-choice')
+              );
         if (shown) {
           shown.scrollIntoView({ behavior: 'smooth', block: 'center' });
           followUntil = 0;
@@ -970,7 +1120,12 @@
       }
     }).observe(editorEl, { childList: true, subtree: true });
 
-    const toggleBtn = createItem('☰', 'Suskleisti', () => setOpen(!document.body.classList.contains('side-panel-open')), 'side-panel-toggle');
+    const toggleBtn = createItem(
+      '☰',
+      'Suskleisti',
+      () => setOpen(!document.body.classList.contains('side-panel-open')),
+      'side-panel-toggle'
+    );
     function setOpen(open) {
       document.body.classList.toggle('side-panel-open', open);
       toggleBtn.title = open ? 'Suskleisti' : 'Išskleisti';
@@ -981,13 +1136,22 @@
 
     actionsEl.append(
       toggleBtn,
-      createItem('←', 'Atgal į žaidimus', () => document.getElementById('editor-back-link').click()),
-      createItem(RULES_ICON, 'Taisyklės', () => showCard(editorEl.querySelector('.rules-card'))),
+      createItem('←', 'Atgal į žaidimus', () =>
+        document.getElementById('editor-back-link').click()
+      ),
+      createItem(RULES_ICON, 'Taisyklės', () =>
+        showCard(editorEl.querySelector('.rules-card'))
+      ),
       createItem('＋', 'Naujas etapas', () => {
         clickReal('add-stage-btn');
         showCard(stagesContainer.lastElementChild);
       }),
-      createItem(SAVE_ICON, 'Išsaugoti žaidimą', () => clickReal('save-game-btn'), 'side-panel-save'),
+      createItem(
+        SAVE_ICON,
+        'Išsaugoti žaidimą',
+        () => clickReal('save-game-btn'),
+        'side-panel-save'
+      ),
       createItem('⭱', 'Importuoti', () => clickReal('import-game-input')),
       createItem('⭳', 'Eksportuoti', () => clickReal('export-game-btn'))
     );
@@ -996,8 +1160,15 @@
     function renderStages() {
       stagesEl.innerHTML = '';
       Array.from(stagesContainer.children).forEach((card, i) => {
-        const name = card.querySelector('.stage-name-input').value.trim() || 'Be pavadinimo';
-        const item = createItem(String(i + 1), name, () => showCard(card), 'side-panel-stage');
+        const name =
+          card.querySelector('.stage-name-input').value.trim() ||
+          'Be pavadinimo';
+        const item = createItem(
+          String(i + 1),
+          name,
+          () => showCard(card),
+          'side-panel-stage'
+        );
         item.title = `${i + 1}. ${name}`;
         // Marked by a failed save (see markStageErrors).
         if (card.classList.contains('has-error')) {
@@ -1007,7 +1178,9 @@
         stagesEl.appendChild(item);
       });
     }
-    new MutationObserver(renderStages).observe(stagesContainer, { childList: true });
+    new MutationObserver(renderStages).observe(stagesContainer, {
+      childList: true
+    });
     stagesContainer.addEventListener('stage-errors', renderStages);
     stagesContainer.addEventListener('input', (e) => {
       if (e.target.classList.contains('stage-name-input')) renderStages();

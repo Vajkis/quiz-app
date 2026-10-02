@@ -138,22 +138,29 @@ function saveSettings(settings) {
   saveJsonFile(SETTINGS_FILE, settings);
 }
 
-// A question's kind: 'choice' (options, one correct), 'text' (a single
-// option, whose text players type in), 'yesno' (fixed Taip / Ne, answer
-// 'yes' or 'no'), or 'chain' (several clues, each with its own typed answer,
-// in order). Games saved before there was a type field are told apart by
-// their option count, as they always were. Mirrors game-shared.js.
-const QUESTION_TYPES = ['choice', 'text', 'yesno', 'chain'];
+// A question's kind: 'choice' (options, one correct), 'text' (one option
+// or several — answers players type in, all of them right for the point;
+// ordered: in that order), 'yesno' (fixed Taip / Ne, answer
+// 'yes' or 'no'), 'chain' (several clues, each with its own typed answer,
+// in order), or 'hints' (several hints, shown one at a time, and one typed
+// answer — see hintPoints). Games saved before there was a type field are
+// told apart by their option count, as they always were. Mirrors
+// game-shared.js.
+const QUESTION_TYPES = ['choice', 'text', 'yesno', 'chain', 'hints'];
 function questionType(q) {
   if (QUESTION_TYPES.includes(q.type)) return q.type;
   return Array.isArray(q.options) && q.options.length === 1 ? 'text' : 'choice';
 }
 
-// What a question is called wherever it's listed — a chain needs no text of
-// its own, its clues being the question. A picture or song question with no
-// text stays blank: the picture or the song is the question.
+// What a question is called wherever it's listed — a chain (or a hints
+// question) needs no text of its own, its clues being the question. A
+// picture or song question with no text stays blank: the picture or the
+// song is the question.
 function questionTitle(q) {
-  return q.question || (q.type === 'chain' ? 'Grandinėlė' : '');
+  if (q.question) return q.question;
+  if (q.type === 'chain') return 'Grandinėlė';
+  if (q.type === 'hints') return 'Užuominos';
+  return '';
 }
 
 // A yes/no question's two answers, always in this order — never shuffled.
@@ -165,7 +172,9 @@ const YES_NO_OPTIONS = [
 // Turns an editor form submission ({ name, stages: [{ id?, name, questions:
 // [{ id?, type, question, img, audio, audioStart, audioEnd, bonus?: {
 // question, answer }, and by type: options: [{ id?, text, img }]
-// (choice/text), answer: 'yes'|'no' (yesno) or links: [{ clue, answer }]
+// (choice/text, with ordered?: true on a text one whose answers go in
+// order), answer: 'yes'|'no' (yesno), hints: [string] and answer:
+// string (hints) or links: [{ clue, img?, answer }]
 // (chain) }] }] }) into the games.json shape. The first option in the array
 // is always taken as the correct answer (see the editor's createOptionRow).
 //
@@ -221,10 +230,11 @@ function normalizeGamePayload(body) {
       if (!q) return { error: 'Kiekvienas klausimas turi turėti tekstą' };
       const type = questionType(q);
       const questionText = (q.question || '').trim();
-      // A chain's clues are its question, and a picture or a song can be one
-      // too (the stage name says what to answer) — then the text is optional.
+      // A chain's clues (or the hints) are its question, and a picture or a
+      // song can be one too (the stage name says what to answer) — then the
+      // text is optional.
       const hasMedia = !!((q.img || '').trim() || (q.audio || '').trim());
-      if (!questionText && type !== 'chain' && !hasMedia)
+      if (!questionText && type !== 'chain' && type !== 'hints' && !hasMedia)
         return {
           error:
             'Kiekvienas klausimas turi turėti tekstą, nuotrauką arba garso įrašą'
@@ -233,7 +243,9 @@ function normalizeGamePayload(body) {
         questionText ||
         (type === 'chain'
           ? 'Grandinėlė'
-          : `${stageName} nr. ${questions.length + 1}`);
+          : type === 'hints'
+            ? 'Užuominos'
+            : `${stageName} nr. ${questions.length + 1}`);
       const chainLabel = questionText ? `Grandinėlė "${questionText}"` : 'Grandinėlė';
       const question = {
         id: pickId(q.id, usedQuestionIds),
@@ -248,28 +260,31 @@ function normalizeGamePayload(body) {
           return {
             error: `Klausimas "${label}" turi turėti bent 2 atsakymo variantus`
           };
-        if (type === 'text' && raw.length !== 1)
+        if (type === 'text' && raw.length < 1)
           return {
             error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
           };
         const authored = raw.map((o) => ({
           id: o && o.id,
           text: ((o && o.text) || '').trim(),
-          img: ((o && o.img) || '').trim()
+          img: type === 'choice' ? ((o && o.img) || '').trim() : ''
         }));
         // A picture option has no text at all — the view screen and the
         // answers show it by its letter (A, B, C…), and any text it kept
         // (e.g. "Italija") would give the answer away, even as an alt. A
-        // typed-answer question's single option is the answer to type,
-        // though, so that one always has text.
+        // typed-answer question's options are the answers to type, though,
+        // so those always have text (and no picture).
         if (type === 'choice') {
           authored.forEach((o) => {
             if (o.img) o.text = '';
           });
         }
-        if (type === 'text' && !authored[0].text) {
+        if (type === 'text' && authored.some((o) => !o.text)) {
           return {
-            error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
+            error:
+              authored.length > 1
+                ? `Klausimas "${label}" turi tuščią atsakymą`
+                : `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
           };
         }
         if (authored.some((o) => !o.text && !o.img)) {
@@ -283,31 +298,61 @@ function normalizeGamePayload(body) {
         });
         question.answer = authored[0].id;
 
-        // Stored in shuffled order so the file itself doesn't give away the
-        // answer by position (display order is reshuffled per room anyway, in
-        // createHistoryEntry). Fresh ids are random, so they don't either.
-        question.options = shuffle(authored).map((o) => {
-          const option = { id: o.id, text: o.text };
-          if (o.img) option.img = o.img;
-          return option;
-        });
+        // A choice question's options are stored in shuffled order so the
+        // file itself doesn't give away the answer by position (display
+        // order is reshuffled per room anyway, in createHistoryEntry). Fresh
+        // ids are random, so they don't either. A typed-answer question's
+        // answers keep their order — it can be the one they go in.
+        question.options = (type === 'choice' ? shuffle(authored) : authored).map(
+          (o) => {
+            const option = { id: o.id, text: o.text };
+            if (o.img) option.img = o.img;
+            return option;
+          }
+        );
+        if (type === 'text' && authored.length > 1 && q.ordered)
+          question.ordered = true;
       } else if (type === 'yesno') {
         if (q.answer !== 'yes' && q.answer !== 'no')
           return {
             error: `Klausimas "${label}": pažymėk teisingą atsakymą – Taip arba Ne`
           };
         question.answer = q.answer;
+      } else if (type === 'hints') {
+        const hints = (Array.isArray(q.hints) ? q.hints : []).map((h) =>
+          typeof h === 'string' ? h.trim() : ''
+        );
+        if (hints.length < 2)
+          return { error: `Klausimas "${label}" turi turėti bent 2 užuominas` };
+        if (hints.some((h) => !h))
+          return { error: `Klausimas "${label}" turi tuščią užuominą` };
+        const answer = typeof q.answer === 'string' ? q.answer.trim() : '';
+        if (!answer)
+          return {
+            error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
+          };
+        question.hints = hints;
+        question.answer = answer;
       } else {
-        const links = (Array.isArray(q.links) ? q.links : []).map((l) => ({
-          clue: ((l && l.clue) || '').trim(),
-          answer: ((l && l.answer) || '').trim()
-        }));
+        // A clue can be a picture instead of text — shown by its number
+        // (1, 2, 3…) on the view screen, so like a picture option it keeps
+        // no text.
+        const links = (Array.isArray(q.links) ? q.links : []).map((l) => {
+          const img = ((l && l.img) || '').trim();
+          const link = {
+            clue: img ? '' : ((l && l.clue) || '').trim(),
+            answer: ((l && l.answer) || '').trim()
+          };
+          if (img) link.img = img;
+          return link;
+        });
         if (links.length < 2)
           return { error: `${chainLabel} turi turėti bent 2 užuominas` };
-        if (links.some((l) => !l.clue || !l.answer))
+        if (links.some((l) => (!l.clue && !l.img) || !l.answer))
           return {
-            error: `${chainLabel}: kiekviena užuomina turi turėti tekstą ir atsakymą`
+            error: `${chainLabel}: kiekviena užuomina turi turėti tekstą arba nuotrauką ir atsakymą`
           };
+        optionImgs = links.map((l) => l.img);
         question.links = links;
       }
 
@@ -472,7 +517,11 @@ function publicQuestion(room, index = room.questionIndex) {
     type: entry.type,
     options: entry.options,
     textAnswer: entry.textAnswer,
+    answerCount: entry.answerCount,
+    ordered: entry.ordered,
     clues: entry.clues,
+    clueImgs: entry.clueImgs,
+    ...hintsProgress(entry),
     linkCount: entry.clues ? entry.clues.length : 0,
     hasBonus: entry.bonusAnswer != null,
     bonusQuestion: entry.bonusQuestion,
@@ -500,13 +549,14 @@ function optionLabel(entry, optionId) {
 // room is listed, even with nothing typed: a team answering on paper still
 // gets marked right by hand here (typing on a phone is the hard part;
 // tapping an option isn't, so a choice question's own answer isn't
-// markable — only its extra answer, if it has one).
+// markable — only its extra answer, if it has one). Teams the host added
+// to play on paper aren't: their points come in per stage, as a total.
 function answersForReview(room) {
   const teams = loadTeams();
   const out = {};
   room.questionHistory.forEach((entry, index) => {
     if (!entry) return;
-    const mainEditable = entry.type === 'text' || entry.type === 'chain';
+    const mainEditable = isTypedType(entry.type);
     const hasBonus = entry.bonusAnswer != null;
     if (!mainEditable && !hasBonus) return;
     const teamIds = new Set([
@@ -514,6 +564,7 @@ function answersForReview(room) {
       ...Object.keys(entry.selections),
       ...Object.keys(entry.bonusSelections)
     ]);
+    room.offlineTeams.forEach((teamId) => teamIds.delete(teamId));
     const rows = Array.from(teamIds)
       .map((teamId) => {
         const selected = entry.selections[teamId];
@@ -525,14 +576,19 @@ function answersForReview(room) {
           bonusTyped: typeof bonusTyped === 'string' ? bonusTyped.trim() : '',
           bonusCorrect: isBonusCorrect(entry, teamId)
         };
-        if (entry.type === 'chain') {
+        if (entry.type === 'text' && entry.answerCount > 1) {
+          row.links = mySelectionFor(entry, teamId).map((s) => s.trim());
+          row.ordered = entry.ordered;
+        } else if (entry.type === 'chain') {
           row.links = entry.clues.map((_, i) =>
             Array.isArray(selected) && typeof selected[i] === 'string'
               ? selected[i].trim()
               : ''
           );
-        } else if (entry.type === 'text') {
+        } else if (entry.type === 'text' || entry.type === 'hints') {
           row.typed = typeof selected === 'string' ? selected.trim() : '';
+          if (entry.type === 'hints' && teamId in entry.locks)
+            row.lockedPoints = entry.locks[teamId];
         } else {
           row.typed = optionLabel(entry, selected);
         }
@@ -541,6 +597,8 @@ function answersForReview(room) {
       .sort((a, b) => a.teamName.localeCompare(b.teamName, 'lt'));
     out[index] = {
       type: entry.type,
+      answerCount: entry.answerCount || 0,
+      ordered: !!entry.ordered,
       mainEditable,
       hasBonus,
       bonusQuestion: entry.bonusQuestion,
@@ -567,6 +625,13 @@ function correctAnswerFor(q, entry) {
       correctAnswer: q.answer === 'yes' ? 'Taip' : 'Ne',
       correctAnswerImg: null
     };
+  if (type === 'hints')
+    return { correctAnswer: q.answer, correctAnswerImg: null };
+  if (type === 'text')
+    return {
+      correctAnswer: q.options.map((o) => o.text).join(q.ordered ? ' → ' : ', '),
+      correctAnswerImg: null
+    };
   const correctOption = q.options.find((o) => o.id === q.answer);
   const shownIndex = entry
     ? entry.options.findIndex((o) => o.id === q.answer)
@@ -578,6 +643,18 @@ function correctAnswerFor(q, entry) {
         : correctOption.text || '—',
     correctAnswerImg: resolveMediaSrc(correctOption.img)
   };
+}
+
+// A chain's clues for the host's fullscreen grid when any of them is a
+// picture — every clue a cell (a picture, or its text), each with the number
+// it has on the view screen (1, 2, 3…) — or null when none is a picture.
+function chainClueImages(links) {
+  if (!links || !links.some((l) => l.img)) return null;
+  return links.map((l, i) =>
+    l.img
+      ? { src: resolveMediaSrc(l.img), label: String(i + 1) }
+      : { text: l.clue, label: String(i + 1) }
+  );
 }
 
 function buildStageReview(room) {
@@ -594,8 +671,14 @@ function buildStageReview(room) {
         question: questionTitle(q),
         correctAnswer,
         chain: q.links
-          ? q.links.map((l) => ({ clue: l.clue, answer: l.answer }))
+          ? q.links.map((l) => ({
+              clue: l.clue,
+              img: resolveMediaSrc(l.img),
+              answer: l.answer
+            }))
           : null,
+        clueImages: chainClueImages(q.links),
+        hints: q.hints || null,
         bonus: q.bonus
           ? { question: q.bonus.question, answer: q.bonus.answer }
           : null,
@@ -764,10 +847,24 @@ function createHistoryEntry(q) {
     type,
     options,
     textAnswer: type === 'text',
-    correctText: type === 'text' ? q.options[0].text : null,
+    // Typed-answer: every answer to type (one, or several to list), and
+    // whether they have to be in that order. Hints: its one answer.
+    correctTexts: type === 'text' ? q.options.map((o) => o.text) : null,
+    answerCount: type === 'text' ? q.options.length : 0,
+    ordered: type === 'text' && !!q.ordered,
+    correctText: type === 'hints' ? q.answer : null,
     answer: q.answer,
     clues: type === 'chain' ? q.links.map((l) => l.clue) : null,
+    clueImgs: type === 'chain' ? q.links.map((l) => resolveMediaSrc(l.img)) : null,
     correctLinks: type === 'chain' ? q.links.map((l) => l.answer) : null,
+    // Hints question: all its hints (only the shown ones ever leave the
+    // server), how many are shown so far — the first one right away, the
+    // rest one by one as the host reveals them; kept here, so stepping back
+    // to the question later shows them all again — and per team, the points
+    // its answer was locked in for (see hintPoints).
+    hints: type === 'hints' ? q.hints.slice() : null,
+    revealedHints: type === 'hints' ? 1 : 0,
+    locks: {},
     bonusQuestion: q.bonus ? q.bonus.question || '' : null,
     bonusAnswer: q.bonus ? q.bonus.answer : null,
     img: resolveMediaSrc(q.img),
@@ -796,14 +893,58 @@ function typedMatches(typed, correct) {
   return normalized !== '' && normalized === normalizeTypedAnswer(correct);
 }
 
+// Question types answered by typing — the host can mark those by hand.
+function isTypedType(type) {
+  return type === 'text' || type === 'chain' || type === 'hints';
+}
+
+// A hints question is worth as many points as it has hints, if a team locks
+// its answer in while only the first is shown — one less for every hint
+// shown after that, down to 1 with all of them shown. An answer never
+// locked in is worth 1 point too.
+function hintPoints(entry) {
+  return entry.hints.length - entry.revealedHints + 1;
+}
+
+// A hints question's progress for the view screen: the hints shown so far —
+// never one not shown yet, nor how many are left. What an answer is worth
+// is only told to a team once it's locked in, so it goes nowhere else.
+function hintsProgress(entry) {
+  if (entry.type !== 'hints') return {};
+  return { hints: entry.hints.slice(0, entry.revealedHints) };
+}
+
+// A typed-answer question's answers: with one, the typed string; with
+// several, one typed string per answer — every answer has to be there, in
+// the same order if it's an ordered one, otherwise in any order (each typed
+// string standing for a different answer).
+function textAnswersMatch(entry, selected) {
+  if (entry.answerCount === 1)
+    return typedMatches(
+      Array.isArray(selected) ? selected[0] : selected,
+      entry.correctTexts[0]
+    );
+  if (!Array.isArray(selected)) return false;
+  if (entry.ordered)
+    return entry.correctTexts.every((answer, i) => typedMatches(selected[i], answer));
+  const unused = selected.slice();
+  return entry.correctTexts.every((answer) => {
+    const i = unused.findIndex((typed) => typedMatches(typed, answer));
+    if (i < 0) return false;
+    unused.splice(i, 1);
+    return true;
+  });
+}
+
 // Whether a team's main answer counts: the right option, or — typed in —
 // the host's call if they made one, otherwise the automatic match (for a
 // chain, every clue's answer has to match).
 function isMainCorrect(entry, teamId) {
   const selected = entry.selections[teamId];
-  if (entry.type === 'text' || entry.type === 'chain') {
+  if (isTypedType(entry.type)) {
     if (teamId in entry.textOverrides) return entry.textOverrides[teamId];
-    if (entry.type === 'text') return typedMatches(selected, entry.correctText);
+    if (entry.type === 'text') return textAnswersMatch(entry, selected);
+    if (entry.type === 'hints') return typedMatches(selected, entry.correctText);
     return (
       Array.isArray(selected) &&
       entry.correctLinks.every((answer, i) => typedMatches(selected[i], answer))
@@ -821,7 +962,8 @@ function isBonusCorrect(entry, teamId) {
 }
 
 // Scores whoever answered the question, using the last pick each team sent:
-// 1 point for a right main answer (see isMainCorrect), plus 1 for a right
+// 1 point for a right main answer (see isMainCorrect) — on a hints question,
+// the points it was locked in for (see hintPoints) — plus 1 for a right
 // extra answer on top of it, 0 otherwise. Records what was awarded per team
 // so unfinalizeEntry can reverse it exactly if the host steps back to this
 // question.
@@ -839,7 +981,9 @@ function finalizeEntry(room, index) {
   ]);
   teamIds.forEach((teamId) => {
     if (!isMainCorrect(entry, teamId)) return;
-    const points = isBonusCorrect(entry, teamId) ? 2 : 1;
+    const main =
+      entry.type === 'hints' && teamId in entry.locks ? entry.locks[teamId] : 1;
+    const points = main + (isBonusCorrect(entry, teamId) ? 1 : 0);
     awarded[teamId] = points;
     room.scores[teamId] = (room.scores[teamId] || 0) + points;
   });
@@ -882,13 +1026,16 @@ function latestShownIndex(room) {
 // Picture options never reach players' phones — only a letter (A, B, C…)
 // matching the one the view screen draws on each picture — so a phone
 // can't just feed the image to an AI. Its text (e.g. "Italija") would give
-// the answer away just the same, so that's left out too.
+// the answer away just the same, so that's left out too. With a picture
+// among the options, the view screen shows a text option by its letter
+// too, so a phone gets it as "C. Italija".
 function optionsForPlayer(options) {
-  return options.map((o, i) =>
-    o.img
-      ? { id: o.id, label: String.fromCharCode(65 + i) }
-      : { id: o.id, text: o.text }
-  );
+  const lettered = options.some((o) => o.img);
+  return options.map((o, i) => {
+    const letter = String.fromCharCode(65 + i);
+    if (o.img) return { id: o.id, label: letter };
+    return { id: o.id, text: lettered ? `${letter}. ${o.text}` : o.text };
+  });
 }
 
 // What a phone needs to answer a question: how to answer it (options, a
@@ -900,7 +1047,10 @@ function answerFieldsFor(entry, teamId) {
     type: entry.type,
     options: optionsForPlayer(entry.options),
     textAnswer: entry.textAnswer,
+    answerCount: entry.answerCount,
+    ordered: entry.ordered,
     linkCount: entry.clues ? entry.clues.length : 0,
+    myLock: entry.locks && teamId in entry.locks ? entry.locks[teamId] : null,
     hasBonus: entry.bonusAnswer != null,
     mySelection: mySelectionFor(entry, teamId),
     myBonus: mySelectionFor(entry, teamId, entry.bonusSelections)
@@ -925,8 +1075,14 @@ function otherShownQuestions(room, teamId, mainIndex) {
 // with a typed string per clue.
 function mySelectionFor(entry, teamId, selections = entry.selections) {
   const value = teamId && selections[teamId];
-  if (entry.type === 'chain' && selections === entry.selections)
-    return entry.clues.map((_, i) =>
+  const fieldCount =
+    entry.type === 'chain'
+      ? entry.clues.length
+      : entry.type === 'text' && entry.answerCount > 1
+        ? entry.answerCount
+        : 0;
+  if (fieldCount && selections === entry.selections)
+    return Array.from({ length: fieldCount }, (_, i) =>
       Array.isArray(value) && typeof value[i] === 'string' ? value[i] : ''
     );
   return typeof value === 'string' ? value : '';
@@ -964,6 +1120,16 @@ function broadcastQuestion(room, roomId, playersToo) {
     if (socket.data.roomId !== roomId) continue;
     if (socket.data.teamId && !playersToo) continue;
     socket.emit('question', questionPayloadFor(room, socket.data.teamId));
+  }
+}
+
+// A hints question's newly revealed hint, to the view screen only — the
+// hints are never on the phones, and nothing changes there.
+function broadcastHints(room, roomId, index) {
+  const entry = room.questionHistory[index];
+  for (const [, socket] of io.sockets.sockets) {
+    if (socket.data.roomId !== roomId || socket.data.teamId) continue;
+    socket.emit('hints', { index, ...hintsProgress(entry) });
   }
 }
 
@@ -1013,6 +1179,8 @@ if (['dev', 'dev:server'].includes(process.env.npm_lifecycle_event)) {
       scores: {},
       priorScores: {},
       joinedTeams: new Set(),
+      offlineTeams: new Set(),
+      paperScores: {},
       internetStatus: {},
       internetWarning: false,
       leaderboard: null,
@@ -1122,6 +1290,7 @@ function referencedLocalPaths() {
         add(q.img);
         add(q.audio);
         (q.options || []).forEach((o) => add(o.img));
+        (q.links || []).forEach((l) => add(l.img));
       })
     )
   );
@@ -1404,7 +1573,9 @@ function renderHostRoom(req, res, roomId) {
     });
   }
 
-  const hasMore = room.questionIndex + 1 < stage.questions.length;
+  // "Next" always goes on from the furthest question shown, even while
+  // the host is back on an earlier one (see the /next endpoint).
+  const hasMore = room.questionHistory.length < stage.questions.length;
   const hasPrevious = room.questionIndex > 0;
   const currentQuestion =
     room.questionIndex >= 0 ? stage.questions[room.questionIndex] : null;
@@ -1431,17 +1602,39 @@ function renderHostRoom(req, res, roomId) {
       : null,
     currentQuestionImg: currentQuestion ? resolveMediaSrc(currentQuestion.img) : null,
     currentQuestionType: currentQuestion ? questionType(currentQuestion) : null,
-    currentQuestionLinks: currentQuestion ? currentQuestion.links || null : null,
+    // A typed-answer question with several answers: how many, and whether
+    // they have to be in order.
+    currentQuestionAnswerCount: currentEntry ? currentEntry.answerCount || 0 : 0,
+    currentQuestionOrdered: currentEntry ? !!currentEntry.ordered : false,
+    currentQuestionLinks:
+      currentQuestion && currentQuestion.links
+        ? currentQuestion.links.map((l) => ({
+            clue: l.clue,
+            img: resolveMediaSrc(l.img)
+          }))
+        : null,
     currentQuestionBonus: currentQuestion ? currentQuestion.bonus || null : null,
+    // A hints question: all its hints (the host sees which are still to
+    // come) and how many are shown — "next" reveals the next one first.
+    currentQuestionHints:
+      currentEntry && currentEntry.type === 'hints' ? currentEntry.hints : null,
+    revealedHints: currentEntry ? currentEntry.revealedHints || 0 : 0,
     // Taken from the room's history entry, not the stored question — that
     // entry holds this room's shuffled order, the one players and the view
-    // screen actually see, so the fullscreen grid matches it.
+    // screen actually see, so the fullscreen grid matches it. With a
+    // picture among them, a text option is a cell of the grid too. A
+    // chain's clues go in the same grid, by their numbers.
     currentQuestionOptionImages:
-      currentEntry &&
-      currentEntry.options.length > 0 &&
-      currentEntry.options.every((o) => o.img)
-        ? currentEntry.options.map((o) => ({ src: o.img }))
-        : null,
+      currentEntry && currentEntry.options.some((o) => o.img)
+        ? currentEntry.options.map((o) =>
+            o.img ? { src: o.img } : { text: o.text }
+          )
+        : currentQuestion
+          ? chainClueImages(currentQuestion.links)
+          : null,
+    // How many of the stage's questions have been shown — each gets a
+    // number button to jump back (or forward again) to it.
+    shownQuestionCount: room.questionHistory.length,
     hasMore,
     hasPrevious
   });
@@ -1802,6 +1995,11 @@ app.post('/api/host/room', (req, res) => {
     scores: {},
     priorScores: {},
     joinedTeams: new Set(),
+    // Teams playing on paper, added by the host (see /offline-team), and
+    // the points each of them scored per stage, entered by the host —
+    // keyed by stage index, then team id.
+    offlineTeams: new Set(),
+    paperScores: {},
     internetStatus: {},
     internetWarning: false,
     leaderboard: null,
@@ -1842,7 +2040,7 @@ app.post('/api/host/room/:roomId/typed-answer', (req, res) => {
     entry &&
     (part === 'bonus'
       ? entry.bonusAnswer != null
-      : part === 'main' && (entry.type === 'text' || entry.type === 'chain'));
+      : part === 'main' && isTypedType(entry.type));
   // Any team in the room — one that typed nothing (answered on paper) can
   // still be marked right.
   if (
@@ -1869,6 +2067,29 @@ app.post('/api/host/room/:roomId/typed-answer', (req, res) => {
   });
 });
 
+// Host jumps straight to a question of the current stage already shown
+// (its number button on the room page) — the same as stepping back/forward
+// to it, picks and revealed hints and all.
+app.post('/api/host/room/:roomId/goto', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  if (room.phase !== 'question')
+    return res
+      .status(400)
+      .json({ error: 'Pereiti galima tik klausimų rodymo metu' });
+  const { index } = req.body;
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= room.questionHistory.length ||
+    !room.questionHistory[index]
+  )
+    return res.status(400).json({ error: 'Šis klausimas dar nerodytas' });
+  if (index !== room.questionIndex) navigateTo(room, roomId, index);
+  res.json({ phase: 'question' });
+});
+
 app.post('/api/host/room/:roomId/prev', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
@@ -1889,6 +2110,10 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
   const room = rooms[roomId];
   if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
   const game = games[room.gameId];
+  // A new stage (or its results) changes which paper points can be entered.
+  res.on('finish', () => {
+    if (rooms[roomId]) emitTeamStatus(roomId);
+  });
 
   // The rules get their own slide after the game's name, if it has any.
   if (room.phase === 'game-intro' && game.rules && game.rules.length) {
@@ -1908,7 +2133,17 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
   }
 
   if (room.phase === 'question') {
-    if (navigateTo(room, roomId, room.questionIndex + 1))
+    // A hints question shows its hints one by one before moving on.
+    const entry = room.questionHistory[room.questionIndex];
+    if (entry && entry.type === 'hints' && entry.revealedHints < entry.hints.length) {
+      entry.revealedHints++;
+      broadcastHints(room, roomId, room.questionIndex);
+      return res.json({ phase: 'question' });
+    }
+    // Otherwise on to a new question — after the furthest one shown, even
+    // while the host is back on an earlier one — or, past the stage's last,
+    // to its answers.
+    if (navigateTo(room, roomId, room.questionHistory.length))
       return res.json({ phase: 'question' });
 
     finalizeEntry(room, room.questionIndex);
@@ -2036,6 +2271,106 @@ app.post('/api/host/room/:roomId/penalty', (req, res) => {
   res.json({ penalty });
 });
 
+// Whether a paper team's stage points can still be changed: only for a
+// stage not yet recorded — up to its answers; once its results are shown,
+// they're in the team's history.
+function paperPointsEditable(room) {
+  return ['stage-intro', 'question', 'stage-answers'].includes(room.phase);
+}
+
+// Host adds a team playing on paper: one already registered (teamId) or a
+// new one by name (reusing a registered team with that name, if any). It
+// joins the room like any other team — in the standings, penalties and
+// history — just without a phone.
+app.post('/api/host/room/:roomId/offline-team', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  if (room.phase === 'finished')
+    return res.status(400).json({ error: 'Žaidimas jau baigtas' });
+  const teams = loadTeams();
+  let teamId = typeof req.body.teamId === 'string' ? req.body.teamId : '';
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  if (teamId) {
+    if (!teams[teamId]) return res.status(404).json({ error: 'Komanda nerasta' });
+  } else {
+    if (!name) return res.status(400).json({ error: 'Įvesk komandos pavadinimą' });
+    const existing = Object.entries(teams).find(
+      ([, t]) => t.name.toLowerCase() === name.toLowerCase()
+    );
+    if (existing) teamId = existing[0];
+    else {
+      teamId = generateId(teams);
+      teams[teamId] = { name: name.slice(0, 60) };
+      saveTeams(teams);
+    }
+  }
+  if (room.joinedTeams.has(teamId))
+    return res.status(400).json({ error: 'Ši komanda jau žaidžia' });
+  room.joinedTeams.add(teamId);
+  room.offlineTeams.add(teamId);
+  emitTeamStatus(roomId);
+  res.json({ teamId });
+});
+
+// Host sets the points a paper team scored in the current stage — they go
+// onto its running total (replacing what was entered before), so the
+// stage's results and history count them like any other points.
+app.post('/api/host/room/:roomId/paper-points', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  const { teamId, points } = req.body;
+  if (!room.offlineTeams.has(teamId))
+    return res.status(404).json({ error: 'Komanda nerasta' });
+  if (!paperPointsEditable(room))
+    return res.status(400).json({ error: 'Šio etapo taškai jau įrašyti' });
+  if (!Number.isInteger(points) || points < 0 || points > 999)
+    return res.status(400).json({ error: 'Netinkamas taškų skaičius' });
+  const stagePoints = (room.paperScores[room.stageIndex] =
+    room.paperScores[room.stageIndex] || {});
+  room.scores[teamId] =
+    (room.scores[teamId] || 0) - (stagePoints[teamId] || 0) + points;
+  stagePoints[teamId] = points;
+  emitTeamStatus(roomId);
+  res.json({ points });
+});
+
+// Host takes a team out of the room (e.g. joined by mistake, under a wrong
+// name): it's gone from the team list and the standings, and whatever it
+// answered no longer counts. Its phone is sent back to the join page.
+app.delete('/api/host/room/:roomId/teams/:teamId', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  const teamId = req.params.teamId;
+  if (!room.joinedTeams.has(teamId))
+    return res.status(404).json({ error: 'Komanda nerasta' });
+  room.joinedTeams.delete(teamId);
+  room.offlineTeams.delete(teamId);
+  delete room.internetStatus[teamId];
+  delete room.scores[teamId];
+  delete room.priorScores[teamId];
+  Object.values(room.paperScores).forEach((stage) => delete stage[teamId]);
+  room.questionHistory.forEach((entry) => {
+    if (!entry) return;
+    ['selections', 'bonusSelections', 'textOverrides', 'bonusOverrides', 'locks', 'awardedPoints'].forEach(
+      (key) => entry[key] && delete entry[key][teamId]
+    );
+  });
+  if (room.leaderboard)
+    room.leaderboard = room.leaderboard.filter((row) => row.teamId !== teamId);
+  for (const [, s] of io.sockets.sockets) {
+    if (s.data.roomId !== roomId || s.data.teamId !== teamId) continue;
+    s.emit('team-removed');
+    s.leave(roomId);
+    s.data.roomId = null;
+    s.data.teamId = null;
+  }
+  emitTeamStatus(roomId);
+  res.json({ ok: true });
+});
+
 app.delete('/api/host/room/:roomId', (req, res) => {
   const roomId = req.params.roomId;
   if (!rooms[roomId])
@@ -2075,7 +2410,9 @@ function hostWatchChannel(roomId) {
 // Every team that joined the room: whether its phone is connected right now,
 // its last internet check (online, and how long ago — the host page treats
 // an old check as unknown) and its penalty points this season (null when
-// the room has no season, so there's nowhere to keep them).
+// the room has no season, so there's nowhere to keep them) — or, for a team
+// playing on paper, the points entered for it this stage. Plus every
+// registered team not in the room, to add one playing on paper.
 function teamStatusPayload(roomId) {
   const room = rooms[roomId];
   const teams = loadTeams();
@@ -2085,7 +2422,7 @@ function teamStatusPayload(roomId) {
       connected.add(s.data.teamId);
   }
   const now = Date.now();
-  return Array.from(room.joinedTeams)
+  const list = Array.from(room.joinedTeams)
     .map((teamId) => {
       const status = room.internetStatus[teamId];
       return {
@@ -2094,10 +2431,22 @@ function teamStatusPayload(roomId) {
         connected: connected.has(teamId),
         online: status ? status.online : null,
         checkedAgoMs: status ? now - status.at : null,
-        penalty: room.seasonId ? seasonPenalty(teams[teamId], room.seasonId) : null
+        penalty: room.seasonId ? seasonPenalty(teams[teamId], room.seasonId) : null,
+        offline: room.offlineTeams.has(teamId),
+        paperPoints: (room.paperScores[room.stageIndex] || {})[teamId] || 0
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'lt'));
+  const available = Object.entries(teams)
+    .filter(([teamId]) => !room.joinedTeams.has(teamId))
+    .map(([teamId, t]) => ({ teamId, name: t.name }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'lt'));
+  return {
+    teams: list,
+    available,
+    paperEditable: paperPointsEditable(room),
+    canAdd: room.phase !== 'finished'
+  };
 }
 
 function emitTeamStatus(roomId) {
@@ -2113,6 +2462,8 @@ io.on('connection', (socket) => {
     socket.data.teamId = teamId;
     if (teamId) {
       room.joinedTeams.add(teamId);
+      // A team added to play on paper that turns up with a phone after all.
+      room.offlineTeams.delete(teamId);
       // A phone can still remember a team that's no longer in teams.json
       // (e.g. the file was reset) — re-register it so its scores aren't
       // silently dropped by recordStageScores.
@@ -2205,14 +2556,21 @@ io.on('connection', (socket) => {
     const { room, targetIndex, entry } = target;
     const teamId = socket.data.teamId;
     let selection;
-    if (entry.type === 'chain') {
+    const fieldCount =
+      entry.type === 'chain'
+        ? entry.clues.length
+        : entry.type === 'text' && entry.answerCount > 1
+          ? entry.answerCount
+          : 0;
+    if (fieldCount) {
       if (!Array.isArray(value)) return;
-      selection = entry.clues.map((_, i) =>
+      selection = Array.from({ length: fieldCount }, (_, i) =>
         typeof value[i] === 'string' ? value[i].slice(0, 200) : ''
       );
     } else if (typeof value !== 'string') {
       return;
-    } else if (entry.type === 'text') {
+    } else if (entry.type === 'text' || entry.type === 'hints') {
+      if (entry.type === 'hints' && teamId in entry.locks) return;
       selection = value.slice(0, 200);
     } else {
       if (!entry.options.some((o) => o.id === value)) return;
@@ -2225,6 +2583,29 @@ io.on('connection', (socket) => {
         delete entry.textOverrides[teamId];
       entry.selections[teamId] = selection;
     });
+  });
+
+  // Locks a hints question's typed answer in (sent along, so the last few
+  // keystrokes still waiting to be sent aren't lost) for the points it's
+  // worth right now — it can't be changed after that. Answers the phone
+  // with those points, or an error.
+  socket.on('lock-answer', (value, index, ack) => {
+    const reply = typeof ack === 'function' ? ack : () => {};
+    const target = answerTarget(index);
+    if (!target || target.entry.type !== 'hints' || typeof value !== 'string')
+      return reply({ error: 'Atsakymo užrakinti nepavyko' });
+    const { room, targetIndex, entry } = target;
+    const teamId = socket.data.teamId;
+    if (teamId in entry.locks) return reply({ points: entry.locks[teamId] });
+    const selection = value.slice(0, 200).trim();
+    if (!selection) return reply({ error: 'Pirma įrašyk atsakymą' });
+    updateEntry(room, targetIndex, () => {
+      if (entry.selections[teamId] !== selection)
+        delete entry.textOverrides[teamId];
+      entry.selections[teamId] = selection;
+      entry.locks[teamId] = hintPoints(entry);
+    });
+    reply({ points: entry.locks[teamId] });
   });
 
   socket.on('select-bonus', (value, index) => {
@@ -2271,8 +2652,9 @@ io.on('connection', (socket) => {
     if (!roomId || !rooms[roomId]) return;
     if (!['image', 'options', 'close'].includes(action)) return;
 
-    // Picture URLs only — never any text (a question's or an option's)
-    // that could end up as an alt on the view screen and give an answer away.
+    // Picture URLs, never as an alt any text (a question's or an option's)
+    // that could give an answer away. A grid's text cell (a text option or
+    // clue among pictures, already on the view screen) has its text.
     const out = { action };
     if (action === 'image') {
       out.src = (payload.src || '').toString();
@@ -2280,7 +2662,15 @@ io.on('connection', (socket) => {
       out.images = Array.isArray(payload.images)
         ? payload.images
             .slice(0, 20)
-            .map((i) => ({ src: ((i && i.src) || '').toString() }))
+            .map((i) => {
+              const image = { src: ((i && i.src) || '').toString() };
+              if (!image.src) image.text = ((i && i.text) || '').toString().slice(0, 500);
+              // A chain clue's number (see chainClueImages) — digits only,
+              // so no text can ride along.
+              const label = ((i && i.label) || '').toString();
+              if (/^\d{1,2}$/.test(label)) image.label = label;
+              return image;
+            })
         : [];
     }
     io.to(roomId).emit('fullscreen-command', out);

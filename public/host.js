@@ -295,6 +295,23 @@ if (prevBtn) {
   });
 }
 
+// Room panel: the number buttons of the questions already shown — straight
+// to that one (the active one is the question on screen now).
+document.querySelectorAll('.question-jump').forEach((nav) => {
+  nav.querySelectorAll('.question-jump-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (btn.classList.contains('active')) return;
+      const res = await fetch(`/api/host/room/${nav.dataset.room}/goto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index: Number(btn.dataset.index) })
+      });
+      if (!res.ok) return;
+      window.location.reload();
+    });
+  });
+});
+
 // Stage answers: mark a team's typed answer (or chain, or extra answer —
 // the row's data-part) right (✓) or wrong (✗) — the active one is pre-set
 // from the automatic match, and the server re-scores the question at once.
@@ -333,15 +350,20 @@ document.querySelectorAll('.typed-answer-row').forEach((row) => {
 
 // Game-flow pages: live list of the room's teams and whether each phone can
 // reach the internet (the hotspot has none, so it's mobile data). Phones
-// re-check every 10s; a check older than this counts as unknown.
+// re-check every 10s; a check older than this counts as unknown. The host
+// can also add a team playing on paper (and enter its points per stage) and
+// take any team out of the room.
 const TEAM_STATUS_STALE_MS = 30000;
 const teamStatusEl = document.getElementById('team-status');
 if (teamStatusEl) {
   const listEl = teamStatusEl.querySelector('.team-status-list');
+  const roomId = teamStatusEl.dataset.room;
   let teams = [];
+  let paperEditable = false;
   let receivedAt = 0;
 
   function describe(team) {
+    if (team.offline) return { cls: 'is-paper', text: '📝 Ant lapelio' };
     if (!team.connected) return { cls: 'is-offline', text: 'Atsijungęs' };
     const age = team.checkedAgoMs == null ? null : team.checkedAgoMs + (Date.now() - receivedAt);
     if (age == null || age > TEAM_STATUS_STALE_MS) return { cls: 'is-unknown', text: 'Tikrinama…' };
@@ -351,6 +373,9 @@ if (teamStatusEl) {
   }
 
   function render() {
+    // Not while a paper team's points are being typed in — that'd wipe them.
+    if (listEl.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')
+      return;
     listEl.innerHTML = '';
     if (teams.length === 0) {
       const empty = document.createElement('p');
@@ -370,7 +395,9 @@ if (teamStatusEl) {
       badge.className = 'team-status-badge';
       badge.textContent = text;
       row.append(name, badge);
+      if (team.offline && paperEditable) row.appendChild(paperPointsField(team));
       if (team.penalty != null) row.appendChild(penaltyControls(team));
+      row.appendChild(removeButton(team));
       listEl.appendChild(row);
     });
   }
@@ -397,6 +424,113 @@ if (teamStatusEl) {
     return wrap;
   }
 
+  // A paper team's points this stage, saved when the field is left.
+  function paperPointsField(team) {
+    const label = document.createElement('label');
+    label.className = 'team-paper-points';
+    label.title = 'Taškai, surinkti šiame etape (ant lapelio)';
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.max = '999';
+    input.step = '1';
+    input.inputMode = 'numeric';
+    input.value = team.paperPoints;
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') input.blur();
+    });
+    input.addEventListener('change', async () => {
+      const points = Number(input.value);
+      if (!Number.isInteger(points) || points < 0) {
+        input.value = team.paperPoints;
+        return;
+      }
+      await fetch(`/api/host/room/${roomId}/paper-points`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId: team.teamId, points })
+      });
+    });
+    input.addEventListener('blur', () => setTimeout(render, 0));
+    label.append('Etapo taškai', input);
+    return label;
+  }
+
+  // Takes the team out of the room, after asking.
+  function removeButton(team) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'team-remove-btn';
+    b.textContent = '×';
+    b.title = 'Pašalinti komandą iš kambario';
+    b.addEventListener('click', async () => {
+      if (!confirm(`Pašalinti komandą „${team.name}“ iš kambario? Jos taškai šiame žaidime dings.`)) return;
+      await fetch(`/api/host/room/${roomId}/teams/${encodeURIComponent(team.teamId)}`, { method: 'DELETE' });
+    });
+    return b;
+  }
+
+  // Adding a team playing on paper: pick a registered team not in the room,
+  // or "+ Nauja komanda" and type its name.
+  const addEl = teamStatusEl.querySelector('.team-add');
+  const addSelect = addEl.querySelector('.team-add-select');
+  const addName = addEl.querySelector('.team-add-name');
+  const addBtn = addEl.querySelector('.team-add-btn');
+  const addError = addEl.querySelector('.team-add-error');
+  const NEW_TEAM = '__new';
+
+  function renderAddOptions(available, canAdd) {
+    addEl.hidden = !canAdd;
+    const selected = addSelect.value;
+    addSelect.innerHTML = '';
+    const option = (value, text) => {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = text;
+      addSelect.appendChild(o);
+    };
+    option('', 'Pridėti komandą, žaidžiančią ant lapelio…');
+    option(NEW_TEAM, '+ Nauja komanda');
+    available.forEach((t) => option(t.teamId, t.name));
+    addSelect.value = Array.from(addSelect.options).some((o) => o.value === selected) ? selected : '';
+    syncAdd();
+  }
+
+  function syncAdd() {
+    addName.hidden = addSelect.value !== NEW_TEAM;
+    addBtn.disabled = !addSelect.value || (addSelect.value === NEW_TEAM && !addName.value.trim());
+  }
+  addSelect.addEventListener('change', () => {
+    addError.textContent = '';
+    syncAdd();
+    if (addSelect.value === NEW_TEAM) addName.focus();
+  });
+  addName.addEventListener('input', syncAdd);
+  addName.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !addBtn.disabled) addBtn.click();
+  });
+  addBtn.addEventListener('click', async () => {
+    const body =
+      addSelect.value === NEW_TEAM ? { name: addName.value.trim() } : { teamId: addSelect.value };
+    addBtn.disabled = true;
+    addError.textContent = '';
+    try {
+      const res = await fetch(`/api/host/room/${roomId}/offline-team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        addError.textContent = (await res.json().catch(() => ({}))).error || 'Nepavyko pridėti';
+        return;
+      }
+      addSelect.value = '';
+      addName.value = '';
+    } finally {
+      syncAdd();
+    }
+  });
+
   async function changePenalty(teamId, delta) {
     await fetch(`/api/host/room/${teamStatusEl.dataset.room}/penalty`, {
       method: 'POST',
@@ -409,10 +543,12 @@ if (teamStatusEl) {
   const watch = () => socket.emit('host-watch', teamStatusEl.dataset.room);
   socket.on('connect', watch);
   if (socket.connected) watch();
-  socket.on('team-status', (list) => {
-    teams = list;
+  socket.on('team-status', (status) => {
+    teams = status.teams;
+    paperEditable = status.paperEditable;
     receivedAt = Date.now();
     render();
+    renderAddOptions(status.available, status.canAdd);
   });
   // Ages the last checks even when nothing new arrives.
   setInterval(render, 5000);

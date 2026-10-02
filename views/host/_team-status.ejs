@@ -9,4 +9,11 @@
   <div class="team-status-list">
     <p class="team-status-empty">Kol kas neprisijungė nė viena komanda.</p>
   </div>
+  <%# A team playing on paper: a registered one not in the room yet, or a new one by name (options filled by host.js). %>
+  <div class="team-add" hidden>
+    <select class="team-add-select"></select>
+    <input type="text" class="team-add-name" placeholder="Naujos komandos pavadinimas" maxlength="60" hidden>
+    <button type="button" class="team-add-btn secondary-btn">Pridėti</button>
+    <p class="team-add-error"></p>
+  </div>
 </div>

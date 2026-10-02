@@ -1015,23 +1015,49 @@ $clip-control-height: 38px;
 .options-section,
 .yesno-section,
 .chain-section,
+.hints-section,
+.text-answers-section,
+.ordered-answers-toggle,
 .bonus-fields {
   &[hidden] {
     display: none;
   }
 }
 
-// A typed-answer question keeps only its first option row — the answer —
-// with no picture, no remove button and nothing to add. The other rows stay
-// (hidden) in case the type is switched back.
-.question-card.text-answer {
-  .option-row:not(:first-child),
-  .add-option-btn,
-  .remove-option-btn,
-  .option-row > .option-img-input,
-  .option-row > .file-url-field {
-    display: none;
+// A typed-answer question's answers: one, or several to list (the first
+// can't be removed), and whether their order has to match.
+.text-answers-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.text-answer-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  &:first-child .remove-text-answer-btn {
+    visibility: hidden;
   }
+}
+
+.answer-text-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px;
+  font-size: 14px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+}
+
+.ordered-answers-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 14px;
+  cursor: pointer;
 }
 
 // Taip / Ne: the right one is filled in, like the review's ✓.
@@ -1099,13 +1125,92 @@ $clip-control-height: 38px;
     gap: 4px;
   }
 
-  input {
+  input[type='text'] {
     width: 100%;
     padding: 7px;
     font-size: 14px;
     border: 1px solid v.$color-border;
     border-radius: v.$radius-sm;
   }
+
+  // The clue and its × on one line, like an option row's text and ×, so the
+  // ×, the picture field's 📁 and the answer's end all line up on the right.
+  .chain-link-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .chain-clue-input {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .file-url-field {
+    margin-bottom: 0;
+  }
+
+  // Ends where the fields above do, under their × / 📁 (32px + the gap) —
+  // the GitHub Pages editor has no 📁, so there the picture field is full
+  // width and so is this.
+  .chain-link-fields:has(.file-url-field) input.chain-answer-input {
+    width: calc(100% - 38px);
+  }
+
+  // Stands in for the clue field once the clue has a picture (see
+  // createChainLinkRow in game-editor-core.js).
+  .chain-clue-thumb-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+}
+
+// A hints question's hints, numbered in the order they're shown, then its
+// answer.
+.hints-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  counter-reset: hint;
+}
+
+.hint-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  counter-increment: hint;
+
+  .hint-number {
+    flex: 0 0 20px;
+    font-weight: 600;
+    color: v.$color-muted;
+
+    &::before {
+      content: counter(hint) '.';
+    }
+  }
+}
+
+.hint-input,
+.hints-answer-input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 7px;
+  font-size: 14px;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+}
+
+.hints-answer-input {
+  display: block;
+  margin-top: 10px;
 }
 
 // The extra answer, under the main one.
@@ -1148,6 +1253,8 @@ $clip-control-height: 38px;
 .remove-question-btn,
 .remove-option-btn,
 .remove-chain-link-btn,
+.remove-hint-btn,
+.remove-text-answer-btn,
 .remove-bonus-btn,
 .remove-rule-btn {
   flex-shrink: 0;
@@ -1174,6 +1281,8 @@ $clip-control-height: 38px;
 .remove-question-btn,
 .remove-option-btn,
 .remove-chain-link-btn,
+.remove-hint-btn,
+.remove-text-answer-btn,
 .remove-bonus-btn,
 .remove-rule-btn {
   color: v.$color-danger;
@@ -1193,6 +1302,8 @@ $clip-control-height: 38px;
 
 .remove-option-btn,
 .remove-chain-link-btn,
+.remove-hint-btn,
+.remove-text-answer-btn,
 .remove-bonus-btn,
 .remove-rule-btn {
   width: 32px;
@@ -1593,6 +1704,23 @@ $clip-control-height: 38px;
   padding: 2px 8px;
   margin-bottom: 6px;
 
+  // Whether a typed-answer question's several answers go in order —
+  // orange when they do, so it isn't missed while marking.
+  &.order-label {
+    color: v.$color-muted;
+    background: #f3f4f6;
+
+    // beside the question's type, not on a line of its own
+    .question-type-label + & {
+      margin-left: 4px;
+    }
+
+    &.is-ordered {
+      color: #9a3412;
+      background: #ffedd5;
+    }
+  }
+
   &.bonus-label {
     margin-left: 4px;
     color: v.$color-purple;
@@ -1720,6 +1848,29 @@ $clip-control-height: 38px;
   li {
     margin: 2px 0;
   }
+
+  // A hints question's hints not shown on the big screen yet.
+  .is-hidden-hint {
+    color: v.$color-muted;
+    opacity: 0.6;
+  }
+
+  // A picture clue, small — it's on the big screen in full.
+  .chain-clue-img {
+    height: 56px;
+    max-width: 100%;
+    vertical-align: middle;
+    object-fit: contain;
+    border-radius: v.$radius-sm;
+  }
+}
+
+// What a team's hints answer was locked in for (or that it wasn't).
+.hint-lock-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: v.$color-muted;
+  white-space: nowrap;
 }
 
 .typed-answer-team {
@@ -1829,6 +1980,7 @@ $clip-control-height: 38px;
 
 .team-status-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
@@ -1902,6 +2054,100 @@ $clip-control-height: 38px;
   background: v.$color-danger;
   color: #fff;
   font-weight: 700;
+}
+
+.team-status-row.is-paper .team-status-badge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+// A paper team's points this stage, typed in by the host.
+.team-paper-points {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: v.$color-muted;
+
+  input {
+    width: 64px;
+    padding: 5px 6px;
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+}
+
+// Takes a team out of the room.
+.team-remove-btn {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
+  background: transparent;
+  color: v.$color-danger;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+
+  @include v.hover-only {
+    background: #fde8e8;
+  }
+}
+
+// Adding a team playing on paper, under the list.
+.team-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid v.$color-border;
+
+  &[hidden] {
+    display: none;
+  }
+
+  select,
+  input {
+    flex: 1 1 200px;
+    min-width: 0;
+    padding: 7px;
+    font-family: inherit;
+    font-size: 14px;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+    background: #fff;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .team-add-btn.secondary-btn {
+    margin-top: 0;
+    font-family: inherit;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  .team-add-error {
+    flex-basis: 100%;
+    margin: 0;
+    color: v.$color-danger;
+    font-size: 14px;
+
+    &:empty {
+      display: none;
+    }
+  }
 }
 
 .team-status-row.is-unknown .team-status-badge,
@@ -2237,5 +2483,39 @@ body.has-side-panel {
       opacity: 1;
       pointer-events: auto;
     }
+  }
+}
+
+// Room panel: a number button per question of the stage shown so far, to
+// jump back (or forward again) to it; the one on screen now is filled in.
+.question-jump {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.question-jump-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  background: #fff;
+  color: v.$color-primary;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+
+  @include v.hover-only {
+    background: #eaf1ff;
+  }
+
+  &.active {
+    background: v.$color-primary;
+    color: #fff;
+    cursor: default;
   }
 }

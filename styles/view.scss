@@ -22,10 +22,25 @@
   box-shadow: v.$shadow-card;
 }
 
+// On a projector any space around the content is wasted — just 8px there
+// (and between the question's box and its text).
+body {
+  padding: 8px;
+}
+
+#view-question-box {
+  padding-top: 8px;
+}
+
+#view-question-text,
+.leaderboard-title {
+  margin-top: 0;
+}
+
 .view-app {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 32px);
+  min-height: calc(100vh - 16px); // the body's 8px padding, top and bottom
 
   #view-question,
   #game-intro-screen,
@@ -324,6 +339,37 @@
     object-fit: contain;
     border-radius: 8px;
   }
+
+  .grid-text-cell {
+    padding: 72px 24px 24px;
+    border-radius: 8px;
+    background: #fafafa;
+    color: v.$color-text;
+  }
+
+  .grid-cell-text {
+    font-size: 48px;
+  }
+}
+
+// A text option or clue among pictures (see createGridCell in view.js): its
+// text in the middle of the cell, kept clear of the letter badge.
+.grid-text-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  text-align: center;
+}
+
+.grid-cell-text {
+  font-size: 28px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+#view-options.image-options .view-option.grid-text-cell {
+  padding: 64px 16px 16px;
 }
 
 // A, B, C… on each picture option — the only thing players' phones show
@@ -380,6 +426,18 @@
   margin-right: 10px;
 }
 
+// A hints question's newly revealed hint, fading in.
+.is-new-hint {
+  animation: hint-in 0.4s ease;
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 // The extra answer, after the main one in the stage review — the same
 // purple as its question.
 .bonus-answer-text {
@@ -431,7 +489,7 @@
 // pin it to the viewport just while image options are on screen.
 .view-app:has(#view-question:not([hidden]) #view-options.image-options),
 .view-app:has(#view-question:not([hidden]) #view-question-box.has-image) {
-  height: calc(100vh - 32px);
+  height: calc(100vh - 16px);
 }
 
 // The game's background picture (set in the editor): one behind every

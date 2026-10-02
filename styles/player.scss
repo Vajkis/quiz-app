@@ -150,9 +150,11 @@
   }
 }
 
+// Just wide enough for "9." (there are never 10 fields) or a "•".
 .chain-answer-number {
-  flex: 0 0 24px;
+  flex: 0 0 16px;
   font-weight: 700;
+  text-align: center;
 }
 
 // The extra answer's field, under the main answer.
@@ -252,4 +254,65 @@
 // Only there when "/<code>" pointed at a room that no longer exists.
 #room-error:empty {
   display: none;
+}
+
+// A hints question: the lock button, then Atšaukti / Patvirtinti side by
+// side (the confirm one red), and the locked answer's points.
+.lock-answer-btn,
+.lock-confirm-row button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: v.$radius;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.lock-answer-btn {
+  margin-top: 8px;
+  background: v.$color-primary;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.lock-confirm-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+
+  &[hidden] {
+    display: none;
+  }
+
+  .lock-cancel-btn {
+    background: #fff;
+    color: v.$color-text;
+    border-color: v.$color-border;
+  }
+
+  .lock-confirm-btn {
+    background: v.$color-danger;
+  }
+}
+
+.hint-locked-message {
+  margin: 8px 0 0;
+  font-weight: 700;
+  color: v.$color-success;
+}
+
+.hint-lock-error {
+  margin: 8px 0 0;
+  color: v.$color-danger;
 }

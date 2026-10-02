@@ -71,11 +71,50 @@ function pickGridSize(n) {
   return { cols, rows: Math.ceil(n / cols) };
 }
 
-function createOptionLetter(index) {
+function createOptionBadge(label) {
   const badge = document.createElement('span');
   badge.className = 'option-letter';
-  badge.textContent = String.fromCharCode(65 + index);
+  badge.textContent = label;
   return badge;
+}
+
+// With a picture among a question's options (or a chain's clues), every one
+// of them is a cell of the picture grid — a text one too — badged with its
+// letter (A, B, C…) or, for a clue, its number (1, 2, 3…), like view.js
+// does. Empty when there's no picture among them.
+function gridCellsFor(screen) {
+  if (screen.questionType === 'chain') {
+    const links = screen.question.links;
+    if (!links.some((l) => l.img)) return [];
+    return links.map((l, i) => ({ img: resolveMedia(l.img), text: l.clue, label: String(i + 1) }));
+  }
+  if (!screen.options.some((opt) => opt.img)) return [];
+  return screen.options.map((opt, i) => ({
+    img: resolveMedia(opt.img),
+    text: opt.text,
+    label: String.fromCharCode(65 + i),
+  }));
+}
+
+// One cell of a picture grid: the picture, or a text option or clue among
+// pictures, with its letter or number badge on top.
+function createGridCell(className, { img, text, label }) {
+  const div = document.createElement('div');
+  div.className = className;
+  if (img) {
+    const imgEl = document.createElement('img');
+    imgEl.src = img;
+    imgEl.alt = ''; // never any text — it could give the answer away
+    div.appendChild(imgEl);
+  } else {
+    div.classList.add('grid-text-cell');
+    const span = document.createElement('span');
+    span.className = 'grid-cell-text';
+    span.textContent = text || '';
+    div.appendChild(span);
+  }
+  div.appendChild(createOptionBadge(label));
+  return div;
 }
 
 // The first option is the correct one in a stored game (see
@@ -90,6 +129,26 @@ function shownOptionsFor(q) {
   return [];
 }
 
+// What a question is called on screen — a chain or a hints question needs
+// no text of its own (like questionTitle in server.js).
+function questionTitle(q) {
+  if (q.question) return q.question;
+  if (q.type === 'chain') return 'Grandinėlė';
+  if (q.type === 'hints') return 'Užuominos';
+  return '';
+}
+
+// What a typed-answer question asks for: one answer, or how many to list
+// (and whether in order) — 21 "atsakymą", 2–9 "atsakymus", 10–20 or
+// ending in 0 "atsakymų".
+function typedAnswerPrompt(count, ordered) {
+  if (!count || count < 2) return 'Įrašykite atsakymą';
+  const n = count % 100;
+  const word =
+    n % 10 === 0 || (n >= 10 && n <= 20) ? 'atsakymų' : n % 10 === 1 ? 'atsakymą' : 'atsakymus';
+  return `Įrašykite ${count} ${word}${ordered ? ' eilės tvarka' : ''}`;
+}
+
 function buildScreens(game) {
   const list = [{ type: 'game-intro', name: game.name }];
   if (game.rules && game.rules.length) list.push({ type: 'game-rules', rules: game.rules });
@@ -97,13 +156,20 @@ function buildScreens(game) {
     list.push({ type: 'stage-intro', name: stage.name, number: s + 1, count: game.stages.length });
     const shownOptions = stage.questions.map(shownOptionsFor);
     stage.questions.forEach((q, i) => {
-      list.push({
-        type: 'question',
-        number: i + 1,
-        question: q,
-        questionType: QuizGameShared.questionType(q),
-        options: shownOptions[i],
-      });
+      const questionType = QuizGameShared.questionType(q);
+      // A hints question gets a screen per hint, as the host reveals them
+      // one by one.
+      const steps = questionType === 'hints' ? q.hints.length : 1;
+      for (let revealed = 1; revealed <= steps; revealed++) {
+        list.push({
+          type: 'question',
+          number: i + 1,
+          question: q,
+          questionType,
+          options: shownOptions[i],
+          revealedHints: revealed,
+        });
+      }
     });
     list.push({ type: 'stage-answers', stage, shownOptions });
   });
@@ -169,7 +235,7 @@ function showQuestion(screen) {
   const q = screen.question;
   questionAreaEl.hidden = false;
   // No text (a picture or song question): just which question it is.
-  const title = q.question || (q.type === 'chain' ? 'Grandinėlė' : '');
+  const title = questionTitle(q);
   questionTextEl.textContent = title ? `${screen.number}. ${title}` : `${screen.number} klausimas`;
 
   const audioSrc = resolveMedia(q.audio);
@@ -191,19 +257,46 @@ function showQuestion(screen) {
   imageWrapEl.hidden = !imgSrc;
   if (imgSrc) imageEl.src = imgSrc;
 
-  const optionsAreImages = screen.options.length > 0 && screen.options.every((opt) => opt.img);
-  fullscreenBtn.hidden = !imgSrc && !optionsAreImages;
-  optionsEl.className = optionsAreImages ? 'options-grid image-options' : 'options-list';
+  const cells = gridCellsFor(screen);
+  fullscreenBtn.hidden = !imgSrc && !cells.length;
+  optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
-  if (optionsAreImages) {
-    const { cols, rows } = pickGridSize(screen.options.length);
-    optionsEl.style.setProperty('--cols', cols);
-    optionsEl.style.setProperty('--rows', rows);
-  }
 
   bonusQuestionEl.hidden = !q.bonus;
   bonusQuestionEl.textContent =
     q.bonus && q.bonus.question ? `Papildomas klausimas: ${q.bonus.question}` : 'Papildomas atsakymas';
+
+  // Picture options (or clues) fill all the space left under the question,
+  // laid out the same way as the fullscreen grid (2x2 for 4, etc.).
+  if (cells.length) {
+    optionsEl.className = 'options-grid image-options';
+    const { cols, rows } = pickGridSize(cells.length);
+    optionsEl.style.setProperty('--cols', cols);
+    optionsEl.style.setProperty('--rows', rows);
+    cells.forEach((cell) => optionsEl.appendChild(createGridCell('view-option', cell)));
+    return;
+  }
+
+  // A hints question: the hints shown so far, and the same "type your
+  // answer" note as a typed-answer question (see renderHints in view.js).
+  if (screen.questionType === 'hints') {
+    const shown = q.hints.slice(0, screen.revealedHints);
+    shown.forEach((hint, i) => {
+      const div = document.createElement('div');
+      div.className = 'view-option view-chain-clue';
+      if (i === shown.length - 1 && i > 0) div.classList.add('is-new-hint');
+      const number = document.createElement('span');
+      number.className = 'chain-clue-number';
+      number.textContent = `${i + 1}.`;
+      div.append(number, document.createTextNode(hint));
+      optionsEl.appendChild(div);
+    });
+    const note = document.createElement('div');
+    note.className = 'view-text-answer-hint';
+    note.textContent = 'Įrašykite atsakymą';
+    optionsEl.appendChild(note);
+    return;
+  }
 
   // A chain: its clues, numbered like the fields teams type each answer in.
   if (screen.questionType === 'chain') {
@@ -222,21 +315,14 @@ function showQuestion(screen) {
   if (screen.questionType === 'text') {
     const hint = document.createElement('div');
     hint.className = 'view-text-answer-hint';
-    hint.textContent = 'Įrašykite atsakymą';
+    hint.textContent = typedAnswerPrompt(q.options.length, q.ordered);
     optionsEl.appendChild(hint);
     return;
   }
-  screen.options.forEach((opt, i) => {
+  screen.options.forEach((opt) => {
     const div = document.createElement('div');
     div.className = 'view-option';
-    if (opt.img) {
-      const imgEl = document.createElement('img');
-      imgEl.src = resolveMedia(opt.img);
-      imgEl.alt = ''; // never any text — it could give the answer away
-      div.append(imgEl, createOptionLetter(i));
-    } else {
-      div.textContent = opt.text;
-    }
+    div.textContent = opt.text;
     optionsEl.appendChild(div);
   });
 }
@@ -248,6 +334,8 @@ function correctAnswerText(q, shown) {
   const type = QuizGameShared.questionType(q);
   if (type === 'chain') return q.links.map((l) => l.answer).join(' → ');
   if (type === 'yesno') return q.answer === 'yes' ? 'Taip' : 'Ne';
+  if (type === 'hints') return q.answer;
+  if (type === 'text') return q.options.map((o) => o.text).join(q.ordered ? ' → ' : ', ');
   const correct = q.options[0];
   const shownIndex = shown.indexOf(correct);
   if (correct.img && shownIndex >= 0) return String.fromCharCode(65 + shownIndex);
@@ -267,7 +355,7 @@ function showStageAnswers(stage, shownOptions) {
     const box = document.createElement('div');
     box.className = 'question';
     const questionP = document.createElement('p');
-    questionP.textContent = `${i + 1}. ${q.question || (q.type === 'chain' ? 'Grandinėlė' : '')}`;
+    questionP.textContent = `${i + 1}. ${questionTitle(q)}`;
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
     const answer = correctAnswerText(q, shownOptions[i]);
@@ -339,20 +427,13 @@ function buildFullscreenContent(screen) {
     bigImg.alt = '';
     return bigImg;
   }
+  const cells = gridCellsFor(screen);
   const grid = document.createElement('div');
   grid.className = 'fullscreen-grid';
-  const { cols, rows } = pickGridSize(screen.options.length);
+  const { cols, rows } = pickGridSize(cells.length);
   grid.style.setProperty('--cols', cols);
   grid.style.setProperty('--rows', rows);
-  screen.options.forEach((opt, i) => {
-    const cell = document.createElement('div');
-    cell.className = 'fullscreen-grid-cell';
-    const img = document.createElement('img');
-    img.src = resolveMedia(opt.img);
-    img.alt = '';
-    cell.append(img, createOptionLetter(i));
-    grid.appendChild(cell);
-  });
+  cells.forEach((cell) => grid.appendChild(createGridCell('fullscreen-grid-cell', cell)));
   return grid;
 }
 

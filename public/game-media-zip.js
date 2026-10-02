@@ -66,7 +66,8 @@
   }
 
   // Every picture/music field of a game: question picture and music, and
-  // each option's picture. fn(value) returns the new value for that field.
+  // each option's and chain clue's picture. fn(value) returns the new value
+  // for that field.
   function mapMediaFields(game, fn) {
     return {
       ...game,
@@ -78,6 +79,7 @@
           if (q.img) out.img = fn(q.img);
           if (q.audio) out.audio = fn(q.audio);
           if (q.options) out.options = q.options.map((o) => (o && o.img ? { ...o, img: fn(o.img) } : o));
+          if (q.links) out.links = q.links.map((l) => (l && l.img ? { ...l, img: fn(l.img) } : l));
           return out;
         }),
       })),

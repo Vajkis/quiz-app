@@ -18,10 +18,17 @@
         <% if (q.chain) { %>
           <ol class="chain-clues">
             <% q.chain.forEach(function(l) { %>
-              <li><%= l.clue %> — <strong><%= l.answer %></strong></li>
+              <li><% if (l.img) { %><img class="chain-clue-img" src="<%= l.img %>" alt=""><% } else { %><%= l.clue %><% } %> — <strong><%= l.answer %></strong></li>
             <% }); %>
           </ol>
         <% } else { %>
+          <% if (q.hints) { %>
+            <ol class="chain-clues hint-list">
+              <% q.hints.forEach(function(h) { %>
+                <li><%= h %></li>
+              <% }); %>
+            </ol>
+          <% } %>
           <p class="correct-answer"><%= q.correctAnswer %></p>
         <% } %>
         <% if (q.bonus) { %>
@@ -33,7 +40,7 @@
           if (q.img) imgButtons.push({ src: q.img, label: '🔍 Klausimo nuotrauką' });
           if (q.correctAnswerImg) imgButtons.push({ src: q.correctAnswerImg, label: '🔍 Atsakymo nuotrauką' });
         %>
-        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: null }) %>
+        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: q.clueImages, optionsLabel: '🔍 Užuominas per visą ekraną' }) %>
       </div>
     <% }); %>
   </div>
@@ -45,6 +52,9 @@
       <% typedQuestions.forEach(function(q) { const review = typedAnswers[q.number - 1]; %>
         <div class="question typed-answers">
           <p><%= q.number %>. <%= q.question %></p>
+          <% if (review.answerCount > 1) { %>
+            <%- include('_order-label', { ordered: review.ordered }) %>
+          <% } %>
           <p class="correct-answer"><%= q.correctAnswer %></p>
           <% if (review.hasBonus) { %>
             <p class="bonus-answer">+ <%= review.bonusQuestion || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong> <span class="bonus-note">(tik jei pagrindinis teisingas)</span></p>
@@ -71,7 +81,7 @@
                     <% }); %>
                   </ol>
                 <% } else { %>
-                  <span class="typed-answer-text<%= answered ? '' : ' is-empty' %>"><%= a.typed || (review.mainEditable ? '(neįrašė)' : '(nepasirinko)') %></span>
+                  <span class="typed-answer-text<%= answered ? '' : ' is-empty' %>"><%= a.typed || (review.mainEditable ? '(neįrašė)' : '(nepasirinko)') %><% if (review.type === 'hints') { %> <span class="hint-lock-note"><%= a.lockedPoints != null ? '🔒 ' + a.lockedPoints + ' tšk.' : 'neužrakinta · 1 tšk.' %></span><% } %></span>
                 <% } %>
                 <% if (review.mainEditable) { %>
                   <button type="button" class="typed-answer-btn correct-btn<%= a.mainCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>

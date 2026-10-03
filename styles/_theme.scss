@@ -1,0 +1,217 @@
+// Every color as a custom property on :root (the Sass $color-* in
+// _variables.scss just point here), so a theme only has to swap the values.
+// theme.js sets three switches on <html>, each remembered per browser:
+//   data-theme="dark"      — dark instead of light
+//   data-contrast="high"   — high contrast (light or dark)
+//   data-colorless         — no blue: greys instead (any of the above)
+// Never on the big screen (view), which has no theme.js and stays light.
+// Each of the four themes lists every colour, even one that matches
+// another, so a theme can be tweaked from its own block alone.
+
+// Light — the default.
+:root {
+  --color-bg: #f4f4f8;
+  --color-text: #222;
+  --color-card: #fff;
+  --color-surface-alt: #fafafa;
+  --color-border: #ddd;
+  --color-muted: #6b7280;
+  --color-primary: #3b82f6;
+  --color-primary-soft: #eaf1ff;
+  --color-on-accent: #fff;
+  --color-danger: #dc2626;
+  --color-on-danger: #fff; // text on a red button
+  --color-danger-soft: #fde8e8;
+  --color-success: #16a34a;
+  --color-on-success: #fff; // text on a green button
+  --color-success-soft: #e8f7ee;
+  --color-purple: #6b21a8;
+  --color-neutral-soft: #f3f4f6;
+  // A row under the pointer in a list or menu (GitHub's menu hover).
+  --color-hover: rgba(208, 215, 222, 0.32);
+  --color-orange-text: #9a3412;
+  --color-orange-soft: #ffedd5;
+  --color-amber-text: #92400e;
+  --color-amber-soft: #fef3c7;
+
+  // Cards lift off the page with a soft shadow.
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+  // Something floating over the page (a dropdown's list).
+  --shadow-overlay: 0 8px 24px rgba(140, 149, 159, 0.2);
+}
+
+// Dark, after GitHub's dark theme (Primer "dark"): depth from borders and
+// steps of the background — the page darkest-but-one, cards a step lighter
+// with a hairline border, inputs and things nested in a card a step darker
+// again — instead of shadows, which don't show on dark. Soft backgrounds
+// are translucent tints of their colour, so they sit right on any of those.
+:root[data-theme='dark'] {
+  // Native controls (inputs, selects, scrollbars) follow along.
+  color-scheme: dark;
+
+  --color-bg: #0d1117;
+  --color-text: #e6edf3;
+  --color-card: #161b22;
+  --color-surface-alt: #0d1117;
+  --color-border: #30363d;
+  --color-muted: #9198a1;
+  --color-primary: #388bfd;
+  --color-primary-soft: rgba(56, 139, 253, 0.15);
+  --color-on-accent: #fff;
+  --color-danger: #dc2626;
+  --color-on-danger: #0d1117;
+  --color-danger-soft: rgba(220, 38, 38, 0.15);
+  --color-success: #16a34a;
+  --color-on-success: #0d1117;
+  --color-success-soft: rgba(22, 163, 74, 0.15);
+  --color-purple: #6b21a8;
+  --color-neutral-soft: rgba(110, 118, 129, 0.2);
+  --color-hover: rgba(177, 186, 196, 0.12);
+  --color-orange-text: #db6d28;
+  --color-orange-soft: rgba(219, 109, 40, 0.15);
+  --color-amber-text: #d29922;
+  --color-amber-soft: rgba(187, 128, 9, 0.15);
+
+  // A hairline border instead (a ring, so nothing shifts by a pixel).
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.85);
+}
+
+// Light, high contrast — after GitHub's "Light high contrast": white
+// everywhere, near-black text, mid-grey borders around every card
+// (instead of a shadow), and every colour a few shades deeper.
+:root[data-contrast='high'] {
+  --color-bg: #ffffff;
+  --color-text: #0e1116;
+  --color-card: #ffffff;
+  --color-surface-alt: #ffffff;
+  --color-border: #8c959f; // mid grey: 3:1 against white, the minimum for an edge, without shouting
+  --color-muted: #3d444d;
+  --color-primary: #0349b4;
+  --color-primary-soft: #dff7ff;
+  --color-on-accent: #fff;
+  --color-danger: #a0111f;
+  --color-on-danger: #fff;
+  --color-danger-soft: #fff0ee;
+  --color-success: #055d20;
+  --color-on-success: #fff;
+  --color-success-soft: #d2fedb;
+  --color-purple: #622cbc;
+  --color-neutral-soft: #e7ecf0;
+  --color-hover: rgba(14, 17, 22, 0.08);
+  --color-orange-text: #702c00;
+  --color-orange-soft: #fff2d5;
+  --color-amber-text: #603700;
+  --color-amber-soft: #fcf7be;
+
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.2);
+}
+
+// Dark, high contrast — after GitHub's "Dark high contrast": near-black,
+// near-white text, mid-grey borders, bright colours. Filled buttons get
+// dark text on their bright colour (on-accent), which reads far better
+// than white on it.
+:root[data-theme='dark'][data-contrast='high'] {
+  --color-bg: #0a0c10;
+  --color-text: #f0f3f6;
+  --color-card: #0a0c10;
+  --color-surface-alt: #010409;
+  --color-border: #5e6773; // mid grey: 3:1 against the background, without shouting
+  --color-muted: #bdc4cc;
+  --color-primary: #71b7ff;
+  --color-primary-soft: rgba(64, 158, 255, 0.2);
+  --color-on-accent: #0a0c10;
+  --color-danger: #ff6a69;
+  --color-on-danger: #0a0c10;
+  --color-danger-soft: rgba(255, 106, 105, 0.2);
+  --color-success: #26cd4d;
+  --color-on-success: #0a0c10;
+  --color-success-soft: rgba(38, 205, 77, 0.2);
+  --color-purple: #cb9eff;
+  --color-neutral-soft: rgba(158, 167, 179, 0.24);
+  --color-hover: rgba(158, 167, 179, 0.2);
+  --color-orange-text: #ff9b4f;
+  --color-orange-soft: rgba(255, 155, 79, 0.2);
+  --color-amber-text: #f0b72f;
+  --color-amber-soft: rgba(240, 183, 47, 0.2);
+
+  --shadow-card: 0 0 0 1px var(--color-border);
+  --shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.85);
+}
+
+// No colour: the blue family becomes grey, per theme — a shade apart from
+// the text, so buttons and links still don't blend into it (dark grey on
+// light, light grey on dark; filled buttons then need dark text on dark
+// themes). Only these change; red, green and the rest stay.
+:root[data-colorless] {
+  --color-primary: #4b5563;
+  --color-primary-soft: rgba(75, 85, 99, 0.12);
+  --color-on-accent: #fff;
+}
+
+:root[data-theme='dark'][data-colorless] {
+  --color-primary: #c9d1d9;
+  --color-primary-soft: rgba(201, 209, 217, 0.15);
+  --color-on-accent: #0d1117;
+}
+
+:root[data-contrast='high'][data-colorless] {
+  --color-primary: #3d444d;
+  --color-primary-soft: rgba(14, 17, 22, 0.1);
+  --color-on-accent: #fff;
+}
+
+:root[data-theme='dark'][data-contrast='high'][data-colorless] {
+  --color-primary: #d9dee3;
+  --color-primary-soft: rgba(217, 222, 227, 0.2);
+  --color-on-accent: #0a0c10;
+}
+
+// Fields that don't set their own background sit a step darker than the
+// card they're in, like GitHub's; :where() keeps this from beating any rule
+// of the app's.
+:where(:root[data-theme='dark']) :where(input, select, textarea) {
+  background-color: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+// The theme switches (theme.js) in the top right corner, on the pages with
+// no side panel (host login, players' join page).
+.theme-toggles {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  gap: 6px;
+}
+
+.theme-toggle-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  cursor: pointer;
+
+  // A switch that's on (contrast, no colour).
+  &.active {
+    color: var(--color-on-accent);
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  @media (min-width: 992px) {
+    &:hover {
+      border-color: var(--color-primary);
+    }
+  }
+}

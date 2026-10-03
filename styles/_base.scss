@@ -3,6 +3,7 @@
 // answer buttons, leaderboards). Group-specific rules live in
 // host.scss / view.scss / player.scss instead.
 @use 'variables' as v;
+@use 'theme';
 
 // Self-hosted instead of @import-ing fonts.googleapis.com: this app is
 // meant to run over a phone hotspot with no real internet uplink, where
@@ -35,6 +36,35 @@
 h1,
 p {
   margin: 0;
+}
+
+// An SVG icon (icons.js), sized and aligned like a letter of its text.
+.icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+
+// Every button's text semi-bold (600, not the default 400) — at zero
+// specificity, so one that sets its own weight keeps it. Answer options and
+// the side panel's rows stay normal: they're a question's content and a
+// menu, not actions.
+:where(button, .secondary-btn):where(:not(.option, .side-panel-item)) {
+  font-weight: 600;
+}
+
+// Buttons don't take the page's font by themselves (the browser gives them
+// its own) — every one gets Mulish, like the text around it.
+:where(button) {
+  font-family: inherit;
+}
+
+// A flex button drops the space between its icon and text, so it gets a gap
+// instead — the same width the space gives in an ordinary one.
+:is(button, a, label):has(> .icon) {
+  column-gap: 0.3em;
 }
 
 body {
@@ -79,24 +109,24 @@ h1 {
   margin: 6px 0;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
-  background: #fafafa;
+  background: v.$color-surface-alt;
   text-align: left;
   text-decoration: none;
   color: inherit;
   box-sizing: border-box;
   cursor: pointer;
-  font-size: 16px;
+  font-size: v.text(16px);
 
   &:not(.selected) {
     @include v.hover-only {
-      background: #eef2ff;
+      background: v.$color-primary-soft;
       border-color: v.$color-primary;
     }
   }
 
   &.selected {
     background: v.$color-primary;
-    color: #fff;
+    color: v.$color-on-accent;
     border-color: v.$color-primary;
 
     @include v.hover-only {
@@ -123,7 +153,7 @@ h1 {
 
 .leaderboard-title {
   text-align: center;
-  font-size: 20px;
+  font-size: v.text(20px);
   font-weight: 700;
   margin-bottom: 12px;
 }
@@ -169,6 +199,6 @@ h1 {
 // @use boundaries for placeholder selectors).
 %error-text {
   color: v.$color-danger;
-  font-size: 14px;
+  font-size: v.text(14px);
   margin-top: 8px;
 }

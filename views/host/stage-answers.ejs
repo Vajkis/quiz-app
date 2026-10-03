@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
+<script src="/icons.js"></script>
+<script src="/theme.js"></script>
 </head>
-<body>
+<body data-nav="host">
+<script src="/side-panel.js"></script>
 <div id="app">
   <h1><%= roomName %></h1>
   <p id="room-code">Teisingi atsakymai: <strong><%= review.stageName %></strong></p>
@@ -32,15 +35,15 @@
           <p class="correct-answer"><%= q.correctAnswer %></p>
         <% } %>
         <% if (q.bonus) { %>
-          <p class="bonus-answer">+ <%= q.bonus.question || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong></p>
+          <p class="bonus-answer"><%- icon('plus') %> <%= q.bonus.question || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong></p>
         <% } %>
         <%- include('_audio-player', { roomId, audio: q.audio, audioStart: q.audioStart, audioEnd: q.audioEnd }) %>
         <%
           const imgButtons = [];
-          if (q.img) imgButtons.push({ src: q.img, label: '🔍 Klausimo nuotrauką' });
-          if (q.correctAnswerImg) imgButtons.push({ src: q.correctAnswerImg, label: '🔍 Atsakymo nuotrauką' });
+          if (q.img) imgButtons.push({ src: q.img, label: 'Klausimo nuotrauką' });
+          if (q.correctAnswerImg) imgButtons.push({ src: q.correctAnswerImg, label: 'Atsakymo nuotrauką' });
         %>
-        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: q.clueImages, optionsLabel: '🔍 Užuominas per visą ekraną' }) %>
+        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: q.clueImages, optionsLabel: 'Užuominas per visą ekraną' }) %>
       </div>
     <% }); %>
   </div>
@@ -57,7 +60,7 @@
           <% } %>
           <p class="correct-answer"><%= q.correctAnswer %></p>
           <% if (review.hasBonus) { %>
-            <p class="bonus-answer">+ <%= review.bonusQuestion || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong> <span class="bonus-note">(tik jei pagrindinis teisingas)</span></p>
+            <p class="bonus-answer"><%- icon('plus') %> <%= review.bonusQuestion || 'Papildomas' %>: <strong><%= q.bonus.answer %></strong> <span class="bonus-note">(tik jei pagrindinis teisingas)</span></p>
           <% } %>
           <hr class="section-divider">
           <% if (review.rows.length === 0) { %>
@@ -81,14 +84,14 @@
                     <% }); %>
                   </ol>
                 <% } else { %>
-                  <span class="typed-answer-text<%= answered ? '' : ' is-empty' %>"><%= a.typed || (review.mainEditable ? '(neįrašė)' : '(nepasirinko)') %><% if (review.type === 'hints') { %> <span class="hint-lock-note"><%= a.lockedPoints != null ? '🔒 ' + a.lockedPoints + ' tšk.' : 'neužrakinta · 1 tšk.' %></span><% } %></span>
+                  <span class="typed-answer-text<%= answered ? '' : ' is-empty' %>"><%= a.typed || (review.mainEditable ? '(neįrašė)' : '(nepasirinko)') %><% if (review.type === 'hints') { %> <span class="hint-lock-note"><% if (a.lockedPoints != null) { %><%- icon('lock') %> <%= a.lockedPoints %> tšk.<% } else { %>neužrakinta · 1 tšk.<% } %></span><% } %></span>
                 <% } %>
                 <% if (review.mainEditable) { %>
-                  <button type="button" class="typed-answer-btn correct-btn<%= a.mainCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>
-                  <button type="button" class="typed-answer-btn wrong-btn<%= a.mainCorrect ? '' : ' active' %>" data-correct="false" title="Neteisinga">✗</button>
+                  <button type="button" class="typed-answer-btn correct-btn<%= a.mainCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga"><%- icon('check') %></button>
+                  <button type="button" class="typed-answer-btn wrong-btn<%= a.mainCorrect ? '' : ' active' %>" data-correct="false" title="Neteisinga"><%- icon('close') %></button>
                 <% } else { %>
                   <%# A picked option is right or wrong as it is — only shown, not markable. %>
-                  <span class="typed-answer-status <%= a.mainCorrect ? 'is-correct' : 'is-wrong' %>"><%= a.mainCorrect ? '✓' : '✗' %></span>
+                  <span class="typed-answer-status <%= a.mainCorrect ? 'is-correct' : 'is-wrong' %>"><%- icon(a.mainCorrect ? 'check' : 'close') %></span>
                 <% } %>
               </div>
               <% if (review.hasBonus) { %>
@@ -97,10 +100,10 @@
                   data-index="<%= q.number - 1 %>"
                   data-team="<%= a.teamId %>"
                   data-part="bonus">
-                  <span class="typed-answer-team">+ <%= review.bonusQuestion || 'Papildomas' %></span>
+                  <span class="typed-answer-team"><%- icon('plus') %> <%= review.bonusQuestion || 'Papildomas' %></span>
                   <span class="typed-answer-text<%= a.bonusTyped ? '' : ' is-empty' %>"><%= a.bonusTyped || '(neįrašė)' %></span>
-                  <button type="button" class="typed-answer-btn correct-btn<%= a.bonusCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga">✓</button>
-                  <button type="button" class="typed-answer-btn wrong-btn<%= a.bonusCorrect ? '' : ' active' %>" data-correct="false" title="Neteisinga">✗</button>
+                  <button type="button" class="typed-answer-btn correct-btn<%= a.bonusCorrect ? ' active' : '' %>" data-correct="true" title="Teisinga"><%- icon('check') %></button>
+                  <button type="button" class="typed-answer-btn wrong-btn<%= a.bonusCorrect ? '' : ' active' %>" data-correct="false" title="Neteisinga"><%- icon('close') %></button>
                 </div>
               <% } %>
             </div>
@@ -112,10 +115,13 @@
 
   <nav id="host-bar">
     <div class="host-bar-side">
-      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
+      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
     </div>
     <div class="host-bar-main">
       <button id="next-btn" data-room="<%= roomId %>">Rodyti taškus</button>
+    </div>
+    <div class="host-bar-end">
+      <%- include('_text-scale', { roomId }) %>
     </div>
   </nav>
   <%- include('_team-status', { roomId }) %>

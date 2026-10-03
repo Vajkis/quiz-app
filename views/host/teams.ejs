@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
+<script src="/icons.js"></script>
+<script src="/theme.js"></script>
 </head>
-<body>
+<body data-nav="host">
+<script src="/side-panel.js"></script>
 <div id="app">
   <h1>Komandų istorija</h1>
-  <a class="option" href="/host">← Atgal į kambarius</a>
+  <a class="option" href="/host"><%- icon('arrow-left') %> Atgal į kambarius</a>
 
   <% if (error) { %>
     <p id="teams-error"><%= error %></p>

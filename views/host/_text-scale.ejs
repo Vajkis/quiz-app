@@ -1,0 +1,7 @@
+<%# The view screen's text size: − / + in steps of 25%, 25%–500% (see
+    /api/host/room/:roomId/text-scale). Only the big screen changes, not this page. %>
+<div class="text-scale" data-room="<%= roomId %>" title="Teksto dydis žiūrovų ekrane">
+  <button type="button" class="host-bar-btn text-scale-btn" data-delta="-25" title="Mažesnis tekstas žiūrovų ekrane" aria-label="Mažesnis tekstas"<%= textScale <= 25 ? ' disabled' : '' %>><%- icon('minus') %></button>
+  <span class="text-scale-value"><%= textScale %>%</span>
+  <button type="button" class="host-bar-btn text-scale-btn" data-delta="25" title="Didesnis tekstas žiūrovų ekrane" aria-label="Didesnis tekstas"<%= textScale >= 500 ? ' disabled' : '' %>><%- icon('plus') %></button>
+</div>

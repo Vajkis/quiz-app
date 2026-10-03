@@ -41,6 +41,8 @@ body {
   gap: 8px;
   height: $bar-height;
   padding: 0 12px;
+  // Fixed: the text scale is for the screen above it, not for this bar.
+  font-size: 16px;
   background: v.$color-card;
   border-top: 1px solid v.$color-border;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
@@ -64,7 +66,7 @@ body {
   padding: 0 16px;
   border: 1px solid v.$color-primary;
   border-radius: v.$radius-sm;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-primary;
   font: inherit;
   font-size: 16px;
@@ -73,11 +75,12 @@ body {
   white-space: nowrap;
   cursor: pointer;
   display: inline-flex;
+  gap: 6px; // between an arrow and its text
   align-items: center;
   justify-content: center;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 
   &:disabled {
@@ -91,7 +94,7 @@ body {
 
   &--primary {
     background: v.$color-primary;
-    color: #fff;
+    color: v.$color-on-accent;
 
     @include v.hover-only {
       background: v.$color-primary;
@@ -120,12 +123,12 @@ body {
   color: v.$color-success;
 
   @include v.hover-only {
-    background: #e8f7ee;
+    background: v.$color-success-soft;
   }
 
   &.is-playing {
     background: v.$color-success;
-    color: #fff;
+    color: v.$color-on-success;
   }
 }
 
@@ -133,16 +136,35 @@ body {
   left: 12px + (44px + 8px) * 2;
 }
 
-// Icon only, on the right edge; filled while the overlay is open.
-#preview-fullscreen {
+// The right edge: text size − 100% + and the fullscreen toggle.
+#preview-bar-end {
   position: absolute;
   right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-icon-btn {
   width: 44px;
   padding: 0;
+  font-size: 20px;
+}
 
+#preview-scale-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: v.$color-muted;
+  font-variant-numeric: tabular-nums;
+}
+
+// Filled while the overlay is open.
+#preview-fullscreen {
   &.is-active {
     background: v.$color-primary;
-    color: #fff;
+    color: v.$color-on-accent;
   }
 }
 

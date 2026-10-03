@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quiz - Žaidimo redagavimas</title>
 <link rel="stylesheet" href="css/host.css">
+<script src="js/icons.js"></script>
+<script src="js/theme.js"></script>
 </head>
-<body>
+<body data-nav="docs">
+<script src="js/side-panel.js"></script>
 <div id="app">
   <h1 id="editor-title">Naujas žaidimas</h1>
-  <a id="editor-back-link" class="option" href="index.html">← Atgal į žaidimus</a>
+  <a id="editor-back-link" class="option" href="index.html">{{icon:arrow-left}} Atgal į žaidimus</a>
 
   <div id="game-editor">
     <input id="game-name-input" type="text" placeholder="Žaidimo pavadinimas">
@@ -17,10 +20,10 @@
     <div id="stages-container"></div>
 
     <div class="editor-actions">
-      <button type="button" id="add-stage-btn" class="secondary-btn">+ Naujas etapas</button>
+      <button type="button" id="add-stage-btn" class="secondary-btn">{{icon:plus}} Naujas etapas</button>
       <button type="button" id="save-game-btn">Išsaugoti žaidimą</button>
-      <button type="button" id="export-game-btn" class="secondary-btn">⭳ Eksportuoti</button>
-      <label for="import-game-input" class="secondary-btn">⭱ Importuoti</label>
+      <button type="button" id="export-game-btn" class="secondary-btn">{{icon:download}} Eksportuoti</button>
+      <label for="import-game-input" class="secondary-btn">{{icon:upload}} Importuoti</label>
       <input type="file" id="import-game-input" accept="application/json,.json,application/zip,.zip" class="file-input-hidden">
     </div>
 

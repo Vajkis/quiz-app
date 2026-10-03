@@ -1,11 +1,11 @@
 <% if ((imageButtons && imageButtons.length) || optionImages) { %>
   <div class="fullscreen-mode-buttons" data-room="<%= roomId %>">
     <% imageButtons.forEach(function(b) { %>
-      <button type="button" class="fullscreen-image-btn secondary-btn" data-src="<%= b.src %>"><%= b.label %></button>
+      <button type="button" class="fullscreen-image-btn secondary-btn" data-src="<%= b.src %>"><%- icon('zoom') %> <%= b.label %></button>
     <% }); %>
     <% if (optionImages) { %>
-      <button type="button" class="fullscreen-options-btn secondary-btn" data-images='<%- JSON.stringify(optionImages).replace(/'/g, "&#39;") %>'><%= locals.optionsLabel || '🔍 Atsakymus per visą ekraną' %></button>
+      <button type="button" class="fullscreen-options-btn secondary-btn" data-images='<%- JSON.stringify(optionImages).replace(/'/g, "&#39;") %>'><%- icon('zoom') %> <%= locals.optionsLabel || 'Atsakymus per visą ekraną' %></button>
     <% } %>
-    <button type="button" class="fullscreen-close-btn secondary-btn">✕ Uždaryti pilną ekraną</button>
+    <button type="button" class="fullscreen-close-btn secondary-btn"><%- icon('close') %> Uždaryti pilną ekraną</button>
   </div>
 <% } %>

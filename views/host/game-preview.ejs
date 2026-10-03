@@ -1,0 +1,91 @@
+<%# The game preview — the big screen's screens stepped through with a bar at
+    the bottom (public/preview.js). Rendered by the host (/host/games/:id/preview)
+    and, with docs: true, by scripts/build-docs.js into docs/preview.html, whose
+    files sit in js/ and css/ next to it. -%>
+<% const js = docs ? 'js/' : '/'; -%>
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz - Žaidimo peržiūra</title>
+<link rel="stylesheet" href="<%= docs ? '' : '/' %>css/preview.css">
+<script src="<%= js %>icons.js"></script>
+</head>
+<body>
+<div id="app" class="view-app">
+  <div id="game-intro-screen" hidden>
+    <p class="stage-intro-name" id="game-intro-name"></p>
+  </div>
+
+  <div id="game-rules-screen" hidden>
+    <p class="stage-intro-label">Taisyklės</p>
+    <ul id="game-rules-list" class="game-rules-list"></ul>
+  </div>
+
+  <div id="stage-intro-screen" hidden>
+    <p class="stage-intro-label" id="stage-intro-label"></p>
+    <p class="stage-intro-name" id="stage-intro-name"></p>
+    <p class="stage-intro-topic" id="stage-intro-topic" hidden></p>
+    <p class="stage-intro-description" id="stage-intro-description" hidden></p>
+  </div>
+
+  <div id="view-question" hidden>
+    <div id="view-question-box" class="question">
+      <div id="view-image-wrap" hidden>
+        <img id="view-image" alt="">
+      </div>
+      <p id="view-question-text"></p>
+      <p id="view-bonus-question" hidden></p>
+      <div id="audio-progress-wrap" class="audio-progress-wrap" hidden>
+        <div class="audio-progress-bar"><div id="audio-progress-fill" class="audio-progress-fill"></div></div>
+      </div>
+    </div>
+    <div id="view-options" class="options-grid"></div>
+  </div>
+
+  <div id="stage-review" hidden></div>
+
+  <p id="preview-error" hidden></p>
+
+  <audio id="view-audio"></audio>
+</div>
+
+<nav id="preview-bar">
+  <a id="preview-exit" class="preview-btn" href="<%= docs ? 'index.html' : '/host/games' %>" title="Atgal į žaidimus"><%- icon('close') %></a>
+  <button type="button" id="preview-audio" class="preview-btn" title="Groti / pauzė" aria-label="Groti" hidden><%- icon('play') %></button>
+  <button type="button" id="preview-audio-stop" class="preview-btn" title="Stabdyti" aria-label="Stabdyti" hidden><%- icon('stop') %></button>
+  <button type="button" id="preview-prev" class="preview-btn" title="Ankstesnis"><%- icon('arrow-left') %> Atgal</button>
+  <span id="preview-counter"></span>
+  <button type="button" id="preview-next" class="preview-btn preview-btn--primary" title="Kitas">Kitas <%- icon('arrow-right') %></button>
+  <%# The text size, as the host's bar has for the view screen — only the text grows, not the gaps. %>
+  <div id="preview-bar-end">
+    <button type="button" id="preview-scale-down" class="preview-btn preview-icon-btn" title="Mažesnis tekstas" aria-label="Mažesnis tekstas"><%- icon('minus') %></button>
+    <span id="preview-scale-value" title="Teksto dydis">100%</span>
+    <button type="button" id="preview-scale-up" class="preview-btn preview-icon-btn" title="Didesnis tekstas" aria-label="Didesnis tekstas"><%- icon('plus') %></button>
+    <button type="button" id="preview-fullscreen" class="preview-btn preview-icon-btn" title="Per visą ekraną" aria-label="Per visą ekraną" aria-pressed="false" hidden>
+      <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div id="fullscreen-overlay" hidden>
+  <div id="fullscreen-content"></div>
+</div>
+
+<% if (docs) { %>
+<script src="js/vendor/jszip.min.js"></script>
+<script src="js/game-shared.js"></script>
+<script src="js/game-media-zip.js"></script>
+<script src="js/media-store.js"></script>
+<script src="js/audio-override.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/preview-source.js"></script>
+<% } else { %>
+<script id="game-data" type="application/json"><%- JSON.stringify(game).replace(/</g, '\\u003c') %></script>
+<script src="/game-shared.js"></script>
+<script src="/host-preview-source.js"></script>
+<% } %>
+<script src="<%= js %>preview.js"></script>
+</body>
+</html>

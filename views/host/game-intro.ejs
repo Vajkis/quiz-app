@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
+<script src="/icons.js"></script>
+<script src="/theme.js"></script>
 </head>
-<body>
+<body data-nav="host">
+<script src="/side-panel.js"></script>
 <div id="app">
   <h1><%= roomName %></h1>
   <p id="room-code">Kambario kodas: <strong><%= roomId %></strong></p>
@@ -17,10 +20,13 @@
 
   <nav id="host-bar">
     <div class="host-bar-side">
-      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
+      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
     </div>
     <div class="host-bar-main">
       <button id="next-btn" data-room="<%= roomId %>"><%= hasRules ? 'Rodyti taisykles' : 'Pradėti žaidimą' %></button>
+    </div>
+    <div class="host-bar-end">
+      <%- include('_text-scale', { roomId }) %>
     </div>
   </nav>
   <%- include('_team-status', { roomId }) %>

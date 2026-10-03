@@ -37,7 +37,7 @@ function renderDrafts() {
     row.className = 'room-row draft-row';
     row.innerHTML = `
       <a class="option" href="editor.html?draft=${encodeURIComponent(id)}"></a>
-      <button type="button" class="room-close-btn draft-delete-btn" title="Ištrinti juodraštį">×</button>
+      <button type="button" class="room-close-btn draft-delete-btn" title="Ištrinti juodraštį">${QuizIcons.icon('close')}</button>
     `;
     row.querySelector('a').textContent = `${g.name || 'Be pavadinimo'} (${stages.length} etapai, ${questionCount} klausimai)`;
     row.querySelector('.draft-delete-btn').addEventListener('click', () => {
@@ -76,9 +76,9 @@ function render() {
     row.className = 'room-row';
     row.innerHTML = `
       <a class="option" href="editor.html?id=${encodeURIComponent(id)}">${g.name} (${stageCount} etapai, ${questionCount} klausimai)</a>
-      <a class="room-close-btn game-preview-btn" href="preview.html?id=${encodeURIComponent(id)}" title="Peržiūrėti žaidimą">▶</a>
-      <button type="button" class="room-close-btn game-export-btn" title="Eksportuoti žaidimą">⭳</button>
-      <button type="button" class="room-close-btn game-delete-btn" title="Ištrinti žaidimą">×</button>
+      <a class="room-close-btn game-preview-btn" href="preview.html?id=${encodeURIComponent(id)}" title="Peržiūrėti žaidimą">${QuizIcons.icon('play')}</a>
+      <button type="button" class="room-close-btn game-export-btn" title="Eksportuoti žaidimą">${QuizIcons.icon('download')}</button>
+      <button type="button" class="room-close-btn game-delete-btn" title="Ištrinti žaidimą">${QuizIcons.icon('close')}</button>
     `;
     row.querySelector('.game-export-btn').addEventListener('click', () => {
       // .zip if the game has files picked here (see game-files.js).

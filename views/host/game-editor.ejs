@@ -5,11 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
+<script src="/icons.js"></script>
+<script src="/theme.js"></script>
 </head>
-<body data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-draft="<%= isDraft ? 'true' : '' %>" data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
+<body data-nav="host" data-game-id="<%= gameId || '' %>" data-new-game-id="<%= newGameId || '' %>" data-draft="<%= isDraft ? 'true' : '' %>" data-native-file-picker="<%= nativeFilePicker ? 'true' : '' %>">
+<script src="/side-panel.js"></script>
 <div id="app">
   <h1><%= gameId ? 'Redaguoti žaidimą' : isDraft ? 'Juodraštis' : 'Naujas žaidimas' %></h1>
-  <a id="editor-back-link" class="option" href="/host/games">← Atgal į žaidimus</a>
+  <a id="editor-back-link" class="option" href="/host/games"><%- icon('arrow-left') %> Atgal į žaidimus</a>
 
   <script id="default-rules-data" type="application/json"><%- JSON.stringify(defaultRules).replace(/</g, '\\u003c') %></script>
   <% if (game) { %>
@@ -22,10 +25,10 @@
     <div id="stages-container"></div>
 
     <div class="editor-actions">
-      <button type="button" id="add-stage-btn" class="secondary-btn">+ Naujas etapas</button>
+      <button type="button" id="add-stage-btn" class="secondary-btn"><%- icon('plus') %> Naujas etapas</button>
       <button type="button" id="save-game-btn">Išsaugoti žaidimą</button>
-      <button type="button" id="export-game-btn" class="secondary-btn">⭳ Eksportuoti (JSON / zip)</button>
-      <label for="import-game-input" class="secondary-btn">⭱ Importuoti (JSON / zip)</label>
+      <button type="button" id="export-game-btn" class="secondary-btn"><%- icon('download') %> Eksportuoti (JSON / zip)</button>
+      <label for="import-game-input" class="secondary-btn"><%- icon('upload') %> Importuoti (JSON / zip)</label>
       <input type="file" id="import-game-input" accept="application/json,.json,application/zip,.zip" class="file-input-hidden">
     </div>
 

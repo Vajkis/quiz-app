@@ -1,5 +1,6 @@
 @use 'variables' as v;
 @use 'base';
+@use 'side-panel';
 
 // Wider cap than view/player — host's editor has a lot of side-by-side
 // inputs. Still shrinks below this on narrower screens (max-width, not min).
@@ -38,7 +39,7 @@
   padding: 12px;
   font-size: 16px;
   background: v.$color-primary;
-  color: #fff;
+  color: v.$color-on-accent;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -170,7 +171,7 @@
   transition: background 0.15s ease;
 
   @include v.hover-only {
-    background: #fde8e8;
+    background: v.$color-danger-soft;
   }
 
   // docs/ games list: the per-game preview (▶) and export (⭳) share the
@@ -180,7 +181,7 @@
     color: v.$color-primary;
 
     @include v.hover-only {
-      background: #eaf1ff;
+      background: v.$color-primary-soft;
     }
   }
 
@@ -195,13 +196,14 @@
 }
 
 #prev-btn,
+#forward-btn,
 .leaderboard-view-btn {
   display: block;
   width: 100%;
   padding: 12px;
   margin-top: 12px;
   font-size: 16px;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-primary;
   border: 1px solid v.$color-primary;
   border-radius: v.$radius;
@@ -209,7 +211,7 @@
   @include v.capped-button;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 }
 
@@ -221,7 +223,7 @@
   margin-top: 12px;
   font-size: 16px;
   background: v.$color-success;
-  color: #fff;
+  color: v.$color-on-success;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -237,7 +239,7 @@
 // to the dashboard (and ▶/II + ■ for a music question) on the left, the
 // page's own prev/next buttons centred. A 1fr | auto | 1fr grid keeps the
 // middle group centred without the left one ever overlapping it.
-$host-bar-height: 64px;
+$host-bar-height: v.$host-bar-height;
 
 body:has(#host-bar) {
   padding-bottom: $host-bar-height + 16px;
@@ -260,6 +262,7 @@ body:has(#host-bar) {
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
 
   #prev-btn,
+  #forward-btn,
   .leaderboard-view-btn,
   #next-btn,
   #finish-game-btn {
@@ -294,7 +297,7 @@ body:has(#host-bar) {
   padding: 0;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-muted;
   font: inherit;
   font-size: 16px;
@@ -306,7 +309,7 @@ body:has(#host-bar) {
   justify-content: center;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 }
 
@@ -316,13 +319,13 @@ body:has(#host-bar) {
   color: v.$color-success;
 
   @include v.hover-only {
-    background: #e8f7ee;
+    background: v.$color-success-soft;
   }
 }
 
 #host-bar-audio.is-playing {
   background: v.$color-success;
-  color: #fff;
+  color: v.$color-on-success;
 }
 
 // Fullscreen toggle: filled while the view screen shows the picture big.
@@ -332,8 +335,42 @@ body:has(#host-bar) {
 
   &.is-active {
     background: v.$color-primary;
-    color: #fff;
+    color: v.$color-on-accent;
   }
+}
+
+// The view screen's text size: − 100% + (_text-scale.ejs).
+.text-scale {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.text-scale-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: v.$color-primary;
+  cursor: pointer;
+
+  @include v.hover-only {
+    border-color: v.$color-primary;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.text-scale-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: v.$color-muted;
 }
 
 .fullscreen-icon {
@@ -367,6 +404,7 @@ body:has(#host-bar) {
 
   #host-bar {
     #prev-btn,
+    #forward-btn,
     .leaderboard-view-btn,
     #next-btn,
     #finish-game-btn {
@@ -387,8 +425,8 @@ body:has(#host-bar) {
   margin-top: 16px;
   margin-bottom: 16px;
   font-size: 16px;
-  background: v.$color-purple;
-  color: #fff;
+  background: v.$color-success; // like the other main "create / save" buttons
+  color: v.$color-on-success;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -441,7 +479,7 @@ $season-control-height: 32px;
   &:focus {
     outline: none;
     border-color: v.$color-primary;
-    box-shadow: 0 0 0 3px rgba(v.$color-primary, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, v.$color-primary 15%, transparent);
   }
 }
 
@@ -452,7 +490,7 @@ $season-control-height: 32px;
   padding: 0 12px;
   font-size: 14px;
   background: v.$color-success;
-  color: #fff;
+  color: v.$color-on-success;
   border: none;
   border-radius: v.$radius-sm;
   cursor: pointer;
@@ -482,7 +520,7 @@ $season-control-height: 32px;
   font-size: 16px;
   color: v.$color-text;
   text-align: left;
-  background-color: #fff;
+  background-color: v.$color-card;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -502,7 +540,7 @@ $season-control-height: 32px;
   &:focus {
     outline: none;
     border-color: v.$color-primary;
-    box-shadow: 0 0 0 3px rgba(v.$color-primary, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, v.$color-primary 15%, transparent);
   }
 }
 
@@ -563,7 +601,7 @@ $season-control-height: 32px;
   transition: background 0.15s ease;
 
   @include v.hover-only {
-    background: #fde8e8;
+    background: v.$color-danger-soft;
   }
 
   @media (min-width: 576px) {
@@ -721,7 +759,7 @@ $season-control-height: 32px;
   }
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 }
 
@@ -882,7 +920,7 @@ $clip-control-height: 38px;
     margin: 0;
     padding: 0 10px;
     font-size: 13px;
-    background: #fff;
+    background: v.$color-card;
     color: v.$color-primary;
     border: 1px solid v.$color-primary;
     border-radius: 0 v.$radius-sm v.$radius-sm 0;
@@ -896,7 +934,7 @@ $clip-control-height: 38px;
     }
 
     @include v.hover-only {
-      background: #eaf1ff;
+      background: v.$color-primary-soft;
     }
   }
 }
@@ -984,7 +1022,7 @@ $clip-control-height: 38px;
   object-fit: contain;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
-  background: #fafafa;
+  background: v.$color-surface-alt;
 }
 
 .option-img-input {
@@ -1038,7 +1076,7 @@ $clip-control-height: 38px;
   font-size: 14px;
   font-weight: 600;
   color: v.$color-primary;
-  background-color: #fff;
+  background-color: v.$color-card;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 10px center;
@@ -1047,6 +1085,87 @@ $clip-control-height: 38px;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+}
+
+// Every dropdown's list: the plain text colour on the card colour — never
+// what the closed box is tinted (e.g. the type picker's blue), and never
+// the browser's light list in the dark theme.
+select option {
+  color: v.$color-text;
+  background-color: v.$color-card;
+
+  // The picked one in the primary colour, where the browser shows it.
+  &:checked {
+    color: v.$color-primary;
+  }
+}
+
+// Where the browser lets the list be drawn (Chrome/Edge 135+), it's drawn
+// like GitHub's menus: a card floating over the page, rows with a faint
+// hover tint and the picked one marked with a check (an SVG, as a mask in
+// the text's colour). Elsewhere the browser's own list stays, coloured above.
+@supports (appearance: base-select) {
+  // Named too: their own rules above set appearance: none, more specifically.
+  select,
+  #game-select,
+  .question-type-select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+
+  select:focus-visible {
+    outline: 2px solid v.$color-primary;
+    outline-offset: -1px;
+  }
+
+  // The closed box keeps its own chevron (a background image).
+  select::picker-icon {
+    display: none;
+  }
+
+  ::picker(select) {
+    margin-top: 4px;
+    padding: 4px;
+    background: v.$color-card;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius;
+    box-shadow: v.$shadow-overlay;
+  }
+
+  select option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: v.$radius-sm;
+    font-size: 14px;
+    font-weight: 400;
+    background: transparent;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background: v.$color-hover;
+      outline: none;
+    }
+
+    // The picked one in the primary colour (its ✓ is too).
+    &:checked {
+      font-weight: 600;
+      color: v.$color-primary;
+    }
+
+    &::checkmark {
+      content: '';
+      order: 1;
+      margin-left: auto;
+      width: 14px;
+      height: 14px;
+      background-color: v.$color-primary;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+    }
+  }
 }
 
 .options-section,
@@ -1110,13 +1229,13 @@ $clip-control-height: 38px;
   font-size: 15px;
   font-weight: 600;
   color: v.$color-text;
-  background: #fff;
+  background: v.$color-card;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
   cursor: pointer;
 
   &.active {
-    color: #fff;
+    color: v.$color-on-success;
     background: v.$color-success;
     border-color: v.$color-success;
   }
@@ -1325,7 +1444,7 @@ $clip-control-height: 38px;
   color: v.$color-danger;
 
   @include v.hover-only {
-    background: #fde8e8;
+    background: v.$color-danger-soft;
   }
 }
 
@@ -1333,7 +1452,7 @@ $clip-control-height: 38px;
   color: v.$color-primary;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 }
 
@@ -1353,7 +1472,7 @@ $clip-control-height: 38px;
   display: block;
   padding: 8px 12px;
   font-size: 14px;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-primary;
   border: 1px solid v.$color-primary;
   border-radius: v.$radius-sm;
@@ -1361,7 +1480,7 @@ $clip-control-height: 38px;
   margin-top: 6px;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 }
 
@@ -1376,7 +1495,7 @@ $clip-control-height: 38px;
   padding: 12px;
   font-size: 16px;
   background: v.$color-success;
-  color: #fff;
+  color: v.$color-on-success;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -1434,7 +1553,7 @@ $clip-control-height: 38px;
   text-align: center;
   text-decoration: none;
   background: v.$color-success;
-  color: #fff;
+  color: v.$color-on-success;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -1458,7 +1577,7 @@ $clip-control-height: 38px;
   padding: 10px 12px;
   font-family: inherit;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
   text-align: center;
   border-width: 1px;
@@ -1646,14 +1765,14 @@ $clip-control-height: 38px;
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-primary;
   border: 1px solid v.$color-primary;
   border-radius: v.$radius-sm;
   cursor: pointer;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 }
 
@@ -1736,7 +1855,7 @@ $clip-control-height: 38px;
   font-size: 12px;
   font-weight: 600;
   color: v.$color-primary;
-  background: rgba(v.$color-primary, 0.1);
+  background: color-mix(in srgb, v.$color-primary 10%, transparent);
   border-radius: v.$radius-sm;
   padding: 2px 8px;
   margin-bottom: 6px;
@@ -1745,7 +1864,7 @@ $clip-control-height: 38px;
   // orange when they do, so it isn't missed while marking.
   &.order-label {
     color: v.$color-muted;
-    background: #f3f4f6;
+    background: v.$color-neutral-soft;
 
     // beside the question's type, not on a line of its own
     .question-type-label + & {
@@ -1753,15 +1872,15 @@ $clip-control-height: 38px;
     }
 
     &.is-ordered {
-      color: #9a3412;
-      background: #ffedd5;
+      color: v.$color-orange-text;
+      background: v.$color-orange-soft;
     }
   }
 
   &.bonus-label {
     margin-left: 4px;
     color: v.$color-purple;
-    background: rgba(v.$color-purple, 0.1);
+    background: color-mix(in srgb, v.$color-purple 10%, transparent);
   }
 }
 
@@ -1935,7 +2054,7 @@ $clip-control-height: 38px;
   height: 36px;
   border: 1px solid currentColor;
   border-radius: v.$radius;
-  background: #fff;
+  background: v.$color-card;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
@@ -1951,13 +2070,13 @@ $clip-control-height: 38px;
   &.correct-btn.active {
     background: v.$color-success;
     border-color: v.$color-success;
-    color: #fff;
+    color: v.$color-on-success;
   }
 
   &.wrong-btn.active {
     background: v.$color-danger;
     border-color: v.$color-danger;
-    color: #fff;
+    color: v.$color-on-danger;
   }
 
   &:disabled {
@@ -2007,7 +2126,7 @@ $clip-control-height: 38px;
   &.is-off {
     color: v.$color-muted;
     border-color: v.$color-border;
-    background: #f3f4f6;
+    background: v.$color-neutral-soft;
   }
 }
 
@@ -2057,19 +2176,19 @@ $clip-control-height: 38px;
   font-family: inherit;
   font-size: 18px;
   line-height: 1;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-primary;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
   cursor: pointer;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 
   &:disabled {
     color: v.$color-muted;
-    background: #f3f4f6;
+    background: v.$color-neutral-soft;
     cursor: default;
   }
 }
@@ -2083,19 +2202,19 @@ $clip-control-height: 38px;
 }
 
 .team-status-row.is-clean .team-status-badge {
-  background: #dcfce7;
+  background: v.$color-success-soft;
   color: v.$color-success;
 }
 
 .team-status-row.is-online .team-status-badge {
   background: v.$color-danger;
-  color: #fff;
+  color: v.$color-on-danger;
   font-weight: 700;
 }
 
 .team-status-row.is-paper .team-status-badge {
-  background: #fef3c7;
-  color: #92400e;
+  background: v.$color-amber-soft;
+  color: v.$color-amber-text;
 }
 
 // A paper team's points this stage, typed in by the host.
@@ -2132,7 +2251,7 @@ $clip-control-height: 38px;
   cursor: pointer;
 
   @include v.hover-only {
-    background: #fde8e8;
+    background: v.$color-danger-soft;
   }
 }
 
@@ -2158,7 +2277,7 @@ $clip-control-height: 38px;
     font-size: 14px;
     border: 1px solid v.$color-border;
     border-radius: v.$radius-sm;
-    background: #fff;
+    background: v.$color-card;
 
     &[hidden] {
       display: none;
@@ -2189,7 +2308,7 @@ $clip-control-height: 38px;
 
 .team-status-row.is-unknown .team-status-badge,
 .team-status-row.is-offline .team-status-badge {
-  background: #f3f4f6;
+  background: v.$color-neutral-soft;
   color: v.$color-muted;
 }
 
@@ -2237,7 +2356,7 @@ $clip-control-height: 38px;
   transition: background 0.15s ease;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 
   &:disabled {
@@ -2281,247 +2400,10 @@ $clip-control-height: 38px;
   }
 }
 
-// Game editor: the panel along the left edge (see mountSidePanel in
-// game-editor-core.js). From 768px up it's part of the page — a column of
-// icons, or icons with labels once opened — and the page moves over to make
-// room for it. Narrower than that it's a menu instead: a ☰ button in the
-// bottom corner slides it in over the page, labels and all.
-$side-panel-width: 52px;
-$side-panel-open-width: 240px;
-$side-panel-breakpoint: 768px;
-
-@mixin side-panel-desktop {
-  @media (min-width: $side-panel-breakpoint) {
-    @content;
-  }
-}
-
-// Exactly everything side-panel-desktop isn't — a "max-width: 767px" would
-// leave a gap at fractional widths (e.g. 767.4px under 125% display
-// scaling), where neither matched and the panel broke.
-@mixin side-panel-mobile {
-  @media not all and (min-width: $side-panel-breakpoint) {
-    @content;
-  }
-}
-
-body.has-side-panel {
-  @include side-panel-desktop {
-    padding-left: $side-panel-width + 16px;
-    transition: padding-left 0.2s ease;
-
-    &.side-panel-open {
-      padding-left: $side-panel-open-width + 16px;
-    }
-  }
-
-  // Room under the page's last buttons for the corner ☰ button.
-  @include side-panel-mobile {
-    padding-bottom: 84px;
-  }
-}
-
 .stage-card {
   scroll-margin-top: 16px;
 }
 
-.editor-side-panel {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 90;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 6px;
-  background: v.$color-card;
-  border-right: 1px solid v.$color-border;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
-  overflow-x: hidden;
-  overflow-y: auto;
-
-  @include side-panel-desktop {
-    width: $side-panel-width;
-    transition: width 0.2s ease;
-
-    .side-panel-open & {
-      width: $side-panel-open-width;
-    }
-  }
-
-  @include side-panel-mobile {
-    width: min(280px, 85vw);
-    transform: translateX(-100%);
-    transition: transform 0.2s ease;
-    // No shadow while hidden, or it would peek in at the page's edge.
-    box-shadow: none;
-
-    .side-panel-menu-open & {
-      transform: none;
-      box-shadow: 2px 0 16px rgba(0, 0, 0, 0.2);
-    }
-  }
-}
-
-.side-panel-group {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.side-panel-item {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  height: 40px;
-  padding: 0 8px;
-  border: none;
-  border-radius: v.$radius-sm;
-  background: transparent;
-  color: v.$color-text;
-  font-family: inherit;
-  font-size: 14px;
-  text-align: left;
-  white-space: nowrap;
-  cursor: pointer;
-
-  @include v.hover-only {
-    background: #eaf1ff;
-  }
-}
-
-// The menu has its own ☰ (the corner button), so no collapse item in it.
-.side-panel-toggle {
-  @include side-panel-mobile {
-    display: none;
-  }
-}
-
-.side-panel-icon {
-  flex: 0 0 24px;
-  text-align: center;
-  font-size: 18px;
-  line-height: 1;
-  color: v.$color-primary;
-}
-
-.side-panel-icon svg {
-  display: block;
-  width: 18px;
-  height: 18px;
-  margin: 0 auto;
-}
-
-// The floppy fills its whole box, so at the same size it looks bigger.
-.side-panel-save .side-panel-icon svg {
-  width: 15px;
-  height: 15px;
-}
-
-// A stage's number in a circle stands in for its icon.
-.side-panel-stage .side-panel-icon {
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #eaf1ff;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.side-panel-label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  @include side-panel-desktop {
-    opacity: 0;
-    transition: opacity 0.15s ease;
-
-    .side-panel-open & {
-      opacity: 1;
-    }
-  }
-}
-
-// A stage a failed save found a problem in (see markStageErrors).
-.side-panel-stage.has-error {
-  color: v.$color-danger;
-  background: #fde8e8;
-
-  .side-panel-icon {
-    background: v.$color-danger;
-    color: #fff;
-  }
-}
-
-// A divider above the stages; it gets its title only with the labels.
-.side-panel-heading {
-  flex-shrink: 0;
-  margin: 4px 4px 0;
-  padding: 8px 0 0 4px;
-  border-top: 1px solid v.$color-border;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: v.$color-muted;
-  white-space: nowrap;
-
-  @include side-panel-desktop {
-    body:not(.side-panel-open) & {
-      font-size: 0;
-    }
-  }
-}
-
-// Phones: the corner button that opens/closes the menu, and the dimmed
-// page behind the open menu (tapping it closes the menu too).
-.side-panel-fab {
-  display: none;
-
-  @include side-panel-mobile {
-    position: fixed;
-    right: 16px;
-    bottom: 16px;
-    z-index: 95;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 52px;
-    height: 52px;
-    border: none;
-    border-radius: 50%;
-    background: v.$color-primary;
-    color: #fff;
-    font-size: 22px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    cursor: pointer;
-  }
-}
-
-.side-panel-backdrop {
-  display: none;
-
-  @include side-panel-mobile {
-    position: fixed;
-    inset: 0;
-    z-index: 85;
-    display: block;
-    background: rgba(0, 0, 0, 0.3);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.2s ease;
-
-    .side-panel-menu-open & {
-      opacity: 1;
-      pointer-events: auto;
-    }
-  }
-}
 
 // Room panel: a number button per question of the stage shown so far, to
 // jump back (or forward again) to it; the one on screen now is filled in.
@@ -2540,19 +2422,19 @@ body.has-side-panel {
   font-family: inherit;
   font-size: 15px;
   font-weight: 600;
-  background: #fff;
+  background: v.$color-card;
   color: v.$color-primary;
   border: 1px solid v.$color-primary;
   border-radius: v.$radius-sm;
   cursor: pointer;
 
   @include v.hover-only {
-    background: #eaf1ff;
+    background: v.$color-primary-soft;
   }
 
   &.active {
     background: v.$color-primary;
-    color: #fff;
+    color: v.$color-on-accent;
     cursor: default;
   }
 }

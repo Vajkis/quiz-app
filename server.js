@@ -54,6 +54,8 @@ function joinUrl() {
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+// <%- icon('close') %> in any template: an inline SVG icon (public/icons.js).
+app.locals.icon = require('./public/icons').icon;
 
 const GAMES_FILE = path.join(__dirname, 'data', 'games.json');
 const TEAMS_FILE = path.join(__dirname, 'data', 'teams.json');
@@ -1557,6 +1559,10 @@ function renderHostRoom(req, res, roomId) {
   // the host is back on an earlier one (see the /next endpoint).
   const hasMore = room.questionHistory.length < stage.questions.length;
   const hasPrevious = room.questionIndex > 0;
+  // Back on an earlier question: one step forward again, through the ones
+  // already shown ("next" would skip to a new one).
+  const hasForward =
+    room.questionIndex >= 0 && room.questionIndex < room.questionHistory.length - 1;
   const currentQuestion =
     room.questionIndex >= 0 ? stage.questions[room.questionIndex] : null;
   const currentEntry =
@@ -1616,7 +1622,8 @@ function renderHostRoom(req, res, roomId) {
     // number button to jump back (or forward again) to it.
     shownQuestionCount: room.questionHistory.length,
     hasMore,
-    hasPrevious
+    hasPrevious,
+    hasForward
   });
 }
 
@@ -1811,10 +1818,20 @@ app.get('/host/games/:gameId/edit', (req, res) => {
   });
 });
 
+// The game shown as the view screen would, stepped through without a room
+// (public/preview.js) — the same page the GitHub Pages site has.
+app.get('/host/games/:gameId/preview', (req, res) => {
+  const game = games[req.params.gameId];
+  if (!game) return renderGamesList(res, 'Žaidimas nerastas');
+  res.render('host/game-preview', { docs: false, game });
+});
+
 app.get('/host/:roomId(\\d{6})', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
   if (!room) return renderHostDashboard(req, res, 'Kambarys nerastas');
+  // For the − / + in every page's bottom bar (_text-scale.ejs).
+  res.locals.textScale = textScalePercent(room);
   if (room.phase === 'finished') return renderLeaderboard(req, res, roomId);
   return renderHostRoom(req, res, roomId);
 });
@@ -2050,6 +2067,35 @@ app.post('/api/host/room/:roomId/typed-answer', (req, res) => {
 // Host jumps straight to a question of the current stage already shown
 // (its number button on the room page) — the same as stepping back/forward
 // to it, picks and revealed hints and all.
+// The view screen's text size, as a percentage: 100 to start, changed in
+// steps of 25 by the host bar's − / +, from 25 up to 500. Only the text
+// scales (see v.text() in styles/_variables.scss), so the host can make it
+// readable from the back of the room without zooming the whole page — and
+// without their own screen changing too, as browser zoom on the same site
+// would.
+const TEXT_SCALE_MIN = 25;
+const TEXT_SCALE_MAX = 500;
+const TEXT_SCALE_STEP = 25;
+
+function textScalePercent(room) {
+  return room.textScale || 100;
+}
+
+app.post('/api/host/room/:roomId/text-scale', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  const delta = Number(req.body && req.body.delta);
+  if (Math.abs(delta) !== TEXT_SCALE_STEP)
+    return res.status(400).json({ error: 'Netinkamas žingsnis' });
+  room.textScale = Math.min(
+    TEXT_SCALE_MAX,
+    Math.max(TEXT_SCALE_MIN, textScalePercent(room) + delta)
+  );
+  io.to(roomId).emit('text-scale', { scale: room.textScale });
+  res.json({ scale: room.textScale, min: TEXT_SCALE_MIN, max: TEXT_SCALE_MAX });
+});
+
 app.post('/api/host/room/:roomId/goto', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
@@ -2074,6 +2120,23 @@ app.post('/api/host/room/:roomId/prev', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
   if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  // Before the game's first questions, the opening slides can be walked
+  // back through too — the first stage's title to the rules (if any) to the
+  // game's name — and forward again with "next". Never back into an earlier
+  // stage, though: a later stage's title has no way back.
+  const game = games[room.gameId];
+  const hasRules = !!(game.rules && game.rules.length);
+  if (room.phase === 'game-rules') {
+    room.phase = 'game-intro';
+    io.to(roomId).emit('game-intro', { gameName: room.name });
+    return res.json({ phase: 'game-intro' });
+  }
+  if (room.phase === 'stage-intro' && room.stageIndex === 0) {
+    room.phase = hasRules ? 'game-rules' : 'game-intro';
+    if (hasRules) io.to(roomId).emit('game-rules', { rules: game.rules });
+    else io.to(roomId).emit('game-intro', { gameName: room.name });
+    return res.json({ phase: room.phase });
+  }
   if (room.phase !== 'question') {
     return res
       .status(400)
@@ -2483,6 +2546,8 @@ io.on('connection', (socket) => {
     } else if (room.phase === 'question' && room.questionIndex >= 0) {
       socket.emit('question', questionPayloadFor(room, teamId));
     }
+    // The view screen's text size (players' phones ignore it).
+    if (!teamId) socket.emit('text-scale', { scale: textScalePercent(room) });
     if (teamId) {
       socket.emit('internet-warning', { enabled: room.internetWarning });
       emitTeamStatus(roomId);

@@ -6,9 +6,14 @@
 // the "nuo" mark (or resumes after II), ■ stops and rewinds to it, and the
 // clip stops by itself at "iki", just like the host's clip playback. A
 // question with a picture (or picture options) also gets a fullscreen toggle
-// (or F), like the host's one — the overlay stops above the bar.
-const params = new URLSearchParams(window.location.search);
-const gameId = params.get('id');
+// (or F), like the host's one — the overlay stops above the bar. − / + (or
+// ↑/↓) on the right change the text size, as the host's do on the view.
+// Esc closes an open fullscreen picture.
+// Shared by the host (/host/games/:id/preview) and the GitHub Pages site
+// (docs/preview.html), both from views/host/game-preview.ejs. Where the game
+// and its files come from is up to the page's QuizPreviewSource, loaded
+// before this: loadGame() resolves with the game (or null) and resolve()
+// turns a picture/music field into something to play or show.
 
 const gameIntroEl = document.getElementById('game-intro-screen');
 const gameIntroNameEl = document.getElementById('game-intro-name');
@@ -44,7 +49,7 @@ const fullscreenBtn = document.getElementById('preview-fullscreen');
 const overlayEl = document.getElementById('fullscreen-overlay');
 const overlayContentEl = document.getElementById('fullscreen-content');
 
-const resolveMedia = QuizMediaPreview.resolve;
+const resolveMedia = QuizPreviewSource.resolve;
 
 let screens = [];
 let current = 0;
@@ -373,7 +378,8 @@ function showStageAnswers(stage, shownOptions) {
     if (q.bonus) {
       const bonusSpan = document.createElement('span');
       bonusSpan.className = 'bonus-answer-text';
-      bonusSpan.textContent = ` + ${q.bonus.answer}`;
+      bonusSpan.innerHTML = ` ${QuizIcons.icon('plus')} `;
+      bonusSpan.append(q.bonus.answer);
       answerP.appendChild(bonusSpan);
     }
     box.append(questionP, answerP);
@@ -429,7 +435,7 @@ function isFullscreenOpen() {
 function syncFullscreenButton(open) {
   fullscreenBtn.classList.toggle('is-active', open);
   fullscreenBtn.setAttribute('aria-pressed', String(open));
-  fullscreenBtn.title = open ? 'Uždaryti pilną ekraną (F)' : 'Per visą ekraną (F)';
+  fullscreenBtn.title = open ? 'Uždaryti pilną ekraną' : 'Per visą ekraną';
 }
 
 function buildFullscreenContent(screen) {
@@ -485,7 +491,7 @@ function toggleFullscreen() {
 
 function syncAudioButton() {
   const playing = !audioEl.paused;
-  audioBtn.textContent = playing ? 'II' : '▶';
+  audioBtn.innerHTML = QuizIcons.icon(playing ? 'pause' : 'play');
   audioBtn.setAttribute('aria-label', playing ? 'Pauzė' : 'Groti');
   audioBtn.classList.toggle('is-playing', playing);
 }
@@ -549,31 +555,61 @@ audioStopBtn.addEventListener('click', () => {
   audioProgressFill.style.width = '0%';
 });
 
+// Text size, like the host's − / + for the view screen: 25%–500% in steps
+// of 25, only the text growing (see v.text() in styles/_variables.scss) —
+// remembered in this browser.
+const TEXT_SCALE_KEY = 'quizAppPreviewTextScale';
+const scaleDownBtn = document.getElementById('preview-scale-down');
+const scaleUpBtn = document.getElementById('preview-scale-up');
+const scaleValueEl = document.getElementById('preview-scale-value');
+let textScale = 100;
+
+function setTextScale(value) {
+  textScale = Math.min(500, Math.max(25, value));
+  document.documentElement.style.setProperty('--text-scale', textScale / 100);
+  scaleValueEl.textContent = `${textScale}%`;
+  scaleDownBtn.disabled = textScale <= 25;
+  scaleUpBtn.disabled = textScale >= 500;
+  try {
+    localStorage.setItem(TEXT_SCALE_KEY, String(textScale));
+  } catch (e) {}
+  fitRules();
+}
+
+try {
+  textScale = Number(localStorage.getItem(TEXT_SCALE_KEY)) || 100;
+} catch (e) {}
+setTextScale(textScale);
+scaleDownBtn.addEventListener('click', () => setTextScale(textScale - 25));
+scaleUpBtn.addEventListener('click', () => setTextScale(textScale + 25));
+
 document.addEventListener('keydown', (e) => {
   if (e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.key === 'ArrowRight' || e.key === 'PageDown') go(1);
   else if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(-1);
+  else if (e.key === 'ArrowUp') setTextScale(textScale + 25);
+  else if (e.key === 'ArrowDown') setTextScale(textScale - 25);
   else if (e.key === ' ') {
     // Space would otherwise also "click" whichever bar button has focus.
     e.preventDefault();
     toggleAudio();
-  } else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+  } else if (e.code === 'KeyF') toggleFullscreen();
+  // Esc: only closes an open fullscreen picture — leaving is the ✕'s job.
   else if (e.key === 'Escape' && isFullscreenOpen()) closeFullscreen();
   else return;
   e.preventDefault();
 });
 
 async function init() {
-  const game = gameId ? QuizGameStorage.getGame(gameId) : null;
+  const game = await QuizPreviewSource.loadGame().catch(() => null);
   if (!game) {
-    errorEl.textContent = 'Žaidimas nerastas šios naršyklės atmintyje';
+    errorEl.textContent = QuizPreviewSource.notFoundText;
     errorEl.hidden = false;
     prevBtn.disabled = true;
     nextBtn.disabled = true;
     return;
   }
   document.title = `Peržiūra - ${game.name}`;
-  await QuizMediaPreview.load(game).catch(() => {});
   // The game's background picture, behind every screen (see view.scss).
   const background = resolveMedia(game.background);
   if (background) {

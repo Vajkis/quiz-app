@@ -170,7 +170,7 @@ audioBlocks.forEach((block) => {
 
   function syncBarButton() {
     const playing = !questionAudio.paused;
-    barPlayBtn.textContent = playing ? 'II' : '▶';
+    barPlayBtn.innerHTML = QuizIcons.icon(playing ? 'pause' : 'play');
     barPlayBtn.setAttribute('aria-label', playing ? 'Pauzė' : 'Groti');
     barPlayBtn.classList.toggle('is-playing', playing);
   }
@@ -295,6 +295,150 @@ if (prevBtn) {
   });
 }
 
+// Keyboard, on the pages with the bottom bar: ← back a question, → the next
+// one already shown (after stepping back) or else the bar's main button
+// (next question, start the stage, show the answers…), ↑ / ↓ the view
+// screen's text bigger / smaller, space the track's ▶ / II, F the view
+// screen's fullscreen picture (Esc closes it too), a number straight to
+// that question already shown (its number button). Not while typing into a
+// field (a paper team's points), and one move per page — each reloads it,
+// so a held or double-tapped key can't skip past questions.
+if (document.getElementById('host-bar')) {
+  // Set while a move's page reload is on its way, so a second key press
+  // can't move again; let go after a while in case no reload comes (a failed
+  // request), so the keys never stay locked.
+  let navigating = false;
+  let navigatingTimer = null;
+  function startNavigating() {
+    navigating = true;
+    clearTimeout(navigatingTimer);
+    navigatingTimer = setTimeout(() => {
+      navigating = false;
+    }, 3000);
+  }
+
+  // Number keys: the physical key (e.code), so the top row works with the
+  // Lithuanian layout too (ą č ę… there, digits only with Shift), and the
+  // number pad with Num Lock on or off. Two digits typed in a row make one
+  // number (12) — waited for only while a shown question's number could
+  // still start with what's typed. 0 on its own is 10.
+  const DIGIT_CODE = /^(?:Digit|Numpad)(\d)$/;
+  const jumpButtons = Array.from(document.querySelectorAll('.question-jump-btn'));
+  let typed = '';
+  let typedTimer = null;
+  function jumpTo(number) {
+    typed = '';
+    clearTimeout(typedTimer);
+    const btn = jumpButtons.find((b) => b.textContent.trim() === number);
+    if (!btn || btn.classList.contains('active')) return;
+    startNavigating();
+    btn.click();
+  }
+  function typeDigit(digit) {
+    clearTimeout(typedTimer);
+    // 0 on its own is 10, like the last key of the row (after 9).
+    if (!typed && digit === '0') {
+      jumpTo('10');
+      return;
+    }
+    typed += digit;
+    const longer = jumpButtons.some((b) => {
+      const n = b.textContent.trim();
+      return n.length > typed.length && n.startsWith(typed);
+    });
+    if (longer) typedTimer = setTimeout(() => jumpTo(typed), 600);
+    else jumpTo(typed);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+    const digit = (e.code || '').match(DIGIT_CODE);
+    if (digit && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      if (!jumpButtons.length) return;
+      e.preventDefault();
+      if (!navigating && !e.repeat) typeDigit(digit[1]);
+      return;
+    }
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const click = (id) => {
+      const btn = document.getElementById(id);
+      if (!btn || btn.disabled) return false;
+      btn.click();
+      return true;
+    };
+    const scaleBtn = (delta) =>
+      document.querySelector(`.text-scale-btn[data-delta="${delta}"]`);
+
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault();
+      if (navigating || e.repeat) return;
+      const done =
+        e.key === 'ArrowLeft'
+          ? click('prev-btn')
+          : click('forward-btn') || click('next-btn');
+      if (done) startNavigating();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const btn = scaleBtn(e.key === 'ArrowUp' ? 25 : -25);
+      if (btn && !btn.disabled) btn.click();
+    } else if (e.key === ' ') {
+      // Space: the bar's ▶ / II — the marked part of the track, paused and
+      // resumed. Kept from scrolling the page or pressing a focused button.
+      e.preventDefault();
+      if (!e.repeat) click('host-bar-audio');
+    } else if (e.code === 'KeyF') {
+      // F: the view screen's fullscreen picture on / off — only a question
+      // with a picture (or picture options) has that button. By the key's
+      // place (e.code), so any keyboard layout works.
+      if (!e.repeat) click('host-bar-fullscreen');
+    } else if (e.key === 'Escape') {
+      // Esc: only closes an open fullscreen picture — never leaves the game
+      // (too easy to hit by mistake; the ✕ is there for that).
+      const fullscreenBtn = document.getElementById('host-bar-fullscreen');
+      if (!e.repeat && fullscreenBtn && fullscreenBtn.getAttribute('aria-pressed') === 'true')
+        fullscreenBtn.click();
+    }
+  });
+}
+
+// Bottom bar: − / + for the view screen's text size (this page stays as
+// it is). The server clamps it to 25%–500%; the buttons go grey at the ends.
+document.querySelectorAll('.text-scale').forEach((box) => {
+  const valueEl = box.querySelector('.text-scale-value');
+  const buttons = box.querySelectorAll('.text-scale-btn');
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const res = await fetch(`/api/host/room/${box.dataset.room}/text-scale`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta: Number(btn.dataset.delta) })
+      });
+      if (!res.ok) return;
+      const { scale, min, max } = await res.json();
+      valueEl.textContent = `${scale}%`;
+      buttons.forEach((b) => {
+        const delta = Number(b.dataset.delta);
+        b.disabled = delta < 0 ? scale <= min : scale >= max;
+      });
+    });
+  });
+});
+
+// Room panel: back on an earlier question, one step forward again through
+// the ones already shown ("next" goes on to a new one instead).
+const forwardBtn = document.getElementById('forward-btn');
+if (forwardBtn) {
+  forwardBtn.addEventListener('click', async () => {
+    const res = await fetch(`/api/host/room/${forwardBtn.dataset.room}/goto`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ index: Number(forwardBtn.dataset.index) })
+    });
+    if (!res.ok) return;
+    window.location.reload();
+  });
+}
+
 // Room panel: the number buttons of the questions already shown — straight
 // to that one (the active one is the question on screen now).
 document.querySelectorAll('.question-jump').forEach((nav) => {
@@ -363,13 +507,13 @@ if (teamStatusEl) {
   let receivedAt = 0;
 
   function describe(team) {
-    if (team.offline) return { cls: 'is-paper', text: '📝 Ant lapelio' };
+    if (team.offline) return { cls: 'is-paper', icon: 'paper', text: 'Ant lapelio' };
     if (!team.connected) return { cls: 'is-offline', text: 'Atsijungęs' };
     const age = team.checkedAgoMs == null ? null : team.checkedAgoMs + (Date.now() - receivedAt);
     if (age == null || age > TEAM_STATUS_STALE_MS) return { cls: 'is-unknown', text: 'Tikrinama…' };
     return team.online
-      ? { cls: 'is-online', text: '🌐 Turi internetą' }
-      : { cls: 'is-clean', text: '✓ Be interneto' };
+      ? { cls: 'is-online', icon: 'globe', text: 'Turi internetą' }
+      : { cls: 'is-clean', icon: 'check', text: 'Be interneto' };
   }
 
   function render() {
@@ -385,7 +529,7 @@ if (teamStatusEl) {
       return;
     }
     teams.forEach((team) => {
-      const { cls, text } = describe(team);
+      const { cls, icon, text } = describe(team);
       const row = document.createElement('div');
       row.className = `team-status-row ${cls}`;
       const name = document.createElement('span');
@@ -393,7 +537,8 @@ if (teamStatusEl) {
       name.textContent = team.name;
       const badge = document.createElement('span');
       badge.className = 'team-status-badge';
-      badge.textContent = text;
+      if (icon) badge.innerHTML = `${QuizIcons.icon(icon)} `;
+      badge.append(text);
       row.append(name, badge);
       if (team.offline && paperEditable) row.appendChild(paperPointsField(team));
       if (team.penalty != null) row.appendChild(penaltyControls(team));
@@ -411,16 +556,17 @@ if (teamStatusEl) {
     const count = document.createElement('span');
     count.className = 'team-penalty-count';
     count.textContent = team.penalty;
-    const button = (label, delta) => {
+    const button = (iconName, delta) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'team-penalty-btn';
-      b.textContent = label;
+      b.innerHTML = QuizIcons.icon(iconName);
+      b.title = delta < 0 ? 'Atimti' : 'Pridėti';
       b.disabled = delta < 0 && team.penalty === 0;
       b.addEventListener('click', () => changePenalty(team.teamId, delta));
       return b;
     };
-    wrap.append(button('−', -1), count, button('+', 1));
+    wrap.append(button('minus', -1), count, button('plus', 1));
     return wrap;
   }
 
@@ -461,7 +607,7 @@ if (teamStatusEl) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'team-remove-btn';
-    b.textContent = '×';
+    b.innerHTML = QuizIcons.icon('close');
     b.title = 'Pašalinti komandą iš kambario';
     b.addEventListener('click', async () => {
       if (!confirm(`Pašalinti komandą „${team.name}“ iš kambario? Jos taškai šiame žaidime dings.`)) return;
@@ -559,9 +705,8 @@ if (teamStatusEl) {
   socket.on('internet-warning', ({ enabled }) => {
     warningBtn.hidden = false;
     warningBtn.classList.toggle('is-off', !enabled);
-    warningBtn.textContent = enabled
-      ? '🔔 Įspėjimas žaidėjams: įjungtas'
-      : '🔕 Įspėjimas žaidėjams: išjungtas';
+    warningBtn.innerHTML = `${QuizIcons.icon(enabled ? 'bell' : 'bell-off')} `;
+    warningBtn.append(`Įspėjimas žaidėjams: ${enabled ? 'įjungtas' : 'išjungtas'}`);
   });
   warningBtn.addEventListener('click', async () => {
     warningBtn.disabled = true;

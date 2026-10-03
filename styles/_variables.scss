@@ -1,17 +1,37 @@
-$color-bg: #f4f4f8;
-$color-text: #222;
-$color-card: #fff;
-$color-border: #ddd;
-$color-primary: #3b82f6;
-$color-danger: #dc2626;
-$color-success: #16a34a;
-$color-purple: #6b21a8;
-$color-muted: #6b7280;
+// The colors live on :root as custom properties (_theme.scss), so themes
+// can swap them; these just point there.
+$color-bg: var(--color-bg);
+$color-text: var(--color-text);
+$color-card: var(--color-card);
+$color-surface-alt: var(--color-surface-alt);
+$color-border: var(--color-border);
+$color-muted: var(--color-muted);
+$color-primary: var(--color-primary);
+$color-primary-soft: var(--color-primary-soft);
+$color-on-accent: var(--color-on-accent);
+$color-danger: var(--color-danger);
+$color-on-danger: var(--color-on-danger);
+$color-danger-soft: var(--color-danger-soft);
+$color-success: var(--color-success);
+$color-on-success: var(--color-on-success);
+$color-success-soft: var(--color-success-soft);
+$color-purple: var(--color-purple);
+$color-neutral-soft: var(--color-neutral-soft);
+$color-hover: var(--color-hover);
+$color-orange-text: var(--color-orange-text);
+$color-orange-soft: var(--color-orange-soft);
+$color-amber-text: var(--color-amber-text);
+$color-amber-soft: var(--color-amber-soft);
 
 $radius: 8px;
 $radius-sm: 6px;
 
-$shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
+$shadow-card: var(--shadow-card);
+$shadow-overlay: var(--shadow-overlay);
+
+// The room page's bar along the bottom (host.scss), which the side panel
+// (_side-panel.scss) also keeps clear of.
+$host-bar-height: 64px;
 
 // Hover states only make sense with a real pointer — on touch devices
 // :hover either does nothing useful or "sticks" after a tap. 992px is the
@@ -33,4 +53,11 @@ $shadow-card: 0 1px 3px rgba(0, 0, 0, 0.1);
     margin-left: auto;
     margin-right: auto;
   }
+}
+
+// A font size on the big screen, times the room's text scale (--text-scale,
+// set by view.js from the host's − / +; 1 everywhere else). Only text
+// grows or shrinks this way — margins and padding stay put.
+@function text($size) {
+  @return calc(#{$size} * var(--text-scale, 1));
 }

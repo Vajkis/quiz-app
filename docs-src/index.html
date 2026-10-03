@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quiz - Žaidimų kūrėjas</title>
 <link rel="stylesheet" href="css/host.css">
+<script src="js/icons.js"></script>
+<script src="js/theme.js"></script>
 </head>
-<body>
+<body data-nav="docs">
+<script src="js/side-panel.js"></script>
 <div id="app">
   <h1>Žaidimų kūrėjas</h1>
   <p class="hint-text">
@@ -14,9 +17,9 @@
   </p>
 
   <div class="list-actions">
-    <a href="editor.html" id="new-game-cta">+ Naujas žaidimas</a>
-    <button type="button" id="export-all-btn" class="secondary-btn">⭳ Eksportuoti visus</button>
-    <label for="import-games-input" class="secondary-btn">⭱ Importuoti</label>
+    <a href="editor.html" id="new-game-cta">{{icon:plus}} Naujas žaidimas</a>
+    <button type="button" id="export-all-btn" class="secondary-btn">{{icon:download}} Eksportuoti visus</button>
+    <label for="import-games-input" class="secondary-btn">{{icon:upload}} Importuoti</label>
     <input type="file" id="import-games-input" accept="application/json,.json,application/zip,.zip" multiple class="file-input-hidden">
   </div>
 

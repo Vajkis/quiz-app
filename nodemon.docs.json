@@ -1,6 +1,6 @@
 {
-  "watch": ["docs-src", "public/game-shared.js", "public/game-editor-core.js", "public/game-media-zip.js", "styles"],
-  "ext": "html,js,scss",
+  "watch": ["docs-src", "public/game-shared.js", "public/game-editor-core.js", "public/game-media-zip.js", "public/icons.js", "public/theme.js", "public/side-panel.js", "public/preview.js", "views/host/game-preview.ejs", "styles"],
+  "ext": "html,js,scss,ejs",
   "exec": "npm run build:docs",
   "delay": 300
 }

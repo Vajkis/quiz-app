@@ -5,8 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
+<script src="/icons.js"></script>
+<script src="/theme.js"></script>
 </head>
-<body>
+<body data-nav="host">
+<script src="/side-panel.js"></script>
 <div id="app">
   <h1><%= roomName %></h1>
   <p id="room-code">Kambario kodas: <strong><%= roomId %></strong> · <strong><%= gameName %></strong></p>
@@ -56,36 +59,41 @@
     <%- include('_audio-player', { roomId, audio: currentQuestionAudio, audioStart: currentQuestionAudioStart, audioEnd: currentQuestionAudioEnd }) %>
     <%- include('_fullscreen-buttons', {
       roomId,
-      imageButtons: currentQuestionImg ? [{ src: currentQuestionImg, label: '🔍 Nuotrauką per visą ekraną' }] : [],
+      imageButtons: currentQuestionImg ? [{ src: currentQuestionImg, label: 'Nuotrauką per visą ekraną' }] : [],
       optionImages: currentQuestionOptionImages,
-      optionsLabel: currentQuestionType === 'chain' ? '🔍 Užuominas per visą ekraną' : null,
+      optionsLabel: currentQuestionType === 'chain' ? 'Užuominas per visą ekraną' : null,
     }) %>
   </div>
 
   <nav id="host-bar">
     <div class="host-bar-side">
-      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį">✕</a>
+      <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
       <% if (currentQuestionAudio) { %>
-        <button type="button" id="host-bar-audio" class="host-bar-btn" title="Groti / pauzė" aria-label="Groti">▶</button>
-        <button type="button" id="host-bar-audio-stop" class="host-bar-btn" title="Stabdyti" aria-label="Stabdyti">■</button>
+        <button type="button" id="host-bar-audio" class="host-bar-btn" title="Groti / pauzė" aria-label="Groti"><%- icon('play') %></button>
+        <button type="button" id="host-bar-audio-stop" class="host-bar-btn" title="Stabdyti" aria-label="Stabdyti"><%- icon('stop') %></button>
       <% } %>
     </div>
     <div class="host-bar-main">
       <% if (hasPrevious) { %>
-        <button id="prev-btn" data-room="<%= roomId %>">← Ankstesnis</button>
+        <button id="prev-btn" data-room="<%= roomId %>"><%- icon('arrow-left') %> Ankstesnis</button>
       <% } %>
-      <button id="next-btn" data-room="<%= roomId %>"><%= currentQuestionHints && revealedHints < currentQuestionHints.length ? 'Kita užuomina →' : hasMore ? 'Kitas klausimas →' : 'Rodyti etapo atsakymus' %></button>
+      <% if (hasForward) { %>
+        <%# Back on an earlier question: the next one already shown. %>
+        <button id="forward-btn" data-room="<%= roomId %>" data-index="<%= currentQuestionNumber %>">Sekantis <%- icon('arrow-right') %></button>
+      <% } %>
+      <button id="next-btn" data-room="<%= roomId %>"><%= currentQuestionHints && revealedHints < currentQuestionHints.length ? 'Kita užuomina' : hasMore ? 'Kitas klausimas' : 'Rodyti etapo atsakymus' %><% if ((currentQuestionHints && revealedHints < currentQuestionHints.length) || hasMore) { %> <%- icon('arrow-right') %><% } %></button>
     </div>
-    <% if (currentQuestionImg || currentQuestionOptionImages) { %>
-      <div class="host-bar-end">
+    <div class="host-bar-end">
+      <%- include('_text-scale', { roomId }) %>
+      <% if (currentQuestionImg || currentQuestionOptionImages) { %>
         <button type="button" id="host-bar-fullscreen" class="host-bar-btn" title="Per visą ekraną (žiūrovų ekrane)" aria-label="Per visą ekraną" aria-pressed="false"
           data-room="<%= roomId %>"
           <% if (currentQuestionImg) { %>data-src="<%= currentQuestionImg %>"<% } %>
           <% if (currentQuestionOptionImages) { %>data-images='<%- JSON.stringify(currentQuestionOptionImages).replace(/'/g, "&#39;") %>'<% } %>>
           <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
         </button>
-      </div>
-    <% } %>
+      <% } %>
+    </div>
   </nav>
   <%- include('_team-status', { roomId }) %>
 </div>

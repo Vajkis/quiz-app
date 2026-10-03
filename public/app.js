@@ -447,7 +447,8 @@ function renderHintsAnswer(container, q, onChange, onLock) {
     lockBtn.remove();
     confirmRow.remove();
     message.className = 'hint-locked-message';
-    message.textContent = `🔒 Atsakymas patvirtintas už ${points} tšk.`;
+    message.innerHTML = `${QuizIcons.icon('lock')} `;
+    message.append(`Atsakymas patvirtintas už ${points} tšk.`);
   }
   if (q.myLock != null) {
     showLocked(q.myLock);
@@ -495,7 +496,8 @@ function renderTypedFields(container, count, selection, numbered, onChange) {
     row.className = 'chain-answer-row';
     const number = document.createElement('span');
     number.className = 'chain-answer-number';
-    number.textContent = numbered ? `${i + 1}.` : '•';
+    if (numbered) number.textContent = `${i + 1}.`;
+    else number.innerHTML = QuizIcons.icon('dot');
     row.appendChild(number);
     row.appendChild(
       createTypedInput(values[i] || '', 'Įrašyk atsakymą', (value) => {

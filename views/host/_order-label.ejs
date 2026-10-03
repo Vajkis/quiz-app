@@ -1,2 +1,2 @@
 <%# A typed-answer question with several answers: whether their order counts — for the host, while showing it and while marking answers. %>
-<p class="question-type-label order-label<%= ordered ? ' is-ordered' : '' %>"><%= ordered ? '↓ Eilės tvarka svarbi' : 'Eilės tvarka nesvarbi' %></p>
+<p class="question-type-label order-label<%= ordered ? ' is-ordered' : '' %>"><% if (ordered) { %><%- icon('arrow-down') %> Eilės tvarka svarbi<% } else { %>Eilės tvarka nesvarbi<% } %></p>

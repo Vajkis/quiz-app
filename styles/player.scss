@@ -1,5 +1,6 @@
 @use 'variables' as v;
 @use 'base';
+@use 'side-panel';
 
 #join-form,
 #room-form {
@@ -28,7 +29,7 @@
   padding: 12px;
   font-size: 16px;
   background: v.$color-primary;
-  color: #fff;
+  color: v.$color-on-accent;
   // border: 1px solid transparent, not none — same width as host.scss's
   // bordered buttons (e.g. #prev-btn), so every full-width primary button
   // across the app comes out the same height regardless of which of them
@@ -46,6 +47,7 @@
 #logout-btn,
 #leave-room-btn {
   background: v.$color-danger;
+  color: v.$color-on-danger;
   margin-top: 8px;
 }
 
@@ -265,7 +267,7 @@
   padding: 12px;
   font-size: 16px;
   font-weight: 600;
-  color: #fff;
+  color: v.$color-on-accent;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -296,13 +298,14 @@
   }
 
   .lock-cancel-btn {
-    background: #fff;
+    background: v.$color-card;
     color: v.$color-text;
     border-color: v.$color-border;
   }
 
   .lock-confirm-btn {
     background: v.$color-danger;
+    color: v.$color-on-danger;
   }
 }
 

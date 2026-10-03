@@ -161,6 +161,13 @@ socket.on('connect', () => {
   socket.emit('join-room', { roomId: ROOM_ID });
 });
 
+// The host's − / +: every font size on this screen is multiplied by it
+// (see v.text() in styles/_variables.scss) — only the text, not the gaps.
+socket.on('text-scale', ({ scale }) => {
+  document.documentElement.style.setProperty('--text-scale', scale / 100);
+  fitRules();
+});
+
 socket.on('room-closed', () => {
   alert('Hostas uždarė kambarį.');
   window.location.href = '/view';
@@ -333,7 +340,8 @@ function showBonusQuestion(el, hasBonus, question) {
 function appendBonusAnswer(answerP, bonusAnswer) {
   const span = document.createElement('span');
   span.className = 'bonus-answer-text';
-  span.textContent = ` + ${bonusAnswer}`;
+  span.innerHTML = ` ${QuizIcons.icon('plus')} `;
+  span.append(bonusAnswer);
   answerP.appendChild(span);
 }
 
@@ -510,7 +518,7 @@ socket.on('stage-answers', (review) => {
     if (q.audio) {
       const icon = document.createElement('span');
       icon.className = 'now-playing-icon';
-      icon.textContent = '▶';
+      icon.innerHTML = QuizIcons.icon('play');
       icon.hidden = true;
       icon.dataset.audioSrc = resolveAudioSrc(q.audio);
       box.appendChild(icon);

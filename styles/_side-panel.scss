@@ -1,0 +1,298 @@
+@use 'variables' as v;
+
+// The panel along the left edge of the host's, the players' and the GitHub Pages
+// editor's pages (side-panel.js; the editor adds its own part, see
+// mountSidePanel in game-editor-core.js). From 768px up it's part of the page — a column of
+// icons, or icons with labels once opened — and the page moves over to make
+// room for it. Narrower than that it's a menu instead: a ☰ button in the
+// bottom corner slides it in over the page, labels and all.
+$side-panel-width: 52px;
+$side-panel-open-width: 240px;
+$side-panel-breakpoint: 768px;
+
+@mixin side-panel-desktop {
+  @media (min-width: $side-panel-breakpoint) {
+    @content;
+  }
+}
+
+// Exactly everything side-panel-desktop isn't — a "max-width: 767px" would
+// leave a gap at fractional widths (e.g. 767.4px under 125% display
+// scaling), where neither matched and the panel broke.
+@mixin side-panel-mobile {
+  @media not all and (min-width: $side-panel-breakpoint) {
+    @content;
+  }
+}
+
+body.has-side-panel {
+  @include side-panel-desktop {
+    padding-left: $side-panel-width + 16px;
+    transition: padding-left 0.2s ease;
+
+    &.side-panel-open {
+      padding-left: $side-panel-open-width + 16px;
+    }
+  }
+
+  // Room under the page's last buttons for the corner ☰ button.
+  @include side-panel-mobile {
+    padding-bottom: 84px;
+  }
+
+  // A room's bottom bar starts where the panel ends.
+  #host-bar {
+    @include side-panel-desktop {
+      left: $side-panel-width;
+      transition: left 0.2s ease;
+    }
+  }
+
+  &.side-panel-open #host-bar {
+    @include side-panel-desktop {
+      left: $side-panel-open-width;
+    }
+  }
+}
+
+.side-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 6px;
+  background: v.$color-card;
+  border-right: 1px solid v.$color-border;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  @include side-panel-desktop {
+    width: $side-panel-width;
+    transition: width 0.2s ease;
+
+    .side-panel-open & {
+      width: $side-panel-open-width;
+    }
+  }
+
+  @include side-panel-mobile {
+    width: min(280px, 85vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    // No shadow while hidden, or it would peek in at the page's edge.
+    box-shadow: none;
+
+    .side-panel-menu-open & {
+      transform: none;
+      box-shadow: 2px 0 16px rgba(0, 0, 0, 0.2);
+    }
+  }
+}
+
+.side-panel-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+// e.g. "Kambariai" while no room is open.
+.side-panel-group[hidden],
+.side-panel-heading[hidden] {
+  display: none;
+}
+
+// The theme switch (and the host's Atsijungti) at the very bottom.
+.side-panel-bottom {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid v.$color-border;
+}
+
+.side-panel-item {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 8px;
+  border: none;
+  border-radius: v.$radius-sm;
+  background: transparent;
+  color: v.$color-text;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+
+  text-decoration: none;
+
+  @include v.hover-only {
+    background: v.$color-primary-soft;
+  }
+
+  // The page open now.
+  &.active {
+    background: v.$color-primary-soft;
+    font-weight: 700;
+  }
+}
+
+// The menu has its own ☰ (the corner button), so no collapse item in it.
+.side-panel-toggle {
+  @include side-panel-mobile {
+    display: none;
+  }
+}
+
+.side-panel-icon {
+  flex: 0 0 24px;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1;
+  color: v.$color-primary;
+}
+
+.side-panel-icon svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+}
+
+// The floppy fills its whole box, so at the same size it looks bigger.
+.side-panel-save .side-panel-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+// A stage's number in a circle stands in for its icon.
+.side-panel-stage .side-panel-icon {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: v.$color-primary-soft;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.side-panel-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @include side-panel-desktop {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+
+    .side-panel-open & {
+      opacity: 1;
+    }
+  }
+}
+
+// A room: its name cut short with … when it doesn't fit, its code always
+// shown in full.
+.side-panel-room-label {
+  display: flex;
+  gap: 4px;
+
+  .side-panel-room-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .side-panel-room-id {
+    flex-shrink: 0;
+  }
+}
+
+// A stage a failed save found a problem in (see markStageErrors).
+.side-panel-stage.has-error {
+  color: v.$color-danger;
+  background: v.$color-danger-soft;
+
+  .side-panel-icon {
+    background: v.$color-danger;
+    color: v.$color-on-danger;
+  }
+}
+
+// A divider above the stages; it gets its title only with the labels.
+.side-panel-heading {
+  flex-shrink: 0;
+  margin: 4px 4px 0;
+  padding: 8px 0 0 4px;
+  border-top: 1px solid v.$color-border;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: v.$color-muted;
+  white-space: nowrap;
+
+  @include side-panel-desktop {
+    body:not(.side-panel-open) & {
+      font-size: 0;
+    }
+  }
+}
+
+// Phones: the corner button that opens/closes the menu, and the dimmed
+// page behind the open menu (tapping it closes the menu too).
+.side-panel-fab {
+  display: none;
+
+  @include side-panel-mobile {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+
+    // Above a room's bottom bar.
+    body:has(#host-bar) & {
+      bottom: v.$host-bar-height + 16px;
+    }
+
+    z-index: 95;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border: none;
+    border-radius: 50%;
+    background: v.$color-primary;
+    color: v.$color-on-accent;
+    font-size: 22px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+  }
+}
+
+.side-panel-backdrop {
+  display: none;
+
+  @include side-panel-mobile {
+    position: fixed;
+    inset: 0;
+    z-index: 85;
+    display: block;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+
+    .side-panel-menu-open & {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}

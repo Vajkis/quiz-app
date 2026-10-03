@@ -6,6 +6,9 @@
 // in sync by hand; the static copy only differs in defaultResolveAudioSrc,
 // since it has no server to stream local file paths through.
 (function (global) {
+  // An inline SVG icon (icons.js, loaded before this file).
+  const icon = (name) => global.QuizIcons.icon(name);
+
   // A question's audio field can be a full URL or (on the server-backed
   // editor only) a raw local file path streamed via /api/local-audio — the
   // static site has no server, so it only ever resolves http(s) URLs.
@@ -100,7 +103,7 @@
         <span class="correct-answer-badge" title="Teisingas atsakymas"><span class="check-icon"></span></span>
         <input type="text" class="option-text-input" placeholder="Atsakymo variantas">
         <span class="option-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></span>
-        <button type="button" class="remove-option-btn" title="Pašalinti variantą">×</button>
+        <button type="button" class="remove-option-btn" title="Pašalinti variantą">${icon('close')}</button>
       </div>
       <input type="text" class="option-img-input" placeholder="Nuotraukos URL (nebūtina)">
     `;
@@ -151,7 +154,7 @@
         </select>
         <button type="button" class="move-question-up-btn move-btn" title="Kelti aukštyn"><span class="chevron-icon chevron-icon--up"></span></button>
         <button type="button" class="move-question-down-btn move-btn" title="Kelti žemyn"><span class="chevron-icon"></span></button>
-        <button type="button" class="remove-question-btn" title="Pašalinti klausimą">×</button>
+        <button type="button" class="remove-question-btn" title="Pašalinti klausimą">${icon('close')}</button>
       </div>
       <input type="text" class="question-text-input" placeholder="Klausimo tekstas">
       <input type="text" class="question-img-input" placeholder="Klausimo nuotraukos URL (nebūtina)">
@@ -168,17 +171,17 @@
             <input type="number" min="0" step="1" class="audio-end-input" placeholder="Iki (s)">
             <button type="button" class="set-audio-end-btn">Iki dabartinės</button>
           </div>
-          <button type="button" class="play-from-start-btn secondary-btn">▶ Groti pažymėtą dalį</button>
+          <button type="button" class="play-from-start-btn secondary-btn">${icon('play')} Groti pažymėtą dalį</button>
         </div>
       </div>
       <p class="correct-answer-hint"></p>
       <div class="options-section">
         <div class="options-container"></div>
-        <button type="button" class="add-option-btn secondary-btn">+ Variantas</button>
+        <button type="button" class="add-option-btn secondary-btn">${icon('plus')} Variantas</button>
       </div>
       <div class="text-answers-section">
         <div class="text-answers-container"></div>
-        <button type="button" class="add-text-answer-btn secondary-btn">+ Atsakymas</button>
+        <button type="button" class="add-text-answer-btn secondary-btn">${icon('plus')} Atsakymas</button>
         <label class="ordered-answers-toggle">
           <input type="checkbox" class="ordered-answers-input">
           Atsakymų tvarka turi sutapti
@@ -190,19 +193,19 @@
       </div>
       <div class="chain-section">
         <div class="chain-links-container"></div>
-        <button type="button" class="add-chain-link-btn secondary-btn">+ Užuomina</button>
+        <button type="button" class="add-chain-link-btn secondary-btn">${icon('plus')} Užuomina</button>
       </div>
       <div class="hints-section">
         <div class="hints-container"></div>
-        <button type="button" class="add-hint-btn secondary-btn">+ Užuomina</button>
+        <button type="button" class="add-hint-btn secondary-btn">${icon('plus')} Užuomina</button>
         <input type="text" class="hints-answer-input" placeholder="Teisingas atsakymas">
       </div>
       <div class="bonus-section">
-        <button type="button" class="add-bonus-btn secondary-btn">+ Papildomas klausimas</button>
+        <button type="button" class="add-bonus-btn secondary-btn">${icon('plus')} Papildomas klausimas</button>
         <div class="bonus-fields">
           <div class="bonus-header">
             <span class="bonus-title">Papildomas klausimas: +1 taškas, tik jei pagrindinis teisingas</span>
-            <button type="button" class="remove-bonus-btn" title="Pašalinti papildomą atsakymą">×</button>
+            <button type="button" class="remove-bonus-btn" title="Pašalinti papildomą atsakymą">${icon('close')}</button>
           </div>
           <input type="text" class="bonus-question-input" placeholder="Papildomas klausimas, pvz. Atlikėjas (nebūtina)">
           <input type="text" class="bonus-answer-input" placeholder="Teisingas papildomas atsakymas">
@@ -417,13 +420,13 @@
     const questionTextInput = card.querySelector('.question-text-input');
     const hint = card.querySelector('.correct-answer-hint');
     const HINTS = {
-      choice: '✓ Pirmas variantas = teisingas atsakymas',
-      text: '✎ Žaidėjai įves atsakymą patys — įrašyk teisingą atsakymą. Jei reikia ką nors išvardinti, pridėk kelis atsakymus — taškas skiriamas, tik jei teisingi visi.',
-      yesno: '✓ Pažymėk teisingą atsakymą',
+      choice: '[check] Pirmas variantas = teisingas atsakymas',
+      text: '[edit] Žaidėjai įves atsakymą patys — įrašyk teisingą atsakymą. Jei reikia ką nors išvardinti, pridėk kelis atsakymus — taškas skiriamas, tik jei teisingi visi.',
+      yesno: '[check] Pažymėk teisingą atsakymą',
       chain:
-        '✎ Kiekviena užuomina turi savo atsakymą, kuris nuo ankstesnio skiriasi viena raide — žaidėjai juos įrašys eilės tvarka. Taškas skiriamas, tik jei teisingi visi. Vietoj užuominos teksto gali būti nuotrauka.',
+        '[edit] Kiekviena užuomina turi savo atsakymą, kuris nuo ankstesnio skiriasi viena raide — žaidėjai juos įrašys eilės tvarka. Taškas skiriamas, tik jei teisingi visi. Vietoj užuominos teksto gali būti nuotrauka.',
       hints:
-        '✎ Užuominos rodomos po vieną. Užrakinus atsakymą po pirmos užuominos gaunama tiek taškų, kiek yra užuominų, po kiekvienos kitos — vienu mažiau; neužrakintas teisingas atsakymas — 1 taškas.'
+        '[edit] Užuominos rodomos po vieną. Užrakinus atsakymą po pirmos užuominos gaunama tiek taškų, kiek yra užuominų, po kiekvienos kitos — vienu mažiau; neužrakintas teisingas atsakymas — 1 taškas.'
     };
     typeSelect.value = global.QuizGameShared.questionType(question || {});
     function syncQuestionType() {
@@ -450,7 +453,10 @@
       card.querySelector('.yesno-section').hidden = type !== 'yesno';
       card.querySelector('.chain-section').hidden = type !== 'chain';
       card.querySelector('.hints-section').hidden = type !== 'hints';
-      hint.textContent = HINTS[type];
+      // "[check] text": the icon, then the text.
+      const [, hintIcon, hintText] = HINTS[type].match(/^\[([\w-]+)\] (.*)$/);
+      hint.innerHTML = `${icon(hintIcon)} `;
+      hint.append(hintText);
       questionTextInput.placeholder =
         type === 'chain'
           ? 'Grandinėlės pavadinimas (nebūtina)'
@@ -482,7 +488,7 @@
         <div class="chain-link-main">
           <input type="text" class="chain-clue-input" placeholder="Užuomina">
           <span class="chain-clue-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></span>
-          <button type="button" class="remove-chain-link-btn" title="Pašalinti užuominą">×</button>
+          <button type="button" class="remove-chain-link-btn" title="Pašalinti užuominą">${icon('close')}</button>
         </div>
         <input type="text" class="chain-clue-img-input" placeholder="Užuominos nuotraukos URL (nebūtina)">
         <input type="text" class="chain-answer-input" placeholder="Atsakymas">
@@ -523,7 +529,7 @@
     row.className = 'text-answer-row';
     row.innerHTML = `
       <input type="text" class="answer-text-input" placeholder="Teisingas atsakymas">
-      <button type="button" class="remove-text-answer-btn" title="Pašalinti atsakymą">×</button>
+      <button type="button" class="remove-text-answer-btn" title="Pašalinti atsakymą">${icon('close')}</button>
     `;
     row.querySelector('.answer-text-input').value = text || '';
     if (id) row.dataset.optionId = id;
@@ -540,7 +546,7 @@
     row.innerHTML = `
       <span class="hint-number"></span>
       <input type="text" class="hint-input" placeholder="Užuomina">
-      <button type="button" class="remove-hint-btn" title="Pašalinti užuominą">×</button>
+      <button type="button" class="remove-hint-btn" title="Pašalinti užuominą">${icon('close')}</button>
     `;
     row.querySelector('.hint-input').value = hint || '';
     row
@@ -585,7 +591,7 @@
         <input type="text" class="stage-name-input" placeholder="Etapo pavadinimas">
         <button type="button" class="move-stage-up-btn move-btn" title="Kelti aukštyn"><span class="chevron-icon chevron-icon--up"></span></button>
         <button type="button" class="move-stage-down-btn move-btn" title="Kelti žemyn"><span class="chevron-icon"></span></button>
-        <button type="button" class="remove-stage-btn" title="Pašalinti etapą">×</button>
+        <button type="button" class="remove-stage-btn" title="Pašalinti etapą">${icon('close')}</button>
       </div>
       <div class="stage-body">
         <div class="stage-extra-fields">
@@ -593,7 +599,7 @@
           <textarea class="stage-description-input" rows="2" placeholder="Aprašymas (nebūtina)"></textarea>
         </div>
         <div class="questions-container"></div>
-        <button type="button" class="add-question-btn secondary-btn">+ Klausimas</button>
+        <button type="button" class="add-question-btn secondary-btn">${icon('plus')} Klausimas</button>
       </div>
     `;
     card.querySelector('.stage-name-input').value = (stage && stage.name) || '';
@@ -650,7 +656,7 @@
     row.className = 'rule-row';
     row.innerHTML = `
       <input type="text" class="rule-input" placeholder="Taisyklė">
-      <button type="button" class="remove-rule-btn" title="Pašalinti taisyklę">×</button>
+      <button type="button" class="remove-rule-btn" title="Pašalinti taisyklę">${icon('close')}</button>
     `;
     row.querySelector('.rule-input').value = rule || '';
     row
@@ -678,7 +684,7 @@
       <div class="stage-body">
         <div class="rules-body">
           <div class="rules-container"></div>
-          <button type="button" class="add-rule-btn secondary-btn">+ Taisyklė</button>
+          <button type="button" class="add-rule-btn secondary-btn">${icon('plus')} Taisyklė</button>
         </div>
       </div>
     `;
@@ -1021,7 +1027,7 @@
     });
   }
 
-  // "← Atgal į žaidimus" (and the side panel's, which clicks it) asks first
+  // "← Atgal į žaidimus" (and the side panel's links) asks first
   // when leaving would leave something unsaved: getMessage says what, or
   // returns null when nothing would be.
   function guardBackLink(getMessage) {
@@ -1031,80 +1037,22 @@
         const message = getMessage();
         if (message && !confirm(message)) e.preventDefault();
       });
+    // The side panel's links leave the page too.
+    if (global.QuizSidePanel) QuizSidePanel.guardLeave(getMessage);
   }
 
-  // A panel along the page's left edge, so a long game needn't be scrolled
-  // to its top or bottom: the editor's main buttons (each just clicks the
-  // real one, which stays where it is) and the stages — clicking one
-  // scrolls to it, opening it if collapsed. On a computer it's part of the
-  // page: collapsed it shows only icons, expanded icons with labels; which
-  // one is remembered in this browser. On a phone it's a menu instead.
-  // Both editors share the buttons' ids, so the panel needs nothing else.
-  const SIDE_PANEL_KEY = 'quiz-editor-side-panel-open';
-
-  // Line icons in the text's own colour, matching the panel's glyph icons
-  // (☰ ← ＋ …) — where no plain character fits.
-  const SIDE_PANEL_SVG = (paths) =>
-    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
-  const RULES_ICON = SIDE_PANEL_SVG(
-    '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>'
-  );
-  const SAVE_ICON = SIDE_PANEL_SVG(
-    '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'
-  );
+  // The editor's part of the side panel (side-panel.js), so a long game
+  // needn't be scrolled to its top or bottom: its main buttons (each just
+  // clicks the real one, which stays where it is) and the stages — clicking
+  // one scrolls to it, opening it if collapsed. Both editors share the
+  // buttons' ids, so the panel needs nothing else.
 
   function mountSidePanel(stagesContainer) {
+    if (!global.QuizSidePanel) return;
+    const sidePanel = QuizSidePanel.mount();
+    const { createItem } = sidePanel;
     const editorEl = document.getElementById('game-editor');
     const errorEl = document.getElementById('editor-error');
-    const panel = document.createElement('nav');
-    panel.className = 'editor-side-panel';
-    panel.innerHTML = `
-      <div class="side-panel-group side-panel-actions"></div>
-      <p class="side-panel-heading">Etapai</p>
-      <div class="side-panel-group side-panel-stages"></div>
-    `;
-    const actionsEl = panel.querySelector('.side-panel-actions');
-    const stagesEl = panel.querySelector('.side-panel-stages');
-
-    function createItem(icon, label, onClick, className = '') {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `side-panel-item ${className}`.trim();
-      btn.title = label;
-      btn.innerHTML =
-        '<span class="side-panel-icon"></span><span class="side-panel-label"></span>';
-      const iconEl = btn.querySelector('.side-panel-icon');
-      if (icon.startsWith('<svg')) iconEl.innerHTML = icon;
-      else iconEl.textContent = icon;
-      btn.querySelector('.side-panel-label').textContent = label;
-      btn.addEventListener('click', () => {
-        // On a phone the menu covers the page — out of the way first.
-        if (mobileQuery.matches) setMenuOpen(false);
-        onClick();
-      });
-      return btn;
-    }
-
-    // Phones (see .side-panel-fab in host.scss): the panel is a menu over
-    // the page, opened by a corner button and closed by any item in it, the
-    // corner button again or a tap on the dimmed page beside it.
-    // Same test as host.scss's side-panel-mobile: anything not desktop-wide.
-    const mobileQuery = window.matchMedia('not all and (min-width: 768px)');
-    const fab = document.createElement('button');
-    fab.type = 'button';
-    fab.className = 'side-panel-fab';
-    const backdrop = document.createElement('div');
-    backdrop.className = 'side-panel-backdrop';
-    function setMenuOpen(open) {
-      document.body.classList.toggle('side-panel-menu-open', open);
-      fab.textContent = open ? '✕' : '☰';
-      fab.title = open ? 'Uždaryti meniu' : 'Meniu';
-    }
-    fab.addEventListener('click', () =>
-      setMenuOpen(!document.body.classList.contains('side-panel-menu-open'))
-    );
-    backdrop.addEventListener('click', () => setMenuOpen(false));
-    setMenuOpen(false);
 
     // Opens a collapsed card (its chevron) and brings it into view.
     function showCard(card) {
@@ -1141,43 +1089,28 @@
       }
     }).observe(editorEl, { childList: true, subtree: true });
 
-    const toggleBtn = createItem(
-      '☰',
-      'Suskleisti',
-      () => setOpen(!document.body.classList.contains('side-panel-open')),
-      'side-panel-toggle'
-    );
-    function setOpen(open) {
-      document.body.classList.toggle('side-panel-open', open);
-      toggleBtn.title = open ? 'Suskleisti' : 'Išskleisti';
-      try {
-        localStorage.setItem(SIDE_PANEL_KEY, open ? '1' : '');
-      } catch {}
-    }
-
-    actionsEl.append(
-      toggleBtn,
-      createItem('←', 'Atgal į žaidimus', () =>
-        document.getElementById('editor-back-link').click()
-      ),
-      createItem(RULES_ICON, 'Taisyklės', () =>
-        showCard(editorEl.querySelector('.rules-card'))
-      ),
-      createItem('＋', 'Naujas etapas', () => {
-        clickReal('add-stage-btn');
-        showCard(stagesContainer.lastElementChild);
-      }),
-      createItem(
-        SAVE_ICON,
-        'Išsaugoti žaidimą',
-        () => clickReal('save-game-btn'),
-        'side-panel-save'
-      ),
-      createItem('⭱', 'Importuoti', () => clickReal('import-game-input')),
-      createItem('⭳', 'Eksportuoti', () => clickReal('export-game-btn'))
-    );
+    sidePanel
+      .addSection('Žaidimas')
+      .append(
+        createItem(icon('rules'), 'Taisyklės', () =>
+          showCard(editorEl.querySelector('.rules-card'))
+        ),
+        createItem(icon('plus'), 'Naujas etapas', () => {
+          clickReal('add-stage-btn');
+          showCard(stagesContainer.lastElementChild);
+        }),
+        createItem(
+          icon('save'),
+          'Išsaugoti žaidimą',
+          () => clickReal('save-game-btn'),
+          'side-panel-save'
+        ),
+        createItem(icon('upload'), 'Importuoti', () => clickReal('import-game-input')),
+        createItem(icon('download'), 'Eksportuoti', () => clickReal('export-game-btn'))
+      );
 
     // Rebuilt whenever a stage is added, removed, moved or renamed.
+    const stagesEl = sidePanel.addSection('Etapai');
     function renderStages() {
       stagesEl.innerHTML = '';
       Array.from(stagesContainer.children).forEach((card, i) => {
@@ -1207,14 +1140,6 @@
       if (e.target.classList.contains('stage-name-input')) renderStages();
     });
     renderStages();
-
-    let open = false;
-    try {
-      open = localStorage.getItem(SIDE_PANEL_KEY) === '1';
-    } catch {}
-    setOpen(open);
-    document.body.classList.add('has-side-panel');
-    document.body.append(backdrop, panel, fab);
   }
 
   global.QuizGameEditorCore = {

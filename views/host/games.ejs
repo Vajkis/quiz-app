@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
+<script src="/icons.js"></script>
+<script src="/theme.js"></script>
 </head>
-<body>
+<body data-nav="host">
+<script src="/side-panel.js"></script>
 <div id="app">
   <h1>Žaidimai</h1>
-  <a class="option" href="/host">← Atgal į kambarius</a>
-  <a class="option" href="/host/games/new" id="new-game-btn">+ Naujas žaidimas</a>
+  <a class="option" href="/host"><%- icon('arrow-left') %> Atgal į kambarius</a>
+  <a class="option" href="/host/games/new" id="new-game-btn"><%- icon('plus') %> Naujas žaidimas</a>
 
   <% if (error) { %>
     <p id="games-error"><%= error %></p>
@@ -18,11 +21,11 @@
 
   <p id="games-file-error" hidden></p>
 
-  <label for="import-games-input" id="import-games-btn" class="secondary-btn">⭱ Importuoti (JSON / zip)</label>
+  <label for="import-games-input" id="import-games-btn" class="secondary-btn"><%- icon('upload') %> Importuoti (JSON / zip)</label>
   <input type="file" id="import-games-input" accept="application/json,.json,application/zip,.zip" class="file-input-hidden">
 
   <% if (gameList.length) { %>
-    <button type="button" id="export-all-games-btn" class="secondary-btn">⭳ Eksportuoti visus</button>
+    <button type="button" id="export-all-games-btn" class="secondary-btn"><%- icon('download') %> Eksportuoti visus</button>
   <% } %>
 
   <script id="default-rules-data" type="application/json"><%- JSON.stringify(defaultRules).replace(/</g, '\\u003c') %></script>
@@ -37,7 +40,7 @@
       <% draftList.forEach(function(d) { %>
         <div class="room-row draft-row">
           <a class="option" href="/host/drafts/<%= d.id %>/edit"><%= d.name || 'Be pavadinimo' %> (<%= d.stageCount %> etapai, <%= d.questionCount %> klausimai)</a>
-          <button class="room-close-btn draft-delete-btn" data-id="<%= d.id %>" title="Ištrinti juodraštį">×</button>
+          <button class="room-close-btn draft-delete-btn" data-id="<%= d.id %>" title="Ištrinti juodraštį"><%- icon('close') %></button>
         </div>
       <% }); %>
       <% if (gameList.length) { %><hr class="section-divider games-divider"><% } %>
@@ -49,8 +52,9 @@
     <% gameList.forEach(function(g) { %>
       <div class="room-row">
         <a class="option" href="/host/games/<%= g.id %>/edit"><%= g.name %> (<%= g.stageCount %> etapai, <%= g.questionCount %> klausimai)</a>
-        <button type="button" class="room-close-btn game-export-btn" data-id="<%= g.id %>" title="Eksportuoti žaidimą">⭳</button>
-        <button class="room-close-btn game-delete-btn" data-id="<%= g.id %>" title="Ištrinti žaidimą">×</button>
+        <a class="room-close-btn game-preview-btn" href="/host/games/<%= g.id %>/preview" title="Peržiūrėti žaidimą"><%- icon('play') %></a>
+        <button type="button" class="room-close-btn game-export-btn" data-id="<%= g.id %>" title="Eksportuoti žaidimą"><%- icon('download') %></button>
+        <button class="room-close-btn game-delete-btn" data-id="<%= g.id %>" title="Ištrinti žaidimą"><%- icon('close') %></button>
       </div>
     <% }); %>
   <% } %>

@@ -1,6 +1,11 @@
 @use 'variables' as v;
 @use 'base';
 
+// Text that sets no size of its own (e.g. the leaderboard's rows) scales too.
+body {
+  font-size: v.text(16px);
+}
+
 #app.view-app {
   max-width: none;
 }
@@ -26,6 +31,55 @@
 // (and between the question's box and its text).
 body {
   padding: 8px;
+}
+
+// Nothing leaves space below itself: a gap is a margin-top on the block that
+// follows, so there's one only when something actually comes next — never
+// a stray one under the last thing on screen. (The shared base.scss rules
+// below, which host and player keep, are undone here for this screen.)
+.view-app {
+  .question,
+  .question p,
+  .leaderboard-title,
+  .leaderboard-row,
+  #leaderboard {
+    margin-bottom: 0;
+  }
+
+  .question p + p {
+    margin-top: 4px;
+  }
+
+  // The answer options (or the typed-answer hint) under the question's box.
+  #view-options {
+    margin-top: 12px;
+
+    &:empty {
+      margin-top: 0;
+    }
+  }
+
+  .view-option + .view-option {
+    margin-top: 8px;
+  }
+
+  // The options grid spaces its cells with its own gap.
+  .options-grid .view-option + .view-option {
+    margin-top: 0;
+  }
+
+  #view-image-wrap:not([hidden]) + #view-question-text {
+    margin-top: 12px;
+  }
+
+  .leaderboard-title + * {
+    margin-top: 12px;
+  }
+
+  #stage-review .question + .question,
+  .leaderboard-row + .leaderboard-row {
+    margin-top: 8px;
+  }
 }
 
 #view-question-box {
@@ -64,10 +118,11 @@ body {
     text-align: center;
   }
 
-  // The rules can run long, so they start at the top instead.
+  // The rules can run long, so they start at the top instead — right
+  // under the body's 8px, like every screen's top element (no extra gap: on a
+  // projector that's just wasted room).
   #game-rules-screen {
     justify-content: flex-start;
-    padding-top: 48px;
   }
 
   .question {
@@ -85,20 +140,24 @@ body {
 }
 
 .stage-intro-label {
-  font-size: 28px;
+  font-size: v.text(28px);
   color: v.$color-muted;
-  margin-bottom: 16px;
+}
+
+// Inside .view-app so it beats the rules list's own margin: 0.
+.view-app .stage-intro-label + * {
+  margin-top: 16px;
 }
 
 .stage-intro-name {
-  font-size: 64px;
+  font-size: v.text(64px);
   font-weight: 700;
   line-height: 1.2;
   padding: 0 24px;
 }
 
 .stage-intro-topic {
-  font-size: 40px;
+  font-size: v.text(40px);
   font-weight: 600;
   line-height: 1.25;
   margin-top: 16px;
@@ -107,7 +166,7 @@ body {
 
 .stage-intro-description {
   max-width: 1100px;
-  font-size: 28px;
+  font-size: v.text(28px);
   line-height: 1.35;
   color: v.$color-muted;
   margin-top: 16px;
@@ -121,7 +180,7 @@ body {
   max-width: 1100px;
   margin: 0;
   padding: 0 24px 0 1.2em;
-  font-size: 32px;
+  font-size: v.text(32px);
   line-height: 1.35;
   text-align: left;
 
@@ -136,12 +195,12 @@ body {
   display: block;
   width: 100%;
   padding: 14px;
-  margin: 8px 0;
+  margin: 0;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
   background: #fafafa;
   text-align: left;
-  font-size: 20px;
+  font-size: v.text(20px);
   box-sizing: border-box;
 
   img {
@@ -175,7 +234,6 @@ body {
   flex: 1;
   min-height: 0;
   width: 100%;
-  margin-bottom: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -200,7 +258,7 @@ body {
 }
 
 #view-question-text {
-  font-size: 24px;
+  font-size: v.text(24px);
   text-align: center;
   flex-shrink: 0;
 }
@@ -234,10 +292,9 @@ body {
   align-items: baseline;
   gap: 24px;
   padding: 10px 16px;
-  margin-bottom: 8px;
 
   p {
-    font-size: 20px; // match the size options are shown at during play
+    font-size: v.text(20px); // match the size options are shown at during play
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -263,7 +320,7 @@ body {
 .now-playing-icon {
   flex-shrink: 0;
   align-self: center;
-  font-size: 24px;
+  font-size: v.text(24px);
   line-height: 1;
   color: v.$color-success;
   animation: now-playing-pulse 1.6s ease-in-out infinite;
@@ -335,6 +392,12 @@ body {
 // minmax(0, 1fr) + min-* 0 stop a tall image from stretching its row past
 // the screen — plain 1fr rows grow to the image's natural height, which is
 // what pushed the bottom row off-screen.
+// Where the corner badge (.option-letter below) ends: its 8px from the top
+// and its 1.5em height — which grows with the host's text scale, so a text
+// cell's top padding (it starts under the badge) has to grow with it, or
+// the bigger badge covers the text.
+$badge-bottom: calc(8px + #{v.text(32px * 1.5)});
+
 .fullscreen-grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
@@ -359,14 +422,14 @@ body {
   }
 
   .grid-text-cell {
-    padding: 72px 24px 24px;
+    padding: calc(#{$badge-bottom} + 16px) 24px 24px;
     border-radius: 8px;
     background: #fafafa;
     color: v.$color-text;
   }
 
   .grid-cell-text {
-    font-size: 48px;
+    font-size: v.text(48px);
   }
 }
 
@@ -374,43 +437,53 @@ body {
 // text in the middle of the cell, kept clear of the letter badge.
 .grid-text-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   overflow: hidden;
   text-align: center;
 }
 
 .grid-cell-text {
-  font-size: 28px;
+  // Centred by auto margins rather than align-items: center — those drop to 0
+  // when the text is taller than the cell (a big text scale), so it starts
+  // right under the badge and runs off the bottom instead of up over it.
+  margin-block: auto;
+  font-size: v.text(28px);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
 
 #view-options.image-options .view-option.grid-text-cell {
-  padding: 64px 16px 16px;
+  padding: calc(#{$badge-bottom} + 8px) 16px 16px;
 }
 
 // A, B, C… on each picture option — the only thing players' phones show
 // for it, so it has to be readable from across the room.
+// A square, sized in its own em, so it stays 1:1 as the host's text scale
+// grows it (48px at 100%); a two-digit number may widen it, never narrow it.
 .option-letter {
   position: absolute;
   top: 8px;
   left: 8px;
-  min-width: 48px;
-  padding: 4px 10px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0 0.2em;
+  border-radius: 0.25em;
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
-  font-size: 32px;
+  font-size: v.text(32px);
   font-weight: 700;
-  line-height: 1.2;
-  text-align: center;
+  line-height: 1;
 }
 
 // Bigger than the shared base.scss sizing (which also serves host/player) —
 // this is a projector screen, read from across the room.
 .leaderboard-title {
-  font-size: 32px;
+  font-size: v.text(32px);
 }
 
 .leaderboard-row {
@@ -418,23 +491,23 @@ body {
 }
 
 .leaderboard-rank {
-  font-size: 28px;
+  font-size: v.text(28px);
   width: 40px;
 }
 
 .leaderboard-name,
 .leaderboard-score {
-  font-size: 28px;
+  font-size: v.text(28px);
 }
 
 // Typed-answer question: shown in place of the (non-existent) options.
 .view-text-answer-hint {
   padding: 14px;
-  margin: 8px 0;
+  margin: 0;
   border: 2px dashed v.$color-border;
   border-radius: v.$radius-sm;
   text-align: center;
-  font-size: 20px;
+  font-size: v.text(20px);
   color: v.$color-muted;
 }
 
@@ -466,7 +539,7 @@ body {
 #view-bonus-question {
   flex-shrink: 0;
   margin: 8px 0 0;
-  font-size: 20px;
+  font-size: v.text(20px);
   font-weight: 600;
   text-align: center;
   color: v.$color-purple;
@@ -550,6 +623,11 @@ body.has-game-bg {
     padding: 32px 40px;
   }
 
+  // The rules' panel at the top, not in the middle (see above).
+  #game-rules-screen {
+    margin: 0 auto auto;
+  }
+
   #game-intro-screen .stage-intro-name {
     padding: 24px 40px;
   }
@@ -560,4 +638,16 @@ body.has-game-bg {
     margin-right: auto;
     padding: 8px 24px;
   }
+}
+
+// The room list page (view/dashboard.ejs): "Kambarys nerastas" and the like,
+// in the error red like everywhere else.
+#dashboard-error {
+  @extend %error-text;
+}
+
+// The gap goes above what follows, not under the error (as on this screen
+// everywhere).
+#dashboard-error ~ #room-list {
+  margin-top: 16px;
 }

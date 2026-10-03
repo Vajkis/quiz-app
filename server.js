@@ -2005,18 +2005,40 @@ app.post('/api/host/room', (req, res) => {
   res.json({ roomId });
 });
 
-app.post('/api/host/season', (req, res) => {
-  const season = (req.body.season || '').toString().trim() || null;
+// The active season, for the side panel on every host page (side-panel.js).
+app.get('/api/host/season', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ activeSeason: loadSettings().activeSeason || null });
+});
+
+function setActiveSeason(season) {
   const settings = loadSettings();
   settings.activeSeason = season;
   saveSettings(settings);
-  // Rooms that haven't started yet pick up the new season; ones already
-  // mid-game keep the season they began under.
-  Object.values(rooms).forEach((room) => {
-    if (room.phase === 'game-intro' || room.phase === 'game-rules')
-      room.seasonId = season;
+  // Only rooms created from now on get it: every room keeps the season that
+  // was active when it was created (see /api/host/room), whatever its phase.
+  return settings.activeSeason;
+}
+
+app.post('/api/host/season', (req, res) => {
+  const season = (req.body.season || '').toString().trim() || null;
+  res.json({ activeSeason: setActiveSeason(season) });
+});
+
+// The side panel's season button: back to the newest season the teams'
+// history has (scores or penalty points recorded under it) — e.g. after
+// trying out another number. Nothing recorded yet: left as it is.
+app.post('/api/host/season/latest', (req, res) => {
+  const seasonIds = new Set();
+  Object.values(loadTeams()).forEach((t) => {
+    Object.keys(t.seasons || {}).forEach((id) => seasonIds.add(id));
+    Object.keys(t.penalties || {}).forEach((id) => seasonIds.add(id));
   });
-  res.json({ activeSeason: settings.activeSeason });
+  const newest = Array.from(seasonIds)
+    .filter((id) => id && id !== 'null')
+    .sort((a, b) => (Number(b) - Number(a)) || b.localeCompare(a))[0];
+  const activeSeason = newest ? setActiveSeason(newest) : loadSettings().activeSeason || null;
+  res.json({ activeSeason });
 });
 
 // Stage-answers review: the host marks a team's typed answer (part 'main' —

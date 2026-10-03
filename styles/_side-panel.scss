@@ -70,6 +70,16 @@ body.has-side-panel {
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.06);
   overflow-x: hidden;
   overflow-y: auto;
+  // Scrolls (wheel, touch) but draws no scrollbar — one would eat most of
+  // the collapsed panel's 52px.
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  // Scrolling to the menu's end doesn't carry on into the page behind it.
+  overscroll-behavior: contain;
 
   @include side-panel-desktop {
     width: $side-panel-width;
@@ -107,8 +117,16 @@ body.has-side-panel {
 }
 
 // The theme switch (and the host's Atsijungti) at the very bottom.
-.side-panel-bottom {
+// The bottom of the panel: a line, then the host's season, the look
+// switches and Atsijungti under it.
+.side-panel-footer {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.side-panel-bottom {
   padding-top: 8px;
   border-top: 1px solid v.$color-border;
 }
@@ -294,5 +312,14 @@ body.has-side-panel {
       opacity: 1;
       pointer-events: auto;
     }
+  }
+}
+
+// While the phone menu is open the page under it stays put — only the menu
+// scrolls.
+@include side-panel-mobile {
+  html:has(body.side-panel-menu-open),
+  body.side-panel-menu-open {
+    overflow: hidden;
   }
 }

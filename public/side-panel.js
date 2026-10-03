@@ -51,10 +51,15 @@
     panel.className = 'side-panel';
     panel.innerHTML = `
       <div class="side-panel-group side-panel-nav"></div>
-      <div class="side-panel-group side-panel-bottom"></div>
+      <div class="side-panel-footer">
+        <div class="side-panel-group side-panel-bottom"></div>
+      </div>
     `;
     const navEl = panel.querySelector('.side-panel-nav');
     const bottomEl = panel.querySelector('.side-panel-bottom');
+    // Pushed to the panel's bottom: the line, then the host's season and the
+    // look switches under it.
+    const footerEl = panel.querySelector('.side-panel-footer');
 
     // Same test as host.scss's side-panel-mobile: anything not desktop-wide.
     const mobileQuery = window.matchMedia('not all and (min-width: 768px)');
@@ -105,12 +110,12 @@
         headingEl = document.createElement('p');
         headingEl.className = 'side-panel-heading';
         headingEl.textContent = heading;
-        panel.insertBefore(headingEl, bottomEl);
+        panel.insertBefore(headingEl, footerEl);
       }
       const group = document.createElement('div');
       group.className = 'side-panel-group';
       group.heading = headingEl;
-      panel.insertBefore(group, bottomEl);
+      panel.insertBefore(group, footerEl);
       return group;
     }
 
@@ -157,6 +162,33 @@
     // (the same list the players' join page polls), hidden while there are
     // none.
     if (document.body.dataset.nav === 'host') {
+      // The active season, at the bottom under the line (above the look
+      // switches — kept apart from the editor's numbered stages): its number in
+      // a circle (like the editor's stages, so it reads with the panel
+      // collapsed too). Clicked, it switches to the newest season in the
+      // teams' history, right here — no going to the dashboard. Refreshed
+      // with the rooms below.
+      const seasonItem = createItem('–', 'Sezonas', () =>
+        fetch('/api/host/season/latest', { method: 'POST' })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => data && showSeason(data.activeSeason))
+          .catch(() => {}), 'side-panel-stage');
+      bottomEl.prepend(seasonItem);
+      let shownSeason;
+      const showSeason = (season) => {
+        if (season === shownSeason) return;
+        shownSeason = season;
+        setItem(seasonItem, season ? String(season) : '–', 'Sezonas');
+        seasonItem.title = `${season ? `Sezonas ${season}` : 'Sezonas nenustatytas'} — paspaudus nustatomas naujausias istorijoje`;
+        // For the page to follow (the dashboard's season field, host.js).
+        document.dispatchEvent(new CustomEvent('seasonchange', { detail: season }));
+      };
+      const loadSeason = () =>
+        fetch('/api/host/season', { cache: 'no-store' })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => data && showSeason(data.activeSeason))
+          .catch(() => {});
+
       const roomsEl = addSection('Kambariai');
       let shownJson = null;
       const showRooms = (rooms) => {
@@ -185,9 +217,12 @@
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => data && showRooms(data.rooms || []))
           .catch(() => {});
+      loadSeason();
       loadRooms();
       setInterval(() => {
-        if (!document.hidden) loadRooms();
+        if (document.hidden) return;
+        loadSeason();
+        loadRooms();
       }, 5000);
     }
 

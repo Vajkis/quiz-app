@@ -46,6 +46,14 @@ if (saveSeasonBtn) {
 
     seasonEditInput.value = data.activeSeason || '';
   });
+
+  // Changed elsewhere — the side panel's season button, or another tab
+  // (the panel notices within a few seconds): the field follows, unless
+  // it's being typed into right now.
+  document.addEventListener('seasonchange', (e) => {
+    if (document.activeElement === seasonEditInput) return;
+    seasonEditInput.value = e.detail || '';
+  });
 }
 
 // Dashboard: close room

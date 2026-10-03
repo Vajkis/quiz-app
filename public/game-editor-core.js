@@ -588,11 +588,28 @@
         <button type="button" class="remove-stage-btn" title="Pašalinti etapą">×</button>
       </div>
       <div class="stage-body">
+        <div class="stage-extra-fields">
+          <input type="text" class="stage-topic-input" placeholder="Tema (nebūtina)">
+          <textarea class="stage-description-input" rows="2" placeholder="Aprašymas (nebūtina)"></textarea>
+        </div>
         <div class="questions-container"></div>
         <button type="button" class="add-question-btn secondary-btn">+ Klausimas</button>
       </div>
     `;
     card.querySelector('.stage-name-input').value = (stage && stage.name) || '';
+    // Optional; shown under the stage's name on its intro slide.
+    card.querySelector('.stage-topic-input').value = (stage && stage.topic) || '';
+    const descriptionInput = card.querySelector('.stage-description-input');
+    descriptionInput.value = (stage && stage.description) || '';
+    // Grows with its text instead of scrolling (2 lines at least, from
+    // rows="2"); measured again once the card is on the page.
+    const fitDescription = () => {
+      descriptionInput.style.height = 'auto';
+      const border = descriptionInput.offsetHeight - descriptionInput.clientHeight;
+      descriptionInput.style.height = descriptionInput.scrollHeight + border + 'px';
+    };
+    descriptionInput.addEventListener('input', fitDescription);
+    requestAnimationFrame(fitDescription);
     // Kept so the stage keeps its id (and its teams' history) across edits;
     // the GitHub Pages editor strips ids before storing or exporting.
     if (stage && stage.id) card.dataset.stageId = stage.id;
@@ -887,6 +904,10 @@
       return {
         id: stageEl.dataset.stageId || undefined,
         name: stageEl.querySelector('.stage-name-input').value.trim(),
+        topic: stageEl.querySelector('.stage-topic-input').value.trim(),
+        description: stageEl
+          .querySelector('.stage-description-input')
+          .value.trim(),
         questions
       };
     });

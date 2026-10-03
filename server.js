@@ -398,7 +398,17 @@ function normalizeGamePayload(body) {
       questions.push(question);
     }
 
-    stages.push({ id: stageId, name: stageName, questions });
+    // Optional, shown under the stage's name on its intro slide.
+    const stageTopic = typeof stage.topic === 'string' ? stage.topic.trim() : '';
+    const stageDescription =
+      typeof stage.description === 'string' ? stage.description.trim() : '';
+    stages.push({
+      id: stageId,
+      name: stageName,
+      ...(stageTopic ? { topic: stageTopic } : {}),
+      ...(stageDescription ? { description: stageDescription } : {}),
+      questions
+    });
   }
 
   // The game's rules, one per line, shown on their own slide right after
@@ -1158,38 +1168,6 @@ function navigateTo(room, roomId, targetIndex) {
   return true;
 }
 
-// The dev room plays "QuickTest" — the game covering every question type
-// (text, typed answer, music, picture question, picture options) — falling
-// back to the first game if it's been deleted.
-const DEV_GAME_ID = 'c6vh22';
-
-if (['dev', 'dev:server'].includes(process.env.npm_lifecycle_event)) {
-  const defaultGameId = games[DEV_GAME_ID]
-    ? DEV_GAME_ID
-    : Object.keys(games)[0];
-  if (defaultGameId) {
-    rooms['000000'] = {
-      name: games[defaultGameId].name,
-      gameId: defaultGameId,
-      seasonId: loadSettings().activeSeason || null,
-      stageIndex: 0,
-      questionIndex: -1,
-      questionHistory: [],
-      phase: 'game-intro',
-      scores: {},
-      priorScores: {},
-      joinedTeams: new Set(),
-      offlineTeams: new Set(),
-      paperScores: {},
-      internetStatus: {},
-      internetWarning: false,
-      leaderboard: null,
-      stageReview: null
-    };
-    console.log('Dev mode: default room 000000 created');
-  }
-}
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // JSZip for the game editor's .zip import (see public/game-media-zip.js).
@@ -1545,6 +1523,8 @@ function renderHostRoom(req, res, roomId) {
       roomId,
       roomName: room.name,
       stageName: stage.name,
+      stageTopic: stage.topic || '',
+      stageDescription: stage.description || '',
       stageNumber: room.stageIndex + 1,
       stageCount: game.stages.length
     });
@@ -2013,8 +1993,8 @@ app.post('/api/host/season', (req, res) => {
   const settings = loadSettings();
   settings.activeSeason = season;
   saveSettings(settings);
-  // Rooms that haven't started yet (e.g. the long-lived dev room) pick up
-  // the new season; ones already mid-game keep the season they began under.
+  // Rooms that haven't started yet pick up the new season; ones already
+  // mid-game keep the season they began under.
   Object.values(rooms).forEach((room) => {
     if (room.phase === 'game-intro' || room.phase === 'game-rules')
       room.seasonId = season;
@@ -2126,6 +2106,8 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
     room.phase = 'stage-intro';
     io.to(roomId).emit('stage-intro', {
       stageName: currentStage(room).name,
+      stageTopic: currentStage(room).topic || '',
+      stageDescription: currentStage(room).description || '',
       stageNumber: room.stageIndex + 1,
       stageCount: game.stages.length
     });
@@ -2198,6 +2180,8 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
     room.phase = 'stage-intro';
     io.to(roomId).emit('stage-intro', {
       stageName: currentStage(room).name,
+      stageTopic: currentStage(room).topic || '',
+      stageDescription: currentStage(room).description || '',
       stageNumber: room.stageIndex + 1,
       stageCount: game.stages.length
     });
@@ -2491,6 +2475,8 @@ io.on('connection', (socket) => {
     } else if (room.phase === 'stage-intro') {
       socket.emit('stage-intro', {
         stageName: currentStage(room).name,
+        stageTopic: currentStage(room).topic || '',
+        stageDescription: currentStage(room).description || '',
         stageNumber: room.stageIndex + 1,
         stageCount: games[room.gameId].stages.length
       });

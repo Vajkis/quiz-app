@@ -77,6 +77,19 @@
   font-weight: 700;
 }
 
+.stage-intro-topic {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.stage-intro-description {
+  font-size: 16px;
+  color: v.$color-muted;
+  margin-top: 8px;
+  white-space: pre-line;
+}
+
 // The game's rules slide (host/game-rules.ejs).
 .game-rules {
   text-align: left;
@@ -662,6 +675,30 @@ $season-control-height: 32px;
     font-weight: 600;
     border: 1px solid v.$color-border;
     border-radius: v.$radius-sm;
+  }
+}
+
+// A stage's optional topic and description, under its name.
+.stage-extra-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+
+  .stage-topic-input,
+  .stage-description-input {
+    width: 100%;
+    padding: 8px;
+    font-size: 15px;
+    font-family: inherit;
+    border: 1px solid v.$color-border;
+    border-radius: v.$radius-sm;
+  }
+
+  // Grows with its text (game-editor-core.js), so no scrollbar or handle.
+  .stage-description-input {
+    resize: none;
+    overflow: hidden;
   }
 }
 

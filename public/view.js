@@ -8,6 +8,8 @@ const gameRulesListEl = document.getElementById('game-rules-list');
 const stageIntroEl = document.getElementById('stage-intro-screen');
 const stageIntroLabelEl = document.getElementById('stage-intro-label');
 const stageIntroNameEl = document.getElementById('stage-intro-name');
+const stageIntroTopicEl = document.getElementById('stage-intro-topic');
+const stageIntroDescriptionEl = document.getElementById('stage-intro-description');
 
 const questionAreaEl = document.getElementById('view-question');
 const questionBoxEl = document.getElementById('view-question-box');
@@ -470,11 +472,15 @@ socket.on('game-rules', ({ rules }) => {
   renderRules(rules || []);
 });
 
-socket.on('stage-intro', ({ stageName, stageNumber, stageCount }) => {
+socket.on('stage-intro', ({ stageName, stageTopic, stageDescription, stageNumber, stageCount }) => {
   hideAll(`stage-intro-${stageNumber}`);
   stageIntroEl.hidden = false;
   stageIntroLabelEl.textContent = `Etapas ${stageNumber} / ${stageCount}`;
   stageIntroNameEl.textContent = stageName;
+  stageIntroTopicEl.textContent = stageTopic || '';
+  stageIntroTopicEl.hidden = !stageTopic;
+  stageIntroDescriptionEl.textContent = stageDescription || '';
+  stageIntroDescriptionEl.hidden = !stageDescription;
 });
 
 socket.on('stage-answers', (review) => {

@@ -176,7 +176,7 @@
         questions.push(question);
       }
 
-      stages.push({ name: stageName, questions });
+      stages.push({ name: stageName, ...stageExtras(stage), questions });
     }
 
     const game = { name };
@@ -187,6 +187,17 @@
     if (rules.length) game.rules = rules;
     game.stages = stages;
     return { game };
+  }
+
+  // A stage's optional topic and description, shown under its name on its
+  // intro slide — left out when blank.
+  function stageExtras(stage) {
+    const out = {};
+    for (const key of ['topic', 'description']) {
+      const value = stage && typeof stage[key] === 'string' ? stage[key].trim() : '';
+      if (value) out[key] = value;
+    }
+    return out;
   }
 
   // The game's rules, one per line, shown on their own slide right after
@@ -208,6 +219,7 @@
       rules: normalizeRules(game.rules),
       stages: (game.stages || []).map((stage) => ({
         name: stage && stage.name,
+        ...stageExtras(stage),
         questions: ((stage && stage.questions) || []).map((q) => {
           const type = questionType(q);
           // A yes/no question keeps its 'yes'/'no' answer, a chain its links

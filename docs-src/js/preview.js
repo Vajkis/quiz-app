@@ -18,6 +18,8 @@ const gameRulesListEl = document.getElementById('game-rules-list');
 const stageIntroEl = document.getElementById('stage-intro-screen');
 const stageIntroLabelEl = document.getElementById('stage-intro-label');
 const stageIntroNameEl = document.getElementById('stage-intro-name');
+const stageIntroTopicEl = document.getElementById('stage-intro-topic');
+const stageIntroDescriptionEl = document.getElementById('stage-intro-description');
 
 const questionAreaEl = document.getElementById('view-question');
 const questionBoxEl = document.getElementById('view-question-box');
@@ -153,7 +155,14 @@ function buildScreens(game) {
   const list = [{ type: 'game-intro', name: game.name }];
   if (game.rules && game.rules.length) list.push({ type: 'game-rules', rules: game.rules });
   game.stages.forEach((stage, s) => {
-    list.push({ type: 'stage-intro', name: stage.name, number: s + 1, count: game.stages.length });
+    list.push({
+      type: 'stage-intro',
+      name: stage.name,
+      topic: stage.topic || '',
+      description: stage.description || '',
+      number: s + 1,
+      count: game.stages.length,
+    });
     const shownOptions = stage.questions.map(shownOptionsFor);
     stage.questions.forEach((q, i) => {
       const questionType = QuizGameShared.questionType(q);
@@ -385,6 +394,10 @@ function render() {
     stageIntroEl.hidden = false;
     stageIntroLabelEl.textContent = `Etapas ${screen.number} / ${screen.count}`;
     stageIntroNameEl.textContent = screen.name;
+    stageIntroTopicEl.textContent = screen.topic;
+    stageIntroTopicEl.hidden = !screen.topic;
+    stageIntroDescriptionEl.textContent = screen.description;
+    stageIntroDescriptionEl.hidden = !screen.description;
   } else if (screen.type === 'question') {
     showQuestion(screen);
   } else {

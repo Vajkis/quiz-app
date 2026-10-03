@@ -44,11 +44,11 @@ QuizGameEditorCore.uploadFile = async (file) => {
   return data.url;
 };
 
-const { createStageCard, renderGame, collectPayload } = QuizGameEditorCore;
+const { addStage, renderGame, collectPayload } = QuizGameEditorCore;
 const { normalizeGamePayload, extractGamesFromImport } = QuizGameShared;
 
 addStageBtn.addEventListener('click', () => {
-  stagesContainer.appendChild(createStageCard({}));
+  addStage(stagesContainer);
 });
 
 const initialDataEl = document.getElementById('game-data');

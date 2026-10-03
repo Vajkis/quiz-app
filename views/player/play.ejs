@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/player.css">
 <script src="/icons.js"></script>
@@ -11,16 +13,16 @@
 <body data-nav="player" data-room="<%= roomId %>">
 <script src="/side-panel.js"></script>
 <div id="app">
-  <h1><%= title %></h1>
+  <h1 class="app-title"><%- icon('logo') %><%= title %></h1>
 
   <div id="team-info">
-    <p>Komanda: <strong id="team-name"></strong> (ID: <span id="team-id"></span>)</p>
-    <button id="leave-room-btn">Atsijungti nuo kambario</button>
+    <%# The team, then which room it's in. Leaving it is the side panel's "Kambariai" (side-panel.js). %>
+    <p>Komanda: <strong id="team-name"></strong></p>
+    <p>Kambarys: <strong><%= roomName %></strong> (<%= roomId %>)</p>
   </div>
 
   <div id="quiz-area">
     <div id="quiz"></div>
-    <div id="result"></div>
     <div id="leaderboard" hidden></div>
   </div>
 </div>

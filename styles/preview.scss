@@ -83,11 +83,6 @@ body {
     background: v.$color-primary-soft;
   }
 
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
   &[hidden] {
     display: none;
   }
@@ -108,6 +103,7 @@ body {
   left: 12px;
   width: 44px;
   padding: 0;
+  font-size: 22px;
   border-color: v.$color-border;
   color: v.$color-muted;
 }
@@ -119,21 +115,29 @@ body {
   left: 12px + 44px + 8px;
   width: 44px;
   padding: 0;
-  border-color: v.$color-success;
-  color: v.$color-success;
+  font-size: 22px;
+  border-color: v.$color-action;
+  color: v.$color-action;
 
   @include v.hover-only {
-    background: v.$color-success-soft;
+    background: v.$color-action-soft;
   }
 
   &.is-playing {
-    background: v.$color-success;
-    color: v.$color-on-success;
+    background: v.$color-action;
+    color: v.$color-on-action;
   }
 }
 
+// Stopping the music: red, like the room bar's.
 #preview-audio-stop {
   left: 12px + (44px + 8px) * 2;
+  border-color: v.$color-danger;
+  color: v.$color-danger;
+
+  @include v.hover-only {
+    background: v.$color-danger-soft;
+  }
 }
 
 // The right edge: text size − 100% + and the fullscreen toggle.
@@ -148,7 +152,7 @@ body {
 .preview-icon-btn {
   width: 44px;
   padding: 0;
-  font-size: 20px;
+  font-size: 22px;
 }
 
 #preview-scale-value {
@@ -169,8 +173,8 @@ body {
 }
 
 .fullscreen-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2.2;
@@ -181,7 +185,7 @@ body {
 // Phones: the ✕, ▶ and ■ join the row instead of floating left over the buttons.
 @media (max-width: 575px) {
   #preview-bar {
-    gap: 6px;
+    gap: 8px;
   }
 
   #preview-exit,

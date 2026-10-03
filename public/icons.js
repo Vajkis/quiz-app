@@ -33,6 +33,7 @@
     'arrow-left': '<path d="M19 12H5M12 19l-7-7 7-7"/>',
     'arrow-right': '<path d="M5 12h14M12 5l7 7-7 7"/>',
     'arrow-down': '<path d="M12 5v14M19 12l-7 7-7-7"/>',
+    volume: '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
     'volume-off': '<path d="M11 5 6 9H2v6h4l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>',
     menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -49,6 +50,13 @@
     room: '<path d="M4 21V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v17"/><path d="M2 21h20M16 7h3a1 1 0 0 1 1 1v13"/><path d="M12 12h.01"/>',
     rules: '<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
     save: '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>',
+    // The app's own mark (favicon.svg's shape, drawn afresh on this 24 grid
+    // so it stays crisp at text sizes): the four rounded corners in the
+    // primary colour (.logo-frame, _base.scss), the question mark in the
+    // text's.
+    logo:
+      '<g stroke-width="2.5"><path class="logo-frame" d="M1.25 6.25a5 5 0 0 1 5-5M17.75 1.25a5 5 0 0 1 5 5M22.75 17.75a5 5 0 0 1-5 5M6.25 22.75a5 5 0 0 1-5-5"/><path d="M8.75 9a3.25 3.25 0 1 1 4.9 2.8c-1.05.6-1.65 1.25-1.65 2.45v.5"/><circle cx="12" cy="18.5" r="1.6" fill="currentColor" stroke="none"/></g>',
+
   };
 
   function icon(name) {

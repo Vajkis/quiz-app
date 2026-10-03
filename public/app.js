@@ -2,11 +2,8 @@ const TEAM_KEY = 'quizTeam';
 const ROOM_ID = document.body.dataset.room;
 
 const teamNameEl = document.getElementById('team-name');
-const teamIdEl = document.getElementById('team-id');
-const leaveRoomBtn = document.getElementById('leave-room-btn');
 
 const quizEl = document.getElementById('quiz');
-const resultEl = document.getElementById('result');
 const leaderboardEl = document.getElementById('leaderboard');
 
 function getStoredTeam() {
@@ -89,10 +86,10 @@ if (!currentTeam) {
   window.location.href = '/';
 } else {
   teamNameEl.textContent = currentTeam.name;
-  teamIdEl.textContent = currentTeam.id;
-
-  leaveRoomBtn.addEventListener('click', () => {
-    window.location.href = '/';
+  // Renamed from the side panel: its new name.
+  document.addEventListener('teamchange', () => {
+    const team = getStoredTeam();
+    if (team) teamNameEl.textContent = team.name;
   });
 
   const socket = io();
@@ -121,12 +118,9 @@ if (!currentTeam) {
     else checkInternet(socket);
   });
 
-  // The host took this team out of the room (e.g. it joined under a wrong
-  // name): back to the join page, to join again as the right team.
+  // The host took this team out of the room: back to the rooms list, still
+  // logged in as the team (logging out is the side panel's "Atsijungti").
   socket.on('team-removed', () => {
-    try {
-      localStorage.removeItem(TEAM_KEY);
-    } catch (err) {}
     alert('Vedėjas pašalino jūsų komandą iš kambario.');
     window.location.href = '/';
   });
@@ -137,7 +131,6 @@ if (!currentTeam) {
   });
 
   socket.on('question', (q) => {
-    resultEl.textContent = '';
     leaderboardEl.hidden = true;
     quizEl.hidden = false;
     renderQuestion(q, socket);
@@ -146,7 +139,6 @@ if (!currentTeam) {
   socket.on('stage-answers', () => {
     quizEl.hidden = true;
     leaderboardEl.hidden = true;
-    resultEl.textContent = '';
   });
 
   // Host has moved past the stage leaderboard onto the next stage's (or the
@@ -156,20 +148,17 @@ if (!currentTeam) {
   socket.on('game-intro', () => {
     quizEl.hidden = true;
     leaderboardEl.hidden = true;
-    resultEl.textContent = '';
   });
 
   // The rules are on the big screen only, like the game's name.
   socket.on('game-rules', () => {
     quizEl.hidden = true;
     leaderboardEl.hidden = true;
-    resultEl.textContent = '';
   });
 
   socket.on('stage-intro', () => {
     quizEl.hidden = true;
     leaderboardEl.hidden = true;
-    resultEl.textContent = '';
   });
 
   socket.on('leaderboard', (payload) => {
@@ -179,7 +168,6 @@ if (!currentTeam) {
 
 function renderLeaderboard({ rows, final, stageName, seasonId, penalties }) {
   quizEl.hidden = true;
-  resultEl.textContent = '';
   leaderboardEl.hidden = false;
   leaderboardEl.innerHTML = '';
 

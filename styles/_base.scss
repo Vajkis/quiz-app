@@ -55,6 +55,39 @@ p {
   font-weight: 600;
 }
 
+// Every disabled button looks the same, in every theme: no colour and no
+// fill — faint text and icon, a plain grey border where it has one — so
+// it doesn't read as one to press. !important: many buttons set their
+// colours by id (#next-btn…), which a rule for all of them can't beat.
+button:disabled {
+  color: v.$color-disabled !important;
+  background: transparent !important;
+  border-color: v.$color-border !important;
+  cursor: default;
+}
+
+// Every dropdown, on a computer: its border turns the primary colour under
+// the pointer (not while disabled — see hover-only).
+select {
+  @include v.hover-only {
+    border-color: v.$color-primary;
+  }
+}
+
+// A field being typed in, or a dropdown being picked from: no browser ring,
+// just the border in the primary colour — the same as a dropdown under the
+// pointer, kept while its list is open. !important: some fields set their
+// border by id (#game-name-input…), which a rule for all of them can't beat.
+:is(input:not([type='checkbox'], [type='radio'], [type='file'], [type='range']), textarea, select):focus {
+  outline: none;
+  border-color: v.$color-primary !important;
+}
+
+// On its own: a browser without :open drops just this rule.
+select:open {
+  border-color: v.$color-primary !important;
+}
+
 // Buttons don't take the page's font by themselves (the browser gives them
 // its own) — every one gets Mulish, like the text around it.
 :where(button) {
@@ -85,6 +118,34 @@ h1 {
   margin-bottom: 16px;
 }
 
+// The players' "Quiz" heading with the app's mark (icons.js logo) before it.
+.app-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+
+  // A full 1em box drawn edge to edge looked bigger than the letters next
+  // to it, 0.8em smaller — this sits level with them.
+  .icon-logo {
+    width: 0.9em;
+    height: 0.9em;
+    // Centred on the line, it sat a bit above the letters, whose ink sits
+    // low in it — nudged down level with them.
+    transform: translateY(0.07em);
+  }
+}
+
+.icon-logo .logo-frame {
+  stroke: v.$color-primary;
+
+  // A shade deeper on dark, where the primary is light — so the corners
+  // stand apart from the light question mark between them.
+  :root[data-theme='dark'] & {
+    stroke: color-mix(in srgb, v.$color-primary 80%, #000);
+  }
+}
+
 .question {
   background: v.$color-card;
   border-radius: v.$radius;
@@ -106,7 +167,7 @@ h1 {
   display: block;
   width: 100%;
   padding: 10px;
-  margin: 6px 0;
+  margin: 8px 0;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
   background: v.$color-surface-alt;
@@ -161,7 +222,7 @@ h1 {
 .leaderboard-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: v.$color-card;
   border-radius: v.$radius;
   padding: 10px 14px;

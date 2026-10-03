@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/player.css">
 <script src="/icons.js"></script>
@@ -11,7 +13,7 @@
 <body data-nav="player">
 <script src="/side-panel.js"></script>
 <div id="app">
-  <h1><%= title %></h1>
+  <h1 class="app-title"><%- icon('logo') %><%= title %></h1>
 
   <div id="join-form">
     <input id="team-input" type="text" placeholder="Komandos pavadinimas arba ID">
@@ -20,8 +22,8 @@
   </div>
 
   <div id="team-info" hidden>
-    <p>Komanda: <strong id="team-name"></strong> (ID: <span id="team-id"></span>)</p>
-    <button id="logout-btn">Atsijungti</button>
+    <%# The team's ID, renaming and logging out are in the side panel (side-panel.js). %>
+    <p>Komanda: <strong id="team-name"></strong></p>
   </div>
 
   <%# Same list as the view screen's dashboard (view/dashboard.ejs). %>
@@ -40,6 +42,7 @@
     </div>
   </div>
 </div>
+<script src="/socket.io/socket.io.js"></script>
 <script src="/room.js"></script>
 <script src="/room-list.js"></script>
 </body>

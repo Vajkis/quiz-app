@@ -16,6 +16,9 @@
   --color-surface-alt: #fafafa;
   --color-border: #ddd;
   --color-muted: #6b7280;
+  // A disabled button's text: further from the text than muted, so it's
+  // told apart even where buttons are grey too (no-colour mode).
+  --color-disabled: #a3aab5;
   --color-primary: #3b82f6;
   --color-primary-soft: #eaf1ff;
   --color-on-accent: #fff;
@@ -25,6 +28,11 @@
   --color-success: #16a34a;
   --color-on-success: #fff; // text on a green button
   --color-success-soft: #e8f7ee;
+  // The main "create / save / next" buttons: green like success, but their
+  // own, so no-colour mode can grey them and keep green for right answers.
+  --color-action: #16a34a;
+  --color-on-action: #fff;
+  --color-action-soft: #e8f7ee;
   --color-purple: #6b21a8;
   --color-neutral-soft: #f3f4f6;
   // A row under the pointer in a list or menu (GitHub's menu hover).
@@ -55,6 +63,7 @@
   --color-surface-alt: #0d1117;
   --color-border: #30363d;
   --color-muted: #9198a1;
+  --color-disabled: #5c646e;
   --color-primary: #388bfd;
   --color-primary-soft: rgba(56, 139, 253, 0.15);
   --color-on-accent: #fff;
@@ -64,7 +73,10 @@
   --color-success: #16a34a;
   --color-on-success: #0d1117;
   --color-success-soft: rgba(22, 163, 74, 0.15);
-  --color-purple: #6b21a8;
+  --color-action: #16a34a;
+  --color-on-action: #0d1117;
+  --color-action-soft: rgba(22, 163, 74, 0.15);
+  --color-purple: #cb9eff;
   --color-neutral-soft: rgba(110, 118, 129, 0.2);
   --color-hover: rgba(177, 186, 196, 0.12);
   --color-orange-text: #db6d28;
@@ -87,6 +99,7 @@
   --color-surface-alt: #ffffff;
   --color-border: #8c959f; // mid grey: 3:1 against white, the minimum for an edge, without shouting
   --color-muted: #3d444d;
+  --color-disabled: #8c959f;
   --color-primary: #0349b4;
   --color-primary-soft: #dff7ff;
   --color-on-accent: #fff;
@@ -96,6 +109,9 @@
   --color-success: #055d20;
   --color-on-success: #fff;
   --color-success-soft: #d2fedb;
+  --color-action: #055d20;
+  --color-on-action: #fff;
+  --color-action-soft: #d2fedb;
   --color-purple: #622cbc;
   --color-neutral-soft: #e7ecf0;
   --color-hover: rgba(14, 17, 22, 0.08);
@@ -119,6 +135,7 @@
   --color-surface-alt: #010409;
   --color-border: #5e6773; // mid grey: 3:1 against the background, without shouting
   --color-muted: #bdc4cc;
+  --color-disabled: #5e6773;
   --color-primary: #71b7ff;
   --color-primary-soft: rgba(64, 158, 255, 0.2);
   --color-on-accent: #0a0c10;
@@ -128,6 +145,9 @@
   --color-success: #26cd4d;
   --color-on-success: #0a0c10;
   --color-success-soft: rgba(38, 205, 77, 0.2);
+  --color-action: #26cd4d;
+  --color-on-action: #0a0c10;
+  --color-action-soft: rgba(38, 205, 77, 0.2);
   --color-purple: #cb9eff;
   --color-neutral-soft: rgba(158, 167, 179, 0.24);
   --color-hover: rgba(158, 167, 179, 0.2);
@@ -140,32 +160,45 @@
   --shadow-overlay: 0 8px 24px rgba(1, 4, 9, 0.85);
 }
 
-// No colour: the blue family becomes grey, per theme — a shade apart from
-// the text, so buttons and links still don't blend into it (dark grey on
-// light, light grey on dark; filled buttons then need dark text on dark
-// themes). Only these change; red, green and the rest stay.
+// No colour: the blue family and the green buttons (action) become grey,
+// per theme — a shade apart from the text, so buttons and links still
+// don't blend into it (dark grey on light, light grey on dark; filled
+// buttons then need dark text on dark themes). Only these change; red,
+// the green of right answers and the rest stay.
 :root[data-colorless] {
   --color-primary: #4b5563;
   --color-primary-soft: rgba(75, 85, 99, 0.12);
   --color-on-accent: #fff;
+  --color-action: #4b5563;
+  --color-on-action: #fff;
+  --color-action-soft: rgba(75, 85, 99, 0.12);
 }
 
 :root[data-theme='dark'][data-colorless] {
   --color-primary: #c9d1d9;
   --color-primary-soft: rgba(201, 209, 217, 0.15);
   --color-on-accent: #0d1117;
+  --color-action: #c9d1d9;
+  --color-on-action: #0d1117;
+  --color-action-soft: rgba(201, 209, 217, 0.15);
 }
 
 :root[data-contrast='high'][data-colorless] {
   --color-primary: #3d444d;
   --color-primary-soft: rgba(14, 17, 22, 0.1);
   --color-on-accent: #fff;
+  --color-action: #3d444d;
+  --color-on-action: #fff;
+  --color-action-soft: rgba(14, 17, 22, 0.1);
 }
 
 :root[data-theme='dark'][data-contrast='high'][data-colorless] {
   --color-primary: #d9dee3;
   --color-primary-soft: rgba(217, 222, 227, 0.2);
   --color-on-accent: #0a0c10;
+  --color-action: #d9dee3;
+  --color-on-action: #0a0c10;
+  --color-action-soft: rgba(217, 222, 227, 0.2);
 }
 
 // Fields that don't set their own background sit a step darker than the
@@ -184,7 +217,7 @@
   right: 12px;
   z-index: 50;
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .theme-toggle-btn {
@@ -194,7 +227,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   color: var(--color-text);
   background: var(--color-card);

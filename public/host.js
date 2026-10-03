@@ -77,8 +77,8 @@ function getHostSocket() {
 }
 
 // Each .audio-player-block holds a muted <audio> — muted because it's only
-// here so the host can see and drive playback (native scrubber, elapsed time,
-// volume); the actual sound comes from the view screen's own (unmuted)
+// here so the host can see and drive playback (its controls from
+// audio-player.js: bar, elapsed time, volume); the actual sound comes from the view screen's own (unmuted)
 // element, which mirrors every play/pause/seek/volume change as a state
 // snapshot. There can be more than one block on a page (stage-answers lists
 // every question in the stage), so this is wired per-block, not by fixed id.
@@ -624,8 +624,8 @@ if (teamStatusEl) {
     return b;
   }
 
-  // Adding a team playing on paper: pick a registered team not in the room,
-  // or "+ Nauja komanda" and type its name.
+  // Adding a team playing on paper: "+ Nauja komanda" (picked to begin
+  // with) and type its name, or pick a registered team not in the room.
   const addEl = teamStatusEl.querySelector('.team-add');
   const addSelect = addEl.querySelector('.team-add-select');
   const addName = addEl.querySelector('.team-add-name');
@@ -643,10 +643,9 @@ if (teamStatusEl) {
       o.textContent = text;
       addSelect.appendChild(o);
     };
-    option('', 'Pridėti komandą, žaidžiančią ant lapelio…');
     option(NEW_TEAM, '+ Nauja komanda');
     available.forEach((t) => option(t.teamId, t.name));
-    addSelect.value = Array.from(addSelect.options).some((o) => o.value === selected) ? selected : '';
+    addSelect.value = Array.from(addSelect.options).some((o) => o.value === selected) ? selected : NEW_TEAM;
     syncAdd();
   }
 
@@ -678,7 +677,7 @@ if (teamStatusEl) {
         addError.textContent = (await res.json().catch(() => ({}))).error || 'Nepavyko pridėti';
         return;
       }
-      addSelect.value = '';
+      addSelect.value = NEW_TEAM;
       addName.value = '';
     } finally {
       syncAdd();
@@ -713,8 +712,10 @@ if (teamStatusEl) {
   socket.on('internet-warning', ({ enabled }) => {
     warningBtn.hidden = false;
     warningBtn.classList.toggle('is-off', !enabled);
-    warningBtn.innerHTML = `${QuizIcons.icon(enabled ? 'bell' : 'bell-off')} `;
-    warningBtn.append(`Įspėjimas žaidėjams: ${enabled ? 'įjungtas' : 'išjungtas'}`);
+    // Just the bell (struck through while off); the words in its tooltip.
+    warningBtn.innerHTML = QuizIcons.icon(enabled ? 'bell' : 'bell-off');
+    warningBtn.title = `Įspėjimas žaidėjams: ${enabled ? 'įjungtas' : 'išjungtas'}`;
+    warningBtn.setAttribute('aria-label', `Įspėjimas žaidėjams: ${enabled ? 'įjungtas' : 'išjungtas'}`);
   });
   warningBtn.addEventListener('click', async () => {
     warningBtn.disabled = true;
@@ -762,17 +763,26 @@ document.querySelectorAll('.reveal-btn').forEach((btn) => {
 
 // Team history: each season's chevron collapses/expands its section, the
 // same way (and with the same button) as a stage in the game editor — see
-// createStageCard in game-editor-core.js. Older seasons start collapsed.
-document.querySelectorAll('.season-section').forEach((section) => {
+// attachCollapse in game-editor-core.js. The newest season starts open, and
+// one is open at a time: opening another shuts the rest at once, keeping
+// the opened one where it was on screen.
+const seasonSections = Array.from(document.querySelectorAll('.season-section'));
+seasonSections.forEach((section) => {
   const toggleBtn = section.querySelector('.toggle-stage-btn');
   const body = section.querySelector('.season-section-body');
   let collapsed = toggleBtn.classList.contains('collapsed');
 
-  toggleBtn.addEventListener('click', () => {
-    collapsed = !collapsed;
+  function set(value, animate = true) {
+    if (value === collapsed) return;
+    collapsed = value;
     toggleBtn.classList.toggle('collapsed', collapsed);
 
-    if (collapsed) {
+    if (!animate) {
+      body.style.transition = 'none';
+      body.style.maxHeight = collapsed ? '0px' : 'none';
+      void body.offsetHeight; // apply it before the transition is back
+      body.style.transition = '';
+    } else if (collapsed) {
       body.style.maxHeight = body.scrollHeight + 'px';
       requestAnimationFrame(() => {
         body.style.maxHeight = '0px';
@@ -785,5 +795,39 @@ document.querySelectorAll('.season-section').forEach((section) => {
         if (!collapsed) body.style.maxHeight = 'none'; // let it grow freely again
       });
     }
+  }
+  section.collapse = { set, isCollapsed: () => collapsed };
+
+  toggleBtn.addEventListener('click', () => {
+    set(!collapsed);
+    if (collapsed) return;
+    const before = section.getBoundingClientRect().top;
+    seasonSections.forEach((other) => {
+      if (other !== section) other.collapse.set(true, false);
+    });
+    window.scrollBy({ top: section.getBoundingClientRect().top - before, behavior: 'instant' });
   });
 });
+
+// The seasons in the side panel too, numbered like the editor's stages:
+// clicking one opens it (shutting the others) and scrolls to it.
+if (seasonSections.length && window.QuizSidePanel) {
+  const sidePanel = QuizSidePanel.mount();
+  const seasonsEl = sidePanel.addSection('Sezonai');
+  seasonSections.forEach((section) => {
+    const seasonId = section.dataset.seasonId;
+    seasonsEl.appendChild(
+      sidePanel.createItem(
+        seasonId,
+        `Sezonas ${seasonId}`,
+        () => {
+          if (section.collapse.isCollapsed()) {
+            section.querySelector('.toggle-stage-btn').click();
+          }
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+        'side-panel-stage'
+      )
+    );
+  });
+}

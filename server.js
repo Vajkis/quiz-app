@@ -17,7 +17,8 @@ const PORT = process.env.PORT || 3000;
 
 // Adapters that are never the network players are on (VMs, WSL, Docker,
 // the loopback adapter the hotspot script shares, Bluetooth).
-const IGNORED_ADAPTER = /vethernet|virtualbox|vmware|hyper-v|wsl|docker|loopback|bluetooth/i;
+const IGNORED_ADAPTER =
+  /vethernet|virtualbox|vmware|hyper-v|wsl|docker|loopback|bluetooth/i;
 
 // Every IPv4 address players could reach this machine at, best guess first:
 // the Windows Mobile Hotspot's gateway (always 192.168.137.1) when the
@@ -30,7 +31,9 @@ function lanAddressCandidates() {
     for (const a of addrs || []) {
       if (a.family !== 'IPv4' && a.family !== 4) continue;
       if (a.internal || a.address.startsWith('169.254.')) continue;
-      const isPrivate = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address);
+      const isPrivate = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(
+        a.address
+      );
       if (!isPrivate) continue;
       found.push({ adapter, address: a.address });
     }
@@ -78,7 +81,9 @@ function loadJsonFile(file) {
   try {
     return JSON.parse(text);
   } catch (err) {
-    throw new Error(`Nepavyko perskaityti ${path.relative(__dirname, file)}: ${err.message}`);
+    throw new Error(
+      `Nepavyko perskaityti ${path.relative(__dirname, file)}: ${err.message}`
+    );
   }
 }
 
@@ -248,7 +253,9 @@ function normalizeGamePayload(body) {
           : type === 'hints'
             ? 'Užuominos'
             : `${stageName} nr. ${questions.length + 1}`);
-      const chainLabel = questionText ? `Grandinėlė "${questionText}"` : 'Grandinėlė';
+      const chainLabel = questionText
+        ? `Grandinėlė "${questionText}"`
+        : 'Grandinėlė';
       const question = {
         id: pickId(q.id, usedQuestionIds),
         type,
@@ -305,13 +312,13 @@ function normalizeGamePayload(body) {
         // order is reshuffled per room anyway, in createHistoryEntry). Fresh
         // ids are random, so they don't either. A typed-answer question's
         // answers keep their order — it can be the one they go in.
-        question.options = (type === 'choice' ? shuffle(authored) : authored).map(
-          (o) => {
-            const option = { id: o.id, text: o.text };
-            if (o.img) option.img = o.img;
-            return option;
-          }
-        );
+        question.options = (
+          type === 'choice' ? shuffle(authored) : authored
+        ).map((o) => {
+          const option = { id: o.id, text: o.text };
+          if (o.img) option.img = o.img;
+          return option;
+        });
         if (type === 'text' && authored.length > 1 && q.ordered)
           question.ordered = true;
       } else if (type === 'yesno') {
@@ -362,7 +369,9 @@ function normalizeGamePayload(body) {
       // browser — it only works once imported from that editor's .zip export
       // (the file is uploaded then), never as-is.
       const mediaValues = [q.img, q.audio, ...optionImgs];
-      if (mediaValues.some((v) => typeof v === 'string' && v.startsWith('media:')))
+      if (
+        mediaValues.some((v) => typeof v === 'string' && v.startsWith('media:'))
+      )
         return {
           error: `Klausimas "${label}" nurodo failą, kurio nėra — importuok žaidimą iš .zip failo`
         };
@@ -401,7 +410,8 @@ function normalizeGamePayload(body) {
     }
 
     // Optional, shown under the stage's name on its intro slide.
-    const stageTopic = typeof stage.topic === 'string' ? stage.topic.trim() : '';
+    const stageTopic =
+      typeof stage.topic === 'string' ? stage.topic.trim() : '';
     const stageDescription =
       typeof stage.description === 'string' ? stage.description.trim() : '';
     stages.push({
@@ -641,7 +651,9 @@ function correctAnswerFor(q, entry) {
     return { correctAnswer: q.answer, correctAnswerImg: null };
   if (type === 'text')
     return {
-      correctAnswer: q.options.map((o) => o.text).join(q.ordered ? ' → ' : ', '),
+      correctAnswer: q.options
+        .map((o) => o.text)
+        .join(q.ordered ? ' → ' : ', '),
       correctAnswerImg: null
     };
   const correctOption = q.options.find((o) => o.id === q.answer);
@@ -833,8 +845,7 @@ function buildSeasonLeaderboard(room) {
       name: t.name,
       score: Object.values((t.seasons && t.seasons[seasonId]) || {}).reduce(
         (sum, stages) =>
-          sum +
-          Object.values(stages).reduce((s, score) => s + score, 0),
+          sum + Object.values(stages).reduce((s, score) => s + score, 0),
         0
       )
     }))
@@ -923,7 +934,8 @@ function createHistoryEntry(q) {
     correctText: type === 'hints' ? q.answer : null,
     answer: q.answer,
     clues: type === 'chain' ? q.links.map((l) => l.clue) : null,
-    clueImgs: type === 'chain' ? q.links.map((l) => resolveMediaSrc(l.img)) : null,
+    clueImgs:
+      type === 'chain' ? q.links.map((l) => resolveMediaSrc(l.img)) : null,
     correctLinks: type === 'chain' ? q.links.map((l) => l.answer) : null,
     // Hints question: all its hints (only the shown ones ever leave the
     // server), how many are shown so far — the first one right away, the
@@ -994,7 +1006,9 @@ function textAnswersMatch(entry, selected) {
     );
   if (!Array.isArray(selected)) return false;
   if (entry.ordered)
-    return entry.correctTexts.every((answer, i) => typedMatches(selected[i], answer));
+    return entry.correctTexts.every((answer, i) =>
+      typedMatches(selected[i], answer)
+    );
   const unused = selected.slice();
   return entry.correctTexts.every((answer) => {
     const i = unused.findIndex((typed) => typedMatches(typed, answer));
@@ -1012,7 +1026,8 @@ function isMainCorrect(entry, teamId) {
   if (isTypedType(entry.type)) {
     if (teamId in entry.textOverrides) return entry.textOverrides[teamId];
     if (entry.type === 'text') return textAnswersMatch(entry, selected);
-    if (entry.type === 'hints') return typedMatches(selected, entry.correctText);
+    if (entry.type === 'hints')
+      return typedMatches(selected, entry.correctText);
     return (
       Array.isArray(selected) &&
       entry.correctLinks.every((answer, i) => typedMatches(selected[i], answer))
@@ -1230,7 +1245,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // JSZip for the game editor's .zip import (see public/game-media-zip.js).
 app.get('/vendor/jszip.min.js', (req, res) =>
-  res.sendFile(path.join(__dirname, 'node_modules', 'jszip', 'dist', 'jszip.min.js'))
+  res.sendFile(
+    path.join(__dirname, 'node_modules', 'jszip', 'dist', 'jszip.min.js')
+  )
+);
+// The fonts never change once added, unlike the scripts and styles below, so
+// the browser keeps them for good instead of fetching them on every page. A
+// changed font file needs a new name to reach browsers that have the old one.
+app.use(
+  '/fonts',
+  express.static(path.join(__dirname, 'public', 'fonts'), {
+    maxAge: '365d',
+    immutable: true,
+    index: false
+  })
 );
 app.use(
   express.static(path.join(__dirname, 'public'), {
@@ -1271,13 +1299,11 @@ app.post('/host/login', (req, res) => {
   const next =
     rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/host';
   if (code !== HOST_CODE) {
-    return res
-      .status(401)
-      .render('host/login', {
-        title: 'Quiz - Host prisijungimas',
-        error: 'Neteisingas kodas',
-        next
-      });
+    return res.status(401).render('host/login', {
+      title: 'Quiz - Host prisijungimas',
+      error: 'Neteisingas kodas',
+      next
+    });
   }
   res.cookie(HOST_COOKIE, HOST_CODE, {
     httpOnly: true,
@@ -1439,7 +1465,9 @@ app.post(
     // could climb out of MEDIA_DIR.
     const gameId = req.query.gameId;
     const folder =
-      typeof gameId === 'string' && GAME_ID_PATTERN.test(gameId) ? gameId : null;
+      typeof gameId === 'string' && GAME_ID_PATTERN.test(gameId)
+        ? gameId
+        : null;
     const dir = folder ? path.join(MEDIA_DIR, folder) : MEDIA_DIR;
 
     const hash = crypto.createHash('sha1').update(req.body).digest('hex');
@@ -1451,14 +1479,18 @@ app.post(
     } catch (err) {
       return res.status(500).json({ error: 'Nepavyko išsaugoti failo' });
     }
-    res.json({ url: folder ? `/media/${folder}/${fileName}` : `/media/${fileName}` });
+    res.json({
+      url: folder ? `/media/${folder}/${fileName}` : `/media/${fileName}`
+    });
   }
 );
 
 // Oversized uploads (see MEDIA_MAX_BYTES) get a readable message.
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.too.large')
-    return res.status(413).json({ error: 'Failas per didelis (daugiausia 100 MB)' });
+    return res
+      .status(413)
+      .json({ error: 'Failas per didelis (daugiausia 100 MB)' });
   next(err);
 });
 
@@ -1511,11 +1543,15 @@ app.post('/api/host/pick-file', async (req, res) => {
   if (!canUseNativeFilePicker(req))
     return res
       .status(400)
-      .json({ error: 'Failo langą galima atidaryti tik serverio kompiuteryje' });
+      .json({
+        error: 'Failo langą galima atidaryti tik serverio kompiuteryje'
+      });
   try {
     res.json({ path: await showWindowsFileDialog(kind) });
   } catch (err) {
-    res.status(500).json({ error: 'Nepavyko atidaryti failo pasirinkimo lango' });
+    res
+      .status(500)
+      .json({ error: 'Nepavyko atidaryti failo pasirinkimo lango' });
   }
 });
 
@@ -1618,7 +1654,8 @@ function renderHostRoom(req, res, roomId) {
   // Back on an earlier question: one step forward again, through the ones
   // already shown ("next" would skip to a new one).
   const hasForward =
-    room.questionIndex >= 0 && room.questionIndex < room.questionHistory.length - 1;
+    room.questionIndex >= 0 &&
+    room.questionIndex < room.questionHistory.length - 1;
   const currentQuestion =
     room.questionIndex >= 0 ? stage.questions[room.questionIndex] : null;
   const currentEntry =
@@ -1631,7 +1668,9 @@ function renderHostRoom(req, res, roomId) {
     stageName: stage.name,
     stageNumber: room.stageIndex + 1,
     stageCount: game.stages.length,
-    currentQuestionText: currentQuestion ? questionTitle(currentQuestion) : null,
+    currentQuestionText: currentQuestion
+      ? questionTitle(currentQuestion)
+      : null,
     currentQuestionNumber: room.questionIndex + 1,
     currentQuestionAudio: currentQuestion
       ? resolveMediaSrc(currentQuestion.audio)
@@ -1642,11 +1681,15 @@ function renderHostRoom(req, res, roomId) {
     currentQuestionAudioEnd: currentQuestion
       ? currentQuestion.audioEnd || null
       : null,
-    currentQuestionImg: currentQuestion ? resolveMediaSrc(currentQuestion.img) : null,
+    currentQuestionImg: currentQuestion
+      ? resolveMediaSrc(currentQuestion.img)
+      : null,
     currentQuestionType: currentQuestion ? questionType(currentQuestion) : null,
     // A typed-answer question with several answers: how many, and whether
     // they have to be in order.
-    currentQuestionAnswerCount: currentEntry ? currentEntry.answerCount || 0 : 0,
+    currentQuestionAnswerCount: currentEntry
+      ? currentEntry.answerCount || 0
+      : 0,
     currentQuestionOrdered: currentEntry ? !!currentEntry.ordered : false,
     currentQuestionLinks:
       currentQuestion && currentQuestion.links
@@ -1655,7 +1698,9 @@ function renderHostRoom(req, res, roomId) {
             img: resolveMediaSrc(l.img)
           }))
         : null,
-    currentQuestionBonus: currentQuestion ? currentQuestion.bonus || null : null,
+    currentQuestionBonus: currentQuestion
+      ? currentQuestion.bonus || null
+      : null,
     // A hints question: all its hints (the host sees which are still to
     // come) and how many are shown — "next" reveals the next one first.
     currentQuestionHints:
@@ -1743,13 +1788,16 @@ function renderGamesList(res, error) {
     .reverse();
   const draftList = Object.entries(drafts)
     .map(([id, d]) => {
-      const stages = Array.isArray(d.game && d.game.stages) ? d.game.stages : [];
+      const stages = Array.isArray(d.game && d.game.stages)
+        ? d.game.stages
+        : [];
       return {
         id,
         name: (d.game && d.game.name) || '',
         stageCount: stages.length,
         questionCount: stages.reduce(
-          (n, s) => n + ((s && Array.isArray(s.questions) && s.questions.length) || 0),
+          (n, s) =>
+            n + ((s && Array.isArray(s.questions) && s.questions.length) || 0),
           0
         ),
         updatedAt: d.updatedAt || 0
@@ -1815,7 +1863,9 @@ app.get('/host/teams', (req, res) => {
         (a, b) => b.total - a.total || a.name.localeCompare(b.name, 'lt')
       )
     }))
-    .sort((a, b) => b.seasonId.localeCompare(a.seasonId, undefined, { numeric: true }));
+    .sort((a, b) =>
+      b.seasonId.localeCompare(a.seasonId, undefined, { numeric: true })
+    );
 
   res.render('host/teams', {
     title: 'Quiz - Komandų istorija',
@@ -1937,9 +1987,8 @@ app.get('/view/:roomId(\\d{6})', (req, res) => {
 app.get('/:roomId(\\d{6})', (req, res) => {
   const roomId = req.params.roomId;
   const room = rooms[roomId];
-  if (!room)
-    return renderPlayerJoin(res.status(404), 'Kambarys nerastas');
-  res.render('player/play', { title: 'Quiz', roomId });
+  if (!room) return renderPlayerJoin(res.status(404), 'Kambarys nerastas');
+  res.render('player/play', { title: 'Quiz', roomId, roomName: room.name });
 });
 
 app.get('/api/games/:gameId', (req, res) => {
@@ -2085,19 +2134,28 @@ app.post('/api/host/season', (req, res) => {
   res.json({ activeSeason: setActiveSeason(season) });
 });
 
-// The side panel's season button: back to the newest season the teams'
-// history has (scores or penalty points recorded under it) — e.g. after
-// trying out another number. Nothing recorded yet: left as it is.
-app.post('/api/host/season/latest', (req, res) => {
+// The newest season the teams' history has (scores or penalty points
+// recorded under it), or null with nothing recorded yet.
+function newestRecordedSeason() {
   const seasonIds = new Set();
   Object.values(loadTeams()).forEach((t) => {
     Object.keys(t.seasons || {}).forEach((id) => seasonIds.add(id));
     Object.keys(t.penalties || {}).forEach((id) => seasonIds.add(id));
   });
-  const newest = Array.from(seasonIds)
-    .filter((id) => id && id !== 'null')
-    .sort((a, b) => (Number(b) - Number(a)) || b.localeCompare(a))[0];
-  const activeSeason = newest ? setActiveSeason(newest) : loadSettings().activeSeason || null;
+  return (
+    Array.from(seasonIds)
+      .filter((id) => id && id !== 'null')
+      .sort((a, b) => Number(b) - Number(a) || b.localeCompare(a))[0] || null
+  );
+}
+
+// The side panel's season button: back to the newest season — e.g. after
+// trying out another number. Nothing recorded yet: left as it is.
+app.post('/api/host/season/latest', (req, res) => {
+  const newest = newestRecordedSeason();
+  const activeSeason = newest
+    ? setActiveSeason(newest)
+    : loadSettings().activeSeason || null;
   res.json({ activeSeason });
 });
 
@@ -2262,7 +2320,11 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
   if (room.phase === 'question') {
     // A hints question shows its hints one by one before moving on.
     const entry = room.questionHistory[room.questionIndex];
-    if (entry && entry.type === 'hints' && entry.revealedHints < entry.hints.length) {
+    if (
+      entry &&
+      entry.type === 'hints' &&
+      entry.revealedHints < entry.hints.length
+    ) {
       entry.revealedHints++;
       broadcastHints(room, roomId, room.questionIndex);
       return res.json({ phase: 'question' });
@@ -2393,7 +2455,9 @@ app.post('/api/host/room/:roomId/penalty', (req, res) => {
   team.penalties = team.penalties || {};
   team.penalties[room.seasonId] = penalty;
   saveTeams(teams);
-  console.log(`[nuobaudos] ${team.name}: ${penalty} (sezonas ${room.seasonId})`);
+  console.log(
+    `[nuobaudos] ${team.name}: ${penalty} (sezonas ${room.seasonId})`
+  );
   emitTeamStatus(roomId);
   if (room.phase === 'finished' && room.leaderboardView === 'penalties')
     io.to(roomId).emit('leaderboard', finalLeaderboardPayload(room));
@@ -2421,9 +2485,11 @@ app.post('/api/host/room/:roomId/offline-team', (req, res) => {
   let teamId = typeof req.body.teamId === 'string' ? req.body.teamId : '';
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
   if (teamId) {
-    if (!teams[teamId]) return res.status(404).json({ error: 'Komanda nerasta' });
+    if (!teams[teamId])
+      return res.status(404).json({ error: 'Komanda nerasta' });
   } else {
-    if (!name) return res.status(400).json({ error: 'Įvesk komandos pavadinimą' });
+    if (!name)
+      return res.status(400).json({ error: 'Įvesk komandos pavadinimą' });
     const existing = Object.entries(teams).find(
       ([, t]) => t.name.toLowerCase() === name.toLowerCase()
     );
@@ -2439,7 +2505,13 @@ app.post('/api/host/room/:roomId/offline-team', (req, res) => {
   room.joinedTeams.add(teamId);
   room.offlineTeams.add(teamId);
   emitTeamStatus(roomId);
-  res.json({ teamId });
+  // The team is logged in on a phone sitting on the join page (not in a
+  // room): that phone is sent into this one, and joining turns the team
+  // from a paper one into an ordinary one (see join-room).
+  const lobby = io.sockets.adapter.rooms.get(teamLobbyChannel(teamId));
+  const invited = !!(lobby && lobby.size);
+  if (invited) io.to(teamLobbyChannel(teamId)).emit('go-to-room', { roomId });
+  res.json({ teamId, invited });
 });
 
 // Host sets the points a paper team scored in the current stage — they go
@@ -2483,9 +2555,14 @@ app.delete('/api/host/room/:roomId/teams/:teamId', (req, res) => {
   Object.values(room.paperScores).forEach((stage) => delete stage[teamId]);
   room.questionHistory.forEach((entry) => {
     if (!entry) return;
-    ['selections', 'bonusSelections', 'textOverrides', 'bonusOverrides', 'locks', 'awardedPoints'].forEach(
-      (key) => entry[key] && delete entry[key][teamId]
-    );
+    [
+      'selections',
+      'bonusSelections',
+      'textOverrides',
+      'bonusOverrides',
+      'locks',
+      'awardedPoints'
+    ].forEach((key) => entry[key] && delete entry[key][teamId]);
   });
   if (room.leaderboard)
     room.leaderboard = room.leaderboard.filter((row) => row.teamId !== teamId);
@@ -2531,6 +2608,35 @@ app.post('/api/team/join', (req, res) => {
   res.json({ id: newId, name: query });
 });
 
+// A team renames itself (the side panel on its phone). Its history and
+// scores are kept by id, so they follow; another team's name can't be taken,
+// as joining by name would then find the wrong team. The hosts of the rooms
+// it's in see the new name right away.
+app.post('/api/team/rename', (req, res) => {
+  const teams = loadTeams();
+  const id = typeof req.body.id === 'string' ? req.body.id : '';
+  const name = typeof req.body.name === 'string' ? req.body.name.trim().slice(0, 60) : '';
+  if (!teams[id]) return res.status(404).json({ error: 'Komanda nerasta' });
+  if (!name) return res.status(400).json({ error: 'Įvesk komandos pavadinimą' });
+  const taken = Object.entries(teams).some(
+    ([otherId, t]) => otherId !== id && t.name.toLowerCase() === name.toLowerCase()
+  );
+  if (taken) return res.status(400).json({ error: 'Toks pavadinimas jau užimtas' });
+  const oldName = teams[id].name;
+  teams[id].name = name;
+  saveTeams(teams);
+  console.log(`[komanda] ${oldName} -> ${name} (${id})`);
+  Object.entries(rooms).forEach(([roomId, room]) => {
+    if (room.joinedTeams.has(id)) emitTeamStatus(roomId);
+  });
+  res.json({ id, name });
+});
+
+// The socket.io room of a team's phones sitting on the join page (team-lobby).
+function teamLobbyChannel(teamId) {
+  return `team-lobby:${teamId}`;
+}
+
 // Host-only socket.io room for a game room's team status list.
 function hostWatchChannel(roomId) {
   return `host-watch:${roomId}`;
@@ -2560,7 +2666,9 @@ function teamStatusPayload(roomId) {
         connected: connected.has(teamId),
         online: status ? status.online : null,
         checkedAgoMs: status ? now - status.at : null,
-        penalty: room.seasonId ? seasonPenalty(teams[teamId], room.seasonId) : null,
+        penalty: room.seasonId
+          ? seasonPenalty(teams[teamId], room.seasonId)
+          : null,
         offline: room.offlineTeams.has(teamId),
         paperPoints: (room.paperScores[room.stageIndex] || {})[teamId] || 0
       };
@@ -2579,10 +2687,21 @@ function teamStatusPayload(roomId) {
 }
 
 function emitTeamStatus(roomId) {
-  io.to(hostWatchChannel(roomId)).emit('team-status', teamStatusPayload(roomId));
+  io.to(hostWatchChannel(roomId)).emit(
+    'team-status',
+    teamStatusPayload(roomId)
+  );
 }
 
 io.on('connection', (socket) => {
+  // The join page, with a team logged in on it: reachable by the team's id
+  // until it goes into a room (or logs out — teamId null).
+  socket.on('team-lobby', ({ teamId } = {}) => {
+    if (socket.data.lobbyTeamId) socket.leave(teamLobbyChannel(socket.data.lobbyTeamId));
+    socket.data.lobbyTeamId = typeof teamId === 'string' && teamId ? teamId : null;
+    if (socket.data.lobbyTeamId) socket.join(teamLobbyChannel(socket.data.lobbyTeamId));
+  });
+
   socket.on('join-room', ({ roomId, teamId, teamName }) => {
     const room = rooms[roomId];
     if (!room) return;
@@ -2676,7 +2795,8 @@ io.on('connection', (socket) => {
   // 'select-bonus' is the same for the extra answer's typed string.
   function answerTarget(index) {
     const room = rooms[socket.data.roomId];
-    if (!room || room.phase !== 'question' || room.questionIndex < 0) return null;
+    if (!room || room.phase !== 'question' || room.questionIndex < 0)
+      return null;
     if (!socket.data.teamId) return null;
     const targetIndex = Number.isInteger(index) ? index : room.questionIndex;
     const entry = room.questionHistory[targetIndex];
@@ -2712,7 +2832,9 @@ io.on('connection', (socket) => {
 
     updateEntry(room, targetIndex, () => {
       // A changed typed answer drops the host's earlier call on the old one.
-      if (JSON.stringify(entry.selections[teamId]) !== JSON.stringify(selection))
+      if (
+        JSON.stringify(entry.selections[teamId]) !== JSON.stringify(selection)
+      )
         delete entry.textOverrides[teamId];
       entry.selections[teamId] = selection;
     });
@@ -2793,17 +2915,16 @@ io.on('connection', (socket) => {
       out.src = (payload.src || '').toString();
     } else if (action === 'options') {
       out.images = Array.isArray(payload.images)
-        ? payload.images
-            .slice(0, 20)
-            .map((i) => {
-              const image = { src: ((i && i.src) || '').toString() };
-              if (!image.src) image.text = ((i && i.text) || '').toString().slice(0, 500);
-              // A chain clue's number (see chainClueImages) — digits only,
-              // so no text can ride along.
-              const label = ((i && i.label) || '').toString();
-              if (/^\d{1,2}$/.test(label)) image.label = label;
-              return image;
-            })
+        ? payload.images.slice(0, 20).map((i) => {
+            const image = { src: ((i && i.src) || '').toString() };
+            if (!image.src)
+              image.text = ((i && i.text) || '').toString().slice(0, 500);
+            // A chain clue's number (see chainClueImages) — digits only,
+            // so no text can ride along.
+            const label = ((i && i.label) || '').toString();
+            if (/^\d{1,2}$/.test(label)) image.label = label;
+            return image;
+          })
         : [];
     }
     io.to(roomId).emit('fullscreen-command', out);
@@ -2813,6 +2934,19 @@ io.on('connection', (socket) => {
 // History recorded before game and stage names were kept with it gets them
 // now, while those games are still there to take them from.
 rememberAllHistoryNames();
+
+// The season to start with: npm run dev plays under season 0, so trying
+// things out never lands in a real season's standings; npm start goes back
+// to the newest season (left as it is with nothing recorded yet). Started
+// any other way (node server.js), it stays whatever it was.
+const startedBy = process.env.npm_lifecycle_event;
+if (['dev', 'dev:server'].includes(startedBy)) {
+  console.log('Dev mode: season set to ' + setActiveSeason('0'));
+} else if (startedBy === 'start') {
+  const newest = newestRecordedSeason();
+  if (newest)
+    console.log('Season set to the newest: ' + setActiveSeason(newest));
+}
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Quiz server running on http://0.0.0.0:${PORT}`);

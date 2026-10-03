@@ -107,12 +107,14 @@ body.has-side-panel {
 .side-panel-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
-// e.g. "Kambariai" while no room is open.
+// e.g. "Kambariai" while no room is open, or a player's "Atsijungti" while
+// no team is set.
 .side-panel-group[hidden],
-.side-panel-heading[hidden] {
+.side-panel-heading[hidden],
+.side-panel-item[hidden] {
   display: none;
 }
 
@@ -128,14 +130,27 @@ body.has-side-panel {
 
 .side-panel-bottom {
   padding-top: 8px;
-  border-top: 1px solid v.$color-border;
+  border-top: 1px dashed v.$color-border;
+}
+
+// A line inside a group (a player's team rows under the look switches):
+// 8px on each side of it, like the line above the bottom group — its 4px
+// margins plus the group's 4px gap.
+.side-panel-divider {
+  flex-shrink: 0;
+  margin: 4px 0;
+  border-top: 1px dashed v.$color-border;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .side-panel-item {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   height: 40px;
   padding: 0 8px;
@@ -159,6 +174,16 @@ body.has-side-panel {
   &.active {
     background: v.$color-primary-soft;
     font-weight: 700;
+  }
+}
+
+// A row that only tells something (a player's team ID), not a button.
+.side-panel-info {
+  cursor: default;
+  color: v.$color-muted;
+
+  @include v.hover-only {
+    background: transparent;
   }
 }
 
@@ -219,6 +244,11 @@ body.has-side-panel {
 
 // A room: its name cut short with … when it doesn't fit, its code always
 // shown in full.
+// A nav item's note after its label ("(naujame lange)"), fainter.
+.side-panel-note {
+  color: v.$color-muted;
+}
+
 .side-panel-room-label {
   display: flex;
   gap: 4px;
@@ -229,8 +259,10 @@ body.has-side-panel {
     text-overflow: ellipsis;
   }
 
+  // Fainter than the name, like the room's code on the players' room page.
   .side-panel-room-id {
     flex-shrink: 0;
+    color: v.$color-muted;
   }
 }
 
@@ -250,7 +282,7 @@ body.has-side-panel {
   flex-shrink: 0;
   margin: 4px 4px 0;
   padding: 8px 0 0 4px;
-  border-top: 1px solid v.$color-border;
+  border-top: 1px dashed v.$color-border;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;

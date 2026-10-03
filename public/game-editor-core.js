@@ -280,11 +280,24 @@
       input.addEventListener('change', syncMediaFields);
     });
 
+    // The marked part on the preview's bar (audio-player.js reads data-start
+    // and data-end, as on the host's room page), kept with the fields.
+    function syncClipMarks() {
+      audioPreview.dataset.start = audioStartInput.value.trim();
+      audioPreview.dataset.end = audioEndInput.value.trim();
+    }
+    syncClipMarks();
+    [audioStartInput, audioEndInput].forEach((input) =>
+      input.addEventListener('input', syncClipMarks)
+    );
+
     card.querySelector('.set-audio-start-btn').addEventListener('click', () => {
       audioStartInput.value = Math.floor(audioPreview.currentTime);
+      syncClipMarks();
     });
     card.querySelector('.set-audio-end-btn').addEventListener('click', () => {
       audioEndInput.value = Math.floor(audioPreview.currentTime);
+      syncClipMarks();
     });
 
     // Preview the clip exactly as it'll play in-game: jump to "nuo" (empty =
@@ -557,16 +570,24 @@
 
   // A card's collapse chevron (.toggle-stage-btn): slides its body
   // (.stage-body) shut and open again. Used by the stages and the rules.
-  function attachCollapse(toggleBtn, body, startCollapsed) {
+  // onOpen runs after the chevron opens it. Returns { set(collapsed,
+  // animate) } for shutting it from elsewhere — at once with animate false.
+  function attachCollapse(toggleBtn, body, startCollapsed, onOpen) {
     let collapsed = startCollapsed;
     toggleBtn.classList.toggle('collapsed', collapsed);
     if (collapsed) body.style.maxHeight = '0px';
 
-    toggleBtn.addEventListener('click', () => {
-      collapsed = !collapsed;
+    function set(value, animate = true) {
+      if (value === collapsed) return;
+      collapsed = value;
       toggleBtn.classList.toggle('collapsed', collapsed);
 
-      if (collapsed) {
+      if (!animate) {
+        body.style.transition = 'none';
+        body.style.maxHeight = collapsed ? '0px' : 'none';
+        void body.offsetHeight; // apply it before the transition is back
+        body.style.transition = '';
+      } else if (collapsed) {
         body.style.maxHeight = body.scrollHeight + 'px';
         requestAnimationFrame(() => {
           body.style.maxHeight = '0px';
@@ -579,10 +600,30 @@
           if (!collapsed) body.style.maxHeight = 'none'; // let it grow freely again
         });
       }
+    }
+
+    toggleBtn.addEventListener('click', () => {
+      set(!collapsed);
+      if (!collapsed && onOpen) onOpen();
     });
+    return { set };
   }
 
-  function createStageCard(stage) {
+  // One stage open at a time: shuts every other one at once, and scrolls
+  // so `card` stays where it was on screen (the stages above it shrink).
+  function collapseOtherStages(card) {
+    const container = card.parentElement;
+    if (!container) return;
+    const before = card.getBoundingClientRect().top;
+    Array.from(container.children).forEach((other) => {
+      if (other !== card && other.collapse) other.collapse.set(true, false);
+    });
+    window.scrollBy({ top: card.getBoundingClientRect().top - before, behavior: 'instant' });
+  }
+
+  // A stage's card, open — or shut with startCollapsed (a loaded game's
+  // stages after the first). Opening it shuts the other stages.
+  function createStageCard(stage, startCollapsed = false) {
     const card = document.createElement('div');
     card.className = 'stage-card';
     card.innerHTML = `
@@ -629,10 +670,11 @@
       .querySelector('.move-stage-down-btn')
       .addEventListener('click', () => moveDown(card));
 
-    attachCollapse(
+    card.collapse = attachCollapse(
       card.querySelector('.toggle-stage-btn'),
       card.querySelector('.stage-body'),
-      false
+      startCollapsed,
+      () => collapseOtherStages(card)
     );
 
     const questionsContainer = card.querySelector('.questions-container');
@@ -842,7 +884,16 @@
     stagesContainer.innerHTML = '';
     const stages =
       game && game.stages && game.stages.length ? game.stages : [{}];
-    stages.forEach((s) => stagesContainer.appendChild(createStageCard(s)));
+    stages.forEach((s, i) => stagesContainer.appendChild(createStageCard(s, i > 0)));
+  }
+
+  // A new, empty stage at the end (the "+ Etapas" button), open with the
+  // others shut.
+  function addStage(stagesContainer) {
+    const card = createStageCard({});
+    stagesContainer.appendChild(card);
+    collapseOtherStages(card);
+    return card;
   }
 
   function collectPayload(stagesContainer, nameInput) {
@@ -1152,6 +1203,7 @@
     createOptionRow,
     createQuestionCard,
     createStageCard,
+    addStage,
     renderGame,
     collectPayload,
     createRulesCard,

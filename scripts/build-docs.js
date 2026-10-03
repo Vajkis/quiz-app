@@ -61,6 +61,10 @@ copyFile(path.join(publicDir, 'game-shared.js'), path.join(docsOut, 'js', 'game-
 copyFile(path.join(publicDir, 'game-editor-core.js'), path.join(docsOut, 'js', 'game-editor-core.js'));
 copyFile(path.join(publicDir, 'game-media-zip.js'), path.join(docsOut, 'js', 'game-media-zip.js'));
 copyFile(path.join(publicDir, 'icons.js'), path.join(docsOut, 'js', 'icons.js'));
+copyFile(path.join(publicDir, 'audio-player.js'), path.join(docsOut, 'js', 'audio-player.js'));
+// The tab icon, next to the pages (they link it relatively).
+copyFile(path.join(publicDir, 'favicon.svg'), path.join(docsOut, 'favicon.svg'));
+copyFile(path.join(publicDir, 'favicon.ico'), path.join(docsOut, 'favicon.ico'));
 copyFile(path.join(publicDir, 'theme.js'), path.join(docsOut, 'js', 'theme.js'));
 copyFile(path.join(publicDir, 'side-panel.js'), path.join(docsOut, 'js', 'side-panel.js'));
 copyFile(path.join(publicDir, 'preview.js'), path.join(docsOut, 'js', 'preview.js'));

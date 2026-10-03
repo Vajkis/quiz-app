@@ -18,9 +18,7 @@
   margin-bottom: 8px;
 }
 
-#join-btn,
-#logout-btn,
-#leave-room-btn {
+#join-btn {
   // A <button>'s default display is inline-block, on which auto margins
   // (as set by capped-button below) compute to 0 rather than centering it —
   // needs to be a block box for that centering to actually take effect.
@@ -44,13 +42,6 @@
   }
 }
 
-#logout-btn,
-#leave-room-btn {
-  background: v.$color-danger;
-  color: v.$color-on-danger;
-  margin-top: 8px;
-}
-
 #join-error,
 #room-error {
   @extend %error-text;
@@ -61,22 +52,29 @@
   background: v.$color-card;
   border-radius: v.$radius;
   padding: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   box-shadow: v.$shadow-card;
-}
 
-#result {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 600;
+  // "Komanda:", "Kambarys:" and the room's code fainter than what they name.
+  color: v.$color-muted;
+
+  strong {
+    color: v.$color-text;
+  }
+
+  // The room page: the team, a line, then the room.
+  p + p {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed v.$color-border;
+  }
 }
 
 // Earlier questions of the running stage, collapsed under the live one so
 // they don't compete with it but can still be reopened and re-answered.
 .previous-questions {
   margin-top: 24px;
-  border-top: 1px solid v.$color-border;
+  border-top: 1px dashed v.$color-border;
   padding-top: 12px;
 }
 
@@ -84,7 +82,7 @@
   font-size: 14px;
   font-weight: 600;
   color: v.$color-muted;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .previous-question {
@@ -93,6 +91,11 @@
   box-shadow: v.$shadow-card;
   margin-bottom: 8px;
   padding: 0 12px;
+
+  // Only between them, not under the list's last one.
+  &:last-child {
+    margin-bottom: 0;
+  }
 
   summary {
     display: flex;
@@ -245,7 +248,9 @@
   background: transparent;
   color: #fff;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 
   @include v.hover-only {
     background: #fff;
@@ -271,11 +276,6 @@
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
 }
 
 .lock-answer-btn {

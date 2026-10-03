@@ -104,10 +104,10 @@
 
   .game-rules-list {
     margin: 0;
-    padding-left: 22px;
+    padding-left: 24px;
 
     li + li {
-      margin-top: 6px;
+      margin-top: 8px;
     }
   }
 }
@@ -116,9 +116,180 @@
   margin-top: 8px;
 }
 
-.question-audio {
-  display: block;
-  width: 100%;
+// The audio player (audio-player.js), in place of the browser's own: laid
+// out like Chrome's — ▶, the time, a bar, volume — in a box a step apart
+// from the card (a tint; in high contrast the card's own colour, outlined),
+// the played part and the dot in the primary colour.
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 6px;
+  border-radius: v.$radius-sm; // like the fields around it
+  background: v.$color-neutral-soft;
+  color: v.$color-text;
+  font-size: 14px;
+  user-select: none;
+
+  :root[data-contrast='high'] & {
+    background: v.$color-card;
+    box-shadow: inset 0 0 0 1px v.$color-border;
+  }
+}
+
+.audio-player-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: inherit;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  @include v.hover-only {
+    background: v.$color-hover;
+  }
+}
+
+.audio-player-time {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+// The bar: a thin line inside a taller strip, so it's easy to hit. The
+// part to play is the text's colour, faint; the played part and the dot
+// (shown while pointed at or dragged) the primary colour. --progress is set
+// by audio-player.js.
+.audio-player-track {
+  position: relative;
+  flex: 1;
+  min-width: 40px;
+  height: 24px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+
+  &::before,
+  .audio-player-clip,
+  .audio-player-fill {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 4px;
+    margin-top: -2px;
+    border-radius: 2px;
+  }
+
+  &::before {
+    right: 0;
+    background: color-mix(in srgb, currentColor 22%, transparent);
+  }
+
+  // The part the question plays (its "nuo" – "iki"), under the played
+  // part: a faint band of the primary colour (left and width set by
+  // audio-player.js).
+  .audio-player-clip {
+    background: color-mix(in srgb, v.$color-primary 40%, transparent);
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .audio-player-fill {
+    width: var(--progress, 0%);
+    background: v.$color-primary;
+  }
+
+  .audio-player-thumb {
+    position: absolute;
+    top: 50%;
+    left: var(--progress, 0%);
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border-radius: 50%;
+    background: v.$color-primary;
+    transform: scale(0);
+    transition: transform 0.15s ease;
+  }
+
+  &:hover .audio-player-thumb,
+  &.is-dragging .audio-player-thumb,
+  &:focus-visible .audio-player-thumb {
+    transform: scale(1);
+  }
+}
+
+// Volume: the speaker, and a slider drawn like the bar (--volume set by
+// audio-player.js) to its left. With a mouse it slides out when the
+// speaker's pointed at, as in Chrome — leftwards, the bar making room, so
+// the speaker stays put; on touch screens it's always there.
+.audio-player-volume {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.audio-player-volume-slider {
+  width: 64px;
+  height: 4px;
+  margin: 0 8px 0 4px; // 8px clear of the speaker's hover background
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 2px;
+  background:
+    linear-gradient(v.$color-primary, v.$color-primary) 0 / var(--volume, 100%) 100% no-repeat,
+    color-mix(in srgb, currentColor 22%, transparent);
+  cursor: pointer;
+  outline: none;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: v.$color-primary;
+    border: none;
+  }
+
+  &::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: v.$color-primary;
+    border: none;
+  }
+
+  @media (hover: hover) {
+    width: 0;
+    margin: 0;
+    opacity: 0;
+    transition:
+      width 0.2s ease,
+      margin 0.2s ease,
+      opacity 0.2s ease;
+
+    // Kept out for the keyboard only — clicked with the mouse (the speaker,
+    // the slider), it closes again once the pointer leaves.
+    .audio-player-volume:hover &,
+    .audio-player-volume:has(:focus-visible) & {
+      width: 64px;
+      margin: 0 8px 0 4px;
+      opacity: 1;
+    }
+  }
 }
 
 .audio-hint {
@@ -131,7 +302,7 @@
 .fullscreen-mode-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
 
   button {
@@ -144,8 +315,8 @@
 .room-row {
   display: flex;
   align-items: stretch;
-  gap: 6px;
-  margin: 6px 0;
+  gap: 8px;
+  margin: 8px 0;
 
   .option {
     margin: 0;
@@ -153,19 +324,19 @@
   }
 }
 
-// Always square: centred beside a name that wraps onto more lines rather
+// Always round: centred beside a name that wraps onto more lines rather
 // than stretched to the row's height.
 .room-close-btn {
   flex-shrink: 0;
   align-self: center;
-  width: 40px;
-  height: 40px;
+  width: 32px; // like the editor's ✕ (.remove-option-btn and the rest)
+  height: 32px;
   padding: 0;
   border: none;
-  border-radius: v.$radius-sm;
+  border-radius: 50%;
   background: transparent;
   color: v.$color-danger;
-  font-size: 18px;
+  font-size: 22px; // icon-only buttons all draw their icon at 22px
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s ease;
@@ -190,7 +361,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 15px;
     text-decoration: none;
   }
 }
@@ -201,7 +371,7 @@
   display: block;
   width: 100%;
   padding: 12px;
-  margin-top: 12px;
+  margin-top: 16px;
   font-size: 16px;
   background: v.$color-card;
   color: v.$color-primary;
@@ -220,10 +390,10 @@
   display: block;
   width: 100%;
   padding: 12px;
-  margin-top: 12px;
+  margin-top: 16px;
   font-size: 16px;
-  background: v.$color-success;
-  color: v.$color-on-success;
+  background: v.$color-action;
+  color: v.$color-on-action;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -296,11 +466,11 @@ body:has(#host-bar) {
   height: 44px;
   padding: 0;
   border: 1px solid v.$color-border;
-  border-radius: v.$radius-sm;
+  border-radius: v.$radius-sm; // square like the bar's other buttons, unlike the round icon buttons elsewhere
   background: v.$color-card;
   color: v.$color-muted;
   font: inherit;
-  font-size: 16px;
+  font-size: 22px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -313,19 +483,28 @@ body:has(#host-bar) {
   }
 }
 
-#host-bar-audio,
-#host-bar-audio-stop {
-  border-color: v.$color-success;
-  color: v.$color-success;
+#host-bar-audio {
+  border-color: v.$color-action;
+  color: v.$color-action;
 
   @include v.hover-only {
-    background: v.$color-success-soft;
+    background: v.$color-action-soft;
+  }
+}
+
+// Stopping the music: red, like the other buttons that end something.
+#host-bar-audio-stop {
+  border-color: v.$color-danger;
+  color: v.$color-danger;
+
+  @include v.hover-only {
+    background: v.$color-danger-soft;
   }
 }
 
 #host-bar-audio.is-playing {
-  background: v.$color-success;
-  color: v.$color-on-success;
+  background: v.$color-action;
+  color: v.$color-on-action;
 }
 
 // Fullscreen toggle: filled while the view screen shows the picture big.
@@ -357,11 +536,6 @@ body:has(#host-bar) {
   @include v.hover-only {
     border-color: v.$color-primary;
   }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
 }
 
 .text-scale-value {
@@ -374,8 +548,8 @@ body:has(#host-bar) {
 }
 
 .fullscreen-icon {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2.2;
@@ -388,18 +562,18 @@ body:has(#host-bar) {
 @media (max-width: 575px) {
   #host-bar {
     display: flex;
-    gap: 6px;
+    gap: 8px;
   }
 
   .host-bar-side,
   .host-bar-end {
-    gap: 6px;
+    gap: 8px;
   }
 
   .host-bar-main {
     flex: 1;
     min-width: 0;
-    gap: 6px;
+    gap: 8px;
   }
 
   #host-bar {
@@ -425,8 +599,8 @@ body:has(#host-bar) {
   margin-top: 16px;
   margin-bottom: 16px;
   font-size: 16px;
-  background: v.$color-success; // like the other main "create / save" buttons
-  color: v.$color-on-success;
+  background: v.$color-action; // like the other main "create / save" buttons
+  color: v.$color-on-action;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -448,11 +622,11 @@ body:has(#host-bar) {
 #season-setting {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: v.$color-card;
   border-radius: v.$radius;
   padding: 12px 14px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   box-shadow: v.$shadow-card;
 }
 
@@ -474,13 +648,7 @@ $season-control-height: 32px;
   text-align: center;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-
-  &:focus {
-    outline: none;
-    border-color: v.$color-primary;
-    box-shadow: 0 0 0 3px color-mix(in srgb, v.$color-primary 15%, transparent);
-  }
+  transition: border-color 0.15s ease;
 }
 
 #save-season-btn {
@@ -489,8 +657,8 @@ $season-control-height: 32px;
   height: $season-control-height;
   padding: 0 12px;
   font-size: 14px;
-  background: v.$color-success;
-  color: v.$color-on-success;
+  background: v.$color-action;
+  color: v.$color-on-action;
   border: none;
   border-radius: v.$radius-sm;
   cursor: pointer;
@@ -502,9 +670,13 @@ $season-control-height: 32px;
 
 #season-error {
   @extend %error-text;
-  margin-top: 6px;
+  margin-top: 8px;
   margin-bottom: 0;
 }
+
+// Every select's chevron: a background image — or, where the browser lets
+// the select be drawn (see appearance: base-select), its own arrow instead.
+$select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
 // Native <select> chrome (the browser's own arrow/box) doesn't match the
 // rest of the form, so it's suppressed via appearance: none and redrawn
@@ -521,7 +693,7 @@ $season-control-height: 32px;
   color: v.$color-text;
   text-align: left;
   background-color: v.$color-card;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: $select-chevron;
   background-repeat: no-repeat;
   background-position: right 12px center;
   border: 1px solid v.$color-border;
@@ -536,27 +708,21 @@ $season-control-height: 32px;
   @include v.hover-only {
     border-color: v.$color-primary;
   }
-
-  &:focus {
-    outline: none;
-    border-color: v.$color-primary;
-    box-shadow: 0 0 0 3px color-mix(in srgb, v.$color-primary 15%, transparent);
-  }
 }
 
 #dashboard-error {
   @extend %error-text;
-  margin-top: 12px;
+  margin-top: 16px;
   margin-bottom: 16px;
 }
 
 #create-room-error {
   @extend %error-text;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 #new-game-btn {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 // Stacked one-per-row below 576px — three items squeezed side by side got
@@ -567,7 +733,7 @@ $season-control-height: 32px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 12px;
 
   #manage-games-link,
@@ -680,13 +846,13 @@ $season-control-height: 32px;
 .rules-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .rule-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 
   .rule-input {
     flex: 1;
@@ -700,7 +866,7 @@ $season-control-height: 32px;
 
 .stage-header {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 
   .stage-name-input {
     flex: 1;
@@ -720,7 +886,7 @@ $season-control-height: 32px;
 .stage-extra-fields {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
 
   .stage-topic-input,
@@ -752,7 +918,9 @@ $season-control-height: 32px;
   background: transparent;
   color: v.$color-primary;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.2s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.2s ease;
 
   &.collapsed {
     transform: rotate(-90deg);
@@ -779,6 +947,10 @@ $season-control-height: 32px;
 
 .stage-body {
   overflow: hidden;
+  // Collapsed (max-height: 0), its content is hidden but Chrome still let
+  // it lengthen the page — thousands of pixels of nothing under the last
+  // stage. Paint containment keeps it inside the box for real.
+  contain: paint;
   transition: max-height 0.3s ease;
 
   // Lives on the content instead of on .stage-header's margin-bottom: this
@@ -795,7 +967,7 @@ $season-control-height: 32px;
   background: v.$color-bg;
   border-radius: v.$radius-sm;
   padding: 10px;
-  margin: 10px 0;
+  margin: 8px 0;
   counter-increment: question;
 
   // "N klausimas" above each question, numbered within its stage — a CSS
@@ -806,7 +978,7 @@ $season-control-height: 32px;
     font-size: 13px;
     font-weight: 600;
     color: v.$color-muted;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
 }
 
@@ -815,7 +987,7 @@ $season-control-height: 32px;
 .question-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-bottom: 8px;
 
   .question-type-select {
@@ -852,10 +1024,9 @@ $season-control-height: 32px;
   padding: 8px;
   margin-bottom: 8px;
 
-  .question-audio-preview {
-    display: block;
-    width: 100%;
-    margin-bottom: 6px;
+  // The question's track, above its "nuo / iki" fields.
+  .audio-player {
+    margin-bottom: 8px;
   }
 }
 
@@ -944,9 +1115,9 @@ $clip-control-height: 38px;
 // min-width: 0 lets it actually shrink that low when the row is tight,
 // instead of the default intrinsic min-width forcing the row to overflow.
 // Selector is doubled up (.play-from-start-btn.secondary-btn, not just
-// .play-from-start-btn) to outrank .secondary-btn's own margin-top: 6px —
+// .play-from-start-btn) to outrank .secondary-btn's own margin-top: 8px —
 // same specificity otherwise means whichever rule comes later in the file
-// wins, which was silently reintroducing that 6px and fighting the row's
+// wins, which was silently reintroducing that 8px and fighting the row's
 // gap: 8px.
 .play-from-start-btn.secondary-btn {
   flex: 1 1 auto;
@@ -962,15 +1133,15 @@ $clip-control-height: 38px;
 .options-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .option-row {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-top: 10px;
-  border-top: 1px solid v.$color-border;
+  padding-top: 8px;
+  border-top: 1px dashed v.$color-border;
 
   &:first-child {
     padding-top: 0;
@@ -981,7 +1152,7 @@ $clip-control-height: 38px;
 .option-row-main {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 
   .option-text-input {
     flex: 1;
@@ -1036,7 +1207,7 @@ $clip-control-height: 38px;
 .correct-answer-hint {
   font-size: 12px;
   color: v.$color-muted;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .correct-answer-badge {
@@ -1077,7 +1248,7 @@ $clip-control-height: 38px;
   font-weight: 600;
   color: v.$color-primary;
   background-color: v.$color-card;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: $select-chevron;
   background-repeat: no-repeat;
   background-position: right 10px center;
   border: 1px solid v.$color-border;
@@ -1113,18 +1284,46 @@ select option {
     appearance: base-select;
   }
 
-  select:focus-visible {
-    outline: 2px solid v.$color-primary;
-    outline-offset: -1px;
+  // The chevron is the select's own arrow here, not the background image,
+  // so it can flip over while the list is open, with a transition.
+  // (Named with their elements to outrank their own rules, wherever those
+  // sit.) Pushed to the right edge, where the background one was.
+  select#game-select,
+  select.question-type-select,
+  .team-add select.team-add-select {
+    display: flex;
+    align-items: center;
+    background-image: none;
   }
 
-  // The closed box keeps its own chevron (a background image).
+  select#game-select {
+    padding-right: 12px;
+  }
+
+  select.question-type-select,
+  .team-add select.team-add-select {
+    padding-right: 10px;
+  }
+
   select::picker-icon {
-    display: none;
+    content: '';
+    flex-shrink: 0;
+    width: 12px;
+    height: 8px;
+    margin-left: auto;
+    padding-left: 8px;
+    background-color: v.$color-muted;
+    mask: $select-chevron center right / 12px 8px no-repeat;
+    transition: transform 0.2s ease;
+  }
+
+  // Flipped over its horizontal axis (not turned around).
+  select:open::picker-icon {
+    transform: rotateX(180deg);
   }
 
   ::picker(select) {
-    margin-top: 4px;
+    margin: 4px 0; // 4px from the select, whether the list opens below it or above
     padding: 4px;
     background: v.$color-card;
     border: 1px solid v.$color-border;
@@ -1143,7 +1342,7 @@ select option {
     background: transparent;
     cursor: pointer;
 
-    &:hover,
+    &:hover:not(:disabled),
     &:focus-visible {
       background: v.$color-hover;
       outline: none;
@@ -1185,13 +1384,13 @@ select option {
 .text-answers-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .text-answer-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 
   &:first-child .remove-text-answer-btn {
     visibility: hidden;
@@ -1210,7 +1409,7 @@ select option {
 .ordered-answers-toggle {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
   font-size: 14px;
   cursor: pointer;
@@ -1235,9 +1434,9 @@ select option {
   cursor: pointer;
 
   &.active {
-    color: v.$color-on-success;
-    background: v.$color-success;
-    border-color: v.$color-success;
+    color: v.$color-on-action;
+    background: v.$color-action;
+    border-color: v.$color-action;
   }
 }
 
@@ -1247,18 +1446,18 @@ select option {
 .chain-links-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   counter-reset: chain-link;
 }
 
 .chain-link-row {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
   counter-increment: chain-link;
 
   & + & {
-    padding-top: 10px;
+    padding-top: 8px;
     border-top: 1px dashed v.$color-border;
   }
 
@@ -1294,7 +1493,7 @@ select option {
   .chain-link-main {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 
     .chain-clue-input {
       flex: 1;
@@ -1332,14 +1531,14 @@ select option {
 .hints-container {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   counter-reset: hint;
 }
 
 .hint-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   counter-increment: hint;
 
   .hint-number {
@@ -1366,13 +1565,13 @@ select option {
 
 .hints-answer-input {
   display: block;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 // The extra answer, under the main one.
 .bonus-section {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px dashed v.$color-border;
 
   .add-bonus-btn[hidden] {
@@ -1383,8 +1582,8 @@ select option {
 .bonus-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .bonus-title {
@@ -1398,7 +1597,7 @@ select option {
 .bonus-answer-input {
   width: 100%;
   padding: 7px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-size: 14px;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
@@ -1466,6 +1665,12 @@ select option {
   height: 32px;
 }
 
+// The one exception to the 22px icons of icon-only buttons: beside a rule's
+// single-line field the full-size ✕ looks too big.
+.remove-rule-btn {
+  font-size: 18px;
+}
+
 .secondary-btn,
 .add-question-btn,
 .add-option-btn {
@@ -1477,7 +1682,7 @@ select option {
   border: 1px solid v.$color-primary;
   border-radius: v.$radius-sm;
   cursor: pointer;
-  margin-top: 6px;
+  margin-top: 8px;
 
   @include v.hover-only {
     background: v.$color-primary-soft;
@@ -1494,8 +1699,8 @@ select option {
   width: 100%;
   padding: 12px;
   font-size: 16px;
-  background: v.$color-success;
-  color: v.$color-on-success;
+  background: v.$color-action;
+  color: v.$color-on-action;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -1509,7 +1714,7 @@ select option {
 #games-error,
 #games-file-error {
   @extend %error-text;
-  margin-top: 12px;
+  margin-top: 16px;
 }
 
 #games-file-error[hidden] {
@@ -1521,7 +1726,7 @@ select option {
 #export-all-games-btn {
   box-sizing: border-box;
   width: 100%;
-  margin: 0 0 12px;
+  margin: 0 0 16px;
   padding: 10px;
   font-family: inherit;
   font-size: 16px;
@@ -1537,8 +1742,8 @@ select option {
 // spacing) — the section-divider text (e.g. "Sukurti žaidimai:") sat too
 // close to the list below it.
 .section-label {
-  margin-top: 12px;
-  margin-bottom: 12px;
+  margin-top: 16px;
+  margin-bottom: 16px;
 }
 
 // docs/ only (main app's games list keeps its plain .option link — this
@@ -1552,8 +1757,8 @@ select option {
   font-size: 16px;
   text-align: center;
   text-decoration: none;
-  background: v.$color-success;
-  color: v.$color-on-success;
+  background: v.$color-action;
+  color: v.$color-on-action;
   border: 1px solid transparent;
   border-radius: v.$radius;
   cursor: pointer;
@@ -1704,12 +1909,6 @@ select option {
     margin: 0;
     font-family: inherit;
   }
-
-  .import-choice-confirm:disabled {
-    opacity: 0.5;
-    cursor: default;
-    filter: none;
-  }
 }
 
 // Lets a styled <label for="..."> stand in for a real file-picker button
@@ -1727,7 +1926,7 @@ select option {
 .hint-text {
   font-size: 12px;
   color: v.$color-muted;
-  margin: 6px 0;
+  margin: 8px 0;
 }
 
 // Komandų istorija (/host/teams): one card per team, nested season -> game
@@ -1817,7 +2016,7 @@ select option {
     background: none;
     border-radius: 0;
     box-shadow: none;
-    border-top: 1px solid v.$color-border;
+    border-top: 1px dashed v.$color-border;
   }
 
   // one step below the season title
@@ -1858,7 +2057,7 @@ select option {
   background: color-mix(in srgb, v.$color-primary 10%, transparent);
   border-radius: v.$radius-sm;
   padding: 2px 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 
   // Whether a typed-answer question's several answers go in order —
   // orange when they do, so it isn't missed while marking.
@@ -1907,7 +2106,7 @@ select option {
 .section-divider {
   margin: 8px 0;
   border: none;
-  border-top: 1px solid v.$color-border;
+  border-top: 1px dashed v.$color-border;
 }
 
 // Above the teams-and-internet box on every game-flow page (it's part of
@@ -1999,10 +2198,10 @@ select option {
 // A chain's clues (host room) or clues with their answers (stage answers).
 .chain-clues {
   margin: 4px 0 8px;
-  padding-left: 22px;
+  padding-left: 24px;
 
   li {
-    margin: 2px 0;
+    margin: 4px 0;
   }
 
   // A hints question's hints not shown on the big screen yet.
@@ -2046,42 +2245,54 @@ select option {
   }
 }
 
-// ✓ / ✗ pair: the inactive one is an outline in its colour, the active one
-// is filled.
+// ✓ / ✗ pair: icon buttons like the rest (no border, a background only
+// under the pointer — a tint of its colour), the picked one filled.
 .typed-answer-btn {
   flex: 0 0 auto;
-  width: 40px;
-  height: 36px;
-  border: 1px solid currentColor;
-  border-radius: v.$radius;
-  background: v.$color-card;
-  font-size: 18px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: v.$radius-sm;
+  background: transparent;
+  font-size: 18px; // like the team list's icons
+  line-height: 1;
   cursor: pointer;
+  transition: background 0.15s ease;
 
   &.correct-btn {
     color: v.$color-success;
+
+    // Not the picked one, which stays filled.
+    &:not(.active) {
+      @include v.hover-only {
+        background: v.$color-success-soft;
+      }
+    }
   }
 
   &.wrong-btn {
     color: v.$color-danger;
+
+    // Not the picked one, which stays filled.
+    &:not(.active) {
+      @include v.hover-only {
+        background: v.$color-danger-soft;
+      }
+    }
   }
 
   &.correct-btn.active {
     background: v.$color-success;
-    border-color: v.$color-success;
     color: v.$color-on-success;
   }
 
   &.wrong-btn.active {
     background: v.$color-danger;
-    border-color: v.$color-danger;
     color: v.$color-on-danger;
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: default;
   }
 }
 
@@ -2101,7 +2312,7 @@ select option {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 
   .team-status-title {
     margin-bottom: 0;
@@ -2113,24 +2324,41 @@ select option {
   margin-bottom: 8px;
 }
 
-// On (default) = primary outline like other secondary buttons; off = muted,
-// so a switched-off warning is easy to spot.
-.internet-warning-toggle.secondary-btn {
-  margin-top: 0;
-  font-family: inherit;
+// The players' "turn off mobile data" warning, on or off for the room.
+// An icon button, like the team list's: the bell while on, struck through
+// (and muted) while off; a background only under the pointer.
+.internet-warning-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: v.$color-primary;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s ease;
 
-  &[hidden] {
-    display: none;
+  @include v.hover-only {
+    background: v.$color-primary-soft;
   }
 
   &.is-off {
     color: v.$color-muted;
-    border-color: v.$color-border;
-    background: v.$color-neutral-soft;
+  }
+
+  &[hidden] {
+    display: none;
   }
 }
 
 .team-status-empty {
+  margin-bottom: 12px; // above .team-add's line
   color: v.$color-muted;
 }
 
@@ -2140,11 +2368,9 @@ select option {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 6px 0;
-
-  & + & {
-    border-top: 1px solid v.$color-border;
-  }
+  padding: 8px 0;
+  // Every row, the first too: a line under the title, then between teams.
+  border-top: 1px dashed v.$color-border;
 }
 
 .team-status-name {
@@ -2174,7 +2400,7 @@ select option {
   height: 32px;
   padding: 0;
   font-family: inherit;
-  font-size: 18px;
+  font-size: 18px; // smaller in the compact team list, like the rules' ✕
   line-height: 1;
   background: v.$color-card;
   color: v.$color-primary;
@@ -2184,12 +2410,6 @@ select option {
 
   @include v.hover-only {
     background: v.$color-primary-soft;
-  }
-
-  &:disabled {
-    color: v.$color-muted;
-    background: v.$color-neutral-soft;
-    cursor: default;
   }
 }
 
@@ -2222,7 +2442,7 @@ select option {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px;
   color: v.$color-muted;
 
@@ -2242,7 +2462,7 @@ select option {
   width: 32px;
   height: 32px;
   padding: 0;
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1;
   background: transparent;
   color: v.$color-danger;
@@ -2259,10 +2479,11 @@ select option {
 .team-add {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid v.$color-border;
+  gap: 8px;
+  // Its line sits right under the last team's row (whose bottom padding is
+  // the space above it) or the "no teams" note (its margin).
+  padding-top: 12px;
+  border-top: 1px dashed v.$color-border;
 
   &[hidden] {
     display: none;
@@ -2284,14 +2505,28 @@ select option {
     }
   }
 
+  // Its own chevron, like .question-type-select: the browser's arrow is
+  // hidden for every select (see ::picker-icon), so without one it reads
+  // as a text field.
+  select {
+    padding-right: 32px;
+    color: v.$color-text;
+    background-image: $select-chevron;
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer;
+
+    // Where the menu-like list isn't there, the browser's own box (and
+    // arrow) goes; where it is, it's left on (the select rule above).
+    @supports not (appearance: base-select) {
+      appearance: none;
+      -webkit-appearance: none;
+    }
+  }
+
   .team-add-btn.secondary-btn {
     margin-top: 0;
     font-family: inherit;
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: default;
-    }
   }
 
   .team-add-error {
@@ -2317,7 +2552,7 @@ select option {
 // wrapper takes over the field's bottom margin so spacing stays the same.
 .file-url-field {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: stretch;
   margin-bottom: 8px;
 
@@ -2364,8 +2599,8 @@ select option {
   }
 
   .pick-file-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.8;
@@ -2404,14 +2639,13 @@ select option {
   scroll-margin-top: 16px;
 }
 
-
 // Room panel: a number button per question of the stage shown so far, to
 // jump back (or forward again) to it; the one on screen now is filled in.
 .question-jump {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   margin: 0 0 12px;
 }
 

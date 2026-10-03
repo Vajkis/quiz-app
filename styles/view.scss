@@ -271,7 +271,7 @@ body {
 .audio-progress-bar {
   width: 100%;
   height: 10px;
-  background: rgba(0, 0, 0, 0.08);
+  background: v.$color-border; // from the theme, so the empty part shows on dark too
   border-radius: 999px;
   overflow: hidden;
 }
@@ -279,7 +279,7 @@ body {
 .audio-progress-fill {
   height: 100%;
   width: 0%;
-  background: v.$color-success;
+  background: v.$color-action;
   border-radius: 999px;
 }
 
@@ -514,7 +514,7 @@ $badge-bottom: calc(8px + #{v.text(32px * 1.5)});
 // A chain's clues: numbered like the answer fields on the phones.
 .view-chain-clue .chain-clue-number {
   font-weight: 700;
-  margin-right: 10px;
+  margin-right: 8px;
 }
 
 // A hints question's newly revealed hint, fading in.

@@ -6,6 +6,7 @@ $color-card: var(--color-card);
 $color-surface-alt: var(--color-surface-alt);
 $color-border: var(--color-border);
 $color-muted: var(--color-muted);
+$color-disabled: var(--color-disabled);
 $color-primary: var(--color-primary);
 $color-primary-soft: var(--color-primary-soft);
 $color-on-accent: var(--color-on-accent);
@@ -15,6 +16,9 @@ $color-danger-soft: var(--color-danger-soft);
 $color-success: var(--color-success);
 $color-on-success: var(--color-on-success);
 $color-success-soft: var(--color-success-soft);
+$color-action: var(--color-action);
+$color-on-action: var(--color-on-action);
+$color-action-soft: var(--color-action-soft);
 $color-purple: var(--color-purple);
 $color-neutral-soft: var(--color-neutral-soft);
 $color-hover: var(--color-hover);
@@ -35,10 +39,11 @@ $host-bar-height: 64px;
 
 // Hover states only make sense with a real pointer — on touch devices
 // :hover either does nothing useful or "sticks" after a tap. 992px is the
-// usual desktop/tablet-landscape breakpoint.
+// usual desktop/tablet-landscape breakpoint. A disabled button gets none:
+// it can't be pressed, so it shouldn't look like it could.
 @mixin hover-only {
   @media (min-width: 992px) {
-    &:hover {
+    &:hover:not(:disabled) {
       @content;
     }
   }

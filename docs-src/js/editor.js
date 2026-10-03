@@ -16,7 +16,7 @@ const importInput = document.getElementById('import-game-input');
 const errorEl = document.getElementById('editor-error');
 const draftStatusEl = document.getElementById('draft-status');
 
-const { createStageCard, renderGame, collectPayload } = QuizGameEditorCore;
+const { addStage, renderGame, collectPayload } = QuizGameEditorCore;
 const { normalizeGamePayload } = QuizGameShared;
 
 // 📁 buttons: the picked file is kept in this browser (media-store.js) and
@@ -129,7 +129,7 @@ showGame(initialGame).then(() => {
 });
 
 addStageBtn.addEventListener('click', () => {
-  stagesContainer.appendChild(createStageCard({}));
+  addStage(stagesContainer);
 });
 
 saveBtn.addEventListener('click', async () => {

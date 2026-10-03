@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <title><%= title %></title>
 <link rel="stylesheet" href="/css/host.css">
 <script src="/icons.js"></script>
@@ -26,7 +28,7 @@
 
   <%# Newest season first and open; older ones below, collapsed. %>
   <% seasonList.forEach(function(season, i) { %>
-    <div class="stage-card season-section">
+    <div class="stage-card season-section" data-season-id="<%= season.seasonId %>">
       <div class="stage-header season-section-header">
         <button type="button" class="toggle-stage-btn<%= i === 0 ? '' : ' collapsed' %>" title="Suskleisti/išskleisti sezoną"><span class="chevron-icon"></span></button>
         <span class="season-section-title">Sezonas <%= season.seasonId %></span>

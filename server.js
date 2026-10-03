@@ -721,7 +721,9 @@ function buildLeaderboard(room, scores = room.scores) {
 // season -> game -> stage id, so standings persist and can be broken down
 // later. Keyed by stage id (not name) so two stages sharing a name never
 // merge; the name is looked up from games.json when displayed (see
-// stageDisplayName). Purely backend bookkeeping — never shown to clients.
+// stageDisplayName), and also kept with the team (rememberHistoryNames), so
+// it still reads once the game or stage is deleted. Purely backend
+// bookkeeping — never shown to clients.
 function recordStageScores(room, stage, stageScores) {
   const label = `"${stage.name}" (${stage.id})`;
   if (!room.seasonId) {
@@ -748,17 +750,71 @@ function recordStageScores(room, stage, stageScores) {
       teams[teamId].seasons[room.seasonId][room.gameId] || {};
     const gameStages = teams[teamId].seasons[room.seasonId][room.gameId];
     gameStages[stage.id] = (gameStages[stage.id] || 0) + score;
+    rememberHistoryNames(teams[teamId]);
   });
   saveTeams(teams);
 }
 
-// History stores only stage ids; the name comes from games.json. Falls back
-// to the key itself when the stage is gone (deleted from the game, or an
-// old entry that was keyed by name).
-function stageDisplayName(gameId, stageKey) {
+// The names of the games and stages a team's history points at, kept with
+// the team — gameNames { gameId: name }, stageNames { gameId: { stageId:
+// name } } — since the history itself holds only ids: once a game (or one
+// of its stages) is deleted, these are all that's left to show. Taken from
+// games.json while the game is there, so they follow renames. Returns
+// whether anything changed.
+function rememberHistoryNames(team) {
+  let changed = false;
+  Object.values(team.seasons || {}).forEach((gamesForSeason) => {
+    Object.entries(gamesForSeason).forEach(([gameId, stageScores]) => {
+      const game = games[gameId];
+      if (!game) return;
+      team.gameNames = team.gameNames || {};
+      if (team.gameNames[gameId] !== game.name) {
+        team.gameNames[gameId] = game.name;
+        changed = true;
+      }
+      Object.keys(stageScores).forEach((stageKey) => {
+        const stage = game.stages.find((st) => st.id === stageKey);
+        if (!stage) return;
+        team.stageNames = team.stageNames || {};
+        const names = (team.stageNames[gameId] = team.stageNames[gameId] || {});
+        if (names[stageKey] !== stage.name) {
+          names[stageKey] = stage.name;
+          changed = true;
+        }
+      });
+    });
+  });
+  return changed;
+}
+
+// The same for every team — at startup (history recorded before names were
+// kept), and before a game is deleted or saved (a stage may be removed).
+function rememberAllHistoryNames() {
+  const teams = loadTeams();
+  let changed = false;
+  Object.values(teams).forEach((t) => {
+    if (rememberHistoryNames(t)) changed = true;
+  });
+  if (changed) saveTeams(teams);
+}
+
+// History stores only stage ids; the name comes from games.json, or — the
+// stage (or its whole game) since deleted — the one kept with the team (see
+// rememberHistoryNames). Falls back to the key itself when neither has it
+// (an old entry that was keyed by name).
+function stageDisplayName(gameId, stageKey, team) {
   const game = games[gameId];
   const stage = game && game.stages.find((s) => s.id === stageKey);
-  return stage ? stage.name : stageKey;
+  if (stage) return stage.name;
+  const kept = team && team.stageNames && team.stageNames[gameId];
+  return (kept && kept[stageKey]) || stageKey;
+}
+
+// A game's name for the history: from games.json, or the one kept with the
+// team once it's deleted, or just its id.
+function gameDisplayName(gameId, team) {
+  if (games[gameId]) return games[gameId].name;
+  return (team && team.gameNames && team.gameNames[gameId]) || gameId;
 }
 
 // Each team's total across every game and stage recorded under a season
@@ -1729,13 +1785,13 @@ app.get('/host/teams', (req, res) => {
         ([gameId, stageScores]) => {
           const stageList = Object.entries(stageScores).map(
             ([stageKey, score]) => ({
-              stageName: stageDisplayName(gameId, stageKey),
+              stageName: stageDisplayName(gameId, stageKey, t),
               score
             })
           );
           return {
             gameId,
-            gameName: games[gameId] ? games[gameId].name : gameId,
+            gameName: gameDisplayName(gameId, t),
             stages: stageList,
             total: stageList.reduce((sum, s) => sum + s.score, 0)
           };
@@ -1954,6 +2010,8 @@ app.put('/api/games/:gameId', (req, res) => {
     return res.status(404).json({ error: 'Žaidimas nerastas' });
   const result = normalizeGamePayload(req.body);
   if (result.error) return res.status(400).json({ error: result.error });
+  // A stage dropped in the editor keeps its name in the teams' history.
+  rememberAllHistoryNames();
   games[gameId] = result.game;
   saveGames();
   res.json({ ok: true });
@@ -1968,6 +2026,8 @@ app.delete('/api/games/:gameId', (req, res) => {
     return res
       .status(400)
       .json({ error: 'Žaidimas naudojamas aktyviame kambaryje' });
+  // Its name (and its stages') stays in the teams' history.
+  rememberAllHistoryNames();
   delete games[gameId];
   saveGames();
   res.json({ ok: true });
@@ -2749,6 +2809,10 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('fullscreen-command', out);
   });
 });
+
+// History recorded before game and stage names were kept with it gets them
+// now, while those games are still there to take them from.
+rememberAllHistoryNames();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Quiz server running on http://0.0.0.0:${PORT}`);

@@ -609,16 +609,44 @@
     return { set };
   }
 
-  // One stage open at a time: shuts every other one at once, and scrolls
-  // so `card` stays where it was on screen (the stages above it shrink).
+  // One stage open at a time, and the opened one brought into view — in
+  // two steps, so each is smooth: first it opens while the page scrolls up
+  // to it (the rest still as they were, so it isn't chasing a moving
+  // target); then the others slide shut while the page keeps scrolling
+  // with them, holding it where it is on screen (the stages above it
+  // shrinking would carry it up).
   function collapseOtherStages(card) {
     const container = card.parentElement;
     if (!container) return;
-    const before = card.getBoundingClientRect().top;
-    Array.from(container.children).forEach((other) => {
-      if (other !== card && other.collapse) other.collapse.set(true, false);
+    const others = Array.from(container.children).filter((other) => other !== card && other.collapse);
+    scrollAlong(card, () => {
+      others.forEach((other) => other.collapse.set(true));
+      glide(card, null, 350);
     });
-    window.scrollBy({ top: card.getBoundingClientRect().top - before, behavior: 'instant' });
+  }
+
+  // Up to the top (its scroll-margin), over the 0.3s a card takes to open.
+  function scrollAlong(el, done) {
+    glide(el, parseFloat(getComputedStyle(el).scrollMarginTop) || 0, 300, done);
+  }
+
+  // Scrolls the page, frame by frame, so el's top on screen moves from
+  // where it is to `to` (null: stays put) over `duration` ms — whatever
+  // grows or shrinks around it meanwhile. done, if any, once it's there.
+  function glide(el, to, duration, done) {
+    const from = el.getBoundingClientRect().top;
+    const target = to == null ? from : to;
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const start = performance.now();
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / duration);
+      const wanted = from + (target - from) * ease(t);
+      const drift = el.getBoundingClientRect().top - wanted;
+      if (drift) window.scrollBy({ top: drift, behavior: 'instant' });
+      if (t < 1) requestAnimationFrame(step);
+      else if (done) done();
+    };
+    requestAnimationFrame(step);
   }
 
   // A stage's card, open — or shut with startCollapsed (a loaded game's
@@ -1111,8 +1139,12 @@
       const toggle = card.querySelector(
         ':scope > .stage-header .toggle-stage-btn'
       );
-      if (toggle && toggle.classList.contains('collapsed')) toggle.click();
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Opening a stage scrolls to it (see collapseOtherStages); the rules
+      // card isn't one, and an open card isn't opened — those are scrolled
+      // to here.
+      const opening = !!toggle && toggle.classList.contains('collapsed');
+      if (opening) toggle.click();
+      if (!opening || !card.collapse) scrollAlong(card);
     }
 
     // What a button down at the bottom shows in answer (a save's error, the

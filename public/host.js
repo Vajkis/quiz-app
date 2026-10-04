@@ -764,8 +764,34 @@ document.querySelectorAll('.reveal-btn').forEach((btn) => {
 // Team history: each season's chevron collapses/expands its section, the
 // same way (and with the same button) as a stage in the game editor — see
 // attachCollapse in game-editor-core.js. The newest season starts open, and
-// one is open at a time: opening another shuts the rest at once, keeping
-// the opened one where it was on screen.
+// one is open at a time. As with the editor's stages (collapseOtherStages
+// in game-editor-core.js), in two steps: the opened season slides open
+// while the page scrolls up to it, then the rest slide shut while the page
+// keeps it where it is on screen.
+
+// Up to the top (its scroll-margin), over the 0.3s a section takes to open.
+function scrollAlong(el, done) {
+  glide(el, parseFloat(getComputedStyle(el).scrollMarginTop) || 0, 300, done);
+}
+
+// Scrolls the page, frame by frame, so el's top on screen moves from where
+// it is to `to` (null: stays put) over `duration` ms — whatever grows or
+// shrinks around it meanwhile. done, if any, once it's there.
+function glide(el, to, duration, done) {
+  const from = el.getBoundingClientRect().top;
+  const target = to == null ? from : to;
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const start = performance.now();
+  const step = () => {
+    const t = Math.min(1, (performance.now() - start) / duration);
+    const wanted = from + (target - from) * ease(t);
+    const drift = el.getBoundingClientRect().top - wanted;
+    if (drift) window.scrollBy({ top: drift, behavior: 'instant' });
+    if (t < 1) requestAnimationFrame(step);
+    else if (done) done();
+  };
+  requestAnimationFrame(step);
+}
 const seasonSections = Array.from(document.querySelectorAll('.season-section'));
 seasonSections.forEach((section) => {
   const toggleBtn = section.querySelector('.toggle-stage-btn');
@@ -801,11 +827,12 @@ seasonSections.forEach((section) => {
   toggleBtn.addEventListener('click', () => {
     set(!collapsed);
     if (collapsed) return;
-    const before = section.getBoundingClientRect().top;
-    seasonSections.forEach((other) => {
-      if (other !== section) other.collapse.set(true, false);
+    scrollAlong(section, () => {
+      seasonSections.forEach((other) => {
+        if (other !== section) other.collapse.set(true);
+      });
+      glide(section, null, 350);
     });
-    window.scrollBy({ top: section.getBoundingClientRect().top - before, behavior: 'instant' });
   });
 });
 
@@ -821,10 +848,10 @@ if (seasonSections.length && window.QuizSidePanel) {
         seasonId,
         `Sezonas ${seasonId}`,
         () => {
-          if (section.collapse.isCollapsed()) {
-            section.querySelector('.toggle-stage-btn').click();
-          }
-          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          // Opening it scrolls to it (the chevron's handler); already open,
+          // just scroll.
+          if (section.collapse.isCollapsed()) section.querySelector('.toggle-stage-btn').click();
+          else scrollAlong(section);
         },
         'side-panel-stage'
       )

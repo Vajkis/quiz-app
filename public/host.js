@@ -307,7 +307,8 @@ if (prevBtn) {
 // one already shown (after stepping back) or else the bar's main button
 // (next question, start the stage, show the answers…), ↑ / ↓ the view
 // screen's text bigger / smaller, space the track's ▶ / II, F the view
-// screen's fullscreen picture (Esc closes it too), a number straight to
+// screen's fullscreen picture (Esc closes it too), B the bar itself
+// collapsed / back ("bar"), a number straight to
 // that question already shown (its number button). Not while typing into a
 // field (a paper team's points), and one move per page — each reloads it,
 // so a held or double-tapped key can't skip past questions.
@@ -399,6 +400,9 @@ if (document.getElementById('host-bar')) {
       // with a picture (or picture options) has that button. By the key's
       // place (e.code), so any keyboard layout works.
       if (!e.repeat) click('host-bar-fullscreen');
+    } else if (e.code === 'KeyB') {
+      // B: the bar collapsed / back, by the key's place like F.
+      if (!e.repeat) click('host-bar-toggle');
     } else if (e.key === 'Escape') {
       // Esc: only closes an open fullscreen picture — never leaves the game
       // (too easy to hit by mistake; the ✕ is there for that).

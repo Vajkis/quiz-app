@@ -406,13 +406,26 @@
 
 // Game-flow pages: the main buttons live in a bar fixed along the bottom
 // (same as docs/preview.html), so they're always in the same spot — ✕ back
-// to the dashboard (and ▶/II + ■ for a music question) on the left, the
-// page's own prev/next buttons centred. A 1fr | auto | 1fr grid keeps the
-// middle group centred without the left one ever overlapping it.
-$host-bar-height: v.$host-bar-height;
-
+// to the dashboard (then the fullscreen toggle for a picture, ▶/II + ■ for a
+// music question) on the left, the page's own prev/next buttons centred,
+// the text size on the right. A 1fr | auto | 1fr grid keeps the middle
+// group centred without the left one ever overlapping it. Too
+// narrow for all that in one row, two (host-bar-two-rows, below). Its
+// height is --host-bar-height, for the page (and the side panel's ☰) to
+// keep clear of.
 body:has(#host-bar) {
-  padding-bottom: $host-bar-height + 16px;
+  --host-bar-height: #{v.$host-bar-height};
+  padding-bottom: calc(var(--host-bar-height) + 16px);
+}
+
+// Collapsed: only the strip is left, room for it under the page's end — on
+// a phone for the side panel's corner ☰ button, as on pages without the bar.
+body:has(#host-bar.is-collapsed) {
+  padding-bottom: v.$bar-toggle-height + 16px;
+
+  @include side-panel.side-panel-mobile {
+    padding-bottom: 84px;
+  }
 }
 
 #host-bar {
@@ -425,11 +438,14 @@ body:has(#host-bar) {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  height: $host-bar-height;
+  height: var(--host-bar-height);
   padding: 0 12px;
   background: v.$color-card;
   border-top: 1px solid v.$color-border;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  // Collapsed by its strip or B. With the side panel the bar's left edge
+  // moves too — its transition there (_side-panel.scss) lists this one along.
+  @include v.collapsible-bar;
 
   #prev-btn,
   #forward-btn,
@@ -455,7 +471,7 @@ body:has(#host-bar) {
   gap: 8px;
 }
 
-// Right-hand group (the fullscreen toggle), mirroring the ✕ on the left.
+// Right-hand group (the text size), mirroring the ✕ on the left.
 .host-bar-end {
   justify-content: flex-end;
 }
@@ -557,23 +573,100 @@ body:has(#host-bar) {
   stroke-linejoin: round;
 }
 
-// Phones: one row, left group first, the centred buttons sharing whatever
-// width is left.
-@media (max-width: 575px) {
-  #host-bar {
-    display: flex;
-    gap: 8px;
+// Too narrow for one row: two — the page's own buttons across the top,
+// sharing its width, and under them ✕ ⛶ ▶ ■ on the left, the text size on
+// the right. One row needs about 990px of bar (the widest
+// buttons, "Rodyti etapo atsakymus"…), so two below that plus the side
+// panel's width: 52px collapsed (none on a phone), 240px open.
+$host-bar-one-row: 990px;
+
+@mixin host-bar-two-rows {
+  --host-bar-height: #{v.$host-bar-two-rows-height};
+
+  // The final results' "Rodyti … taškus" two above "Baigti žaidimą": a row
+  // more.
+  &:has(.leaderboard-view-btn) {
+    --host-bar-height: #{v.$host-bar-two-rows-height + 44px + 8px};
   }
 
-  .host-bar-side,
-  .host-bar-end {
-    gap: 8px;
+  #host-bar {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 44px;
+    align-content: center;
+    row-gap: 8px;
+
+    // Equal shares of the row, two at 50/50; a label too long for its share
+    // goes on to a second line rather than being cut off.
+    #prev-btn,
+    #forward-btn,
+    .leaderboard-view-btn,
+    #next-btn,
+    #finish-game-btn {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0 8px;
+      white-space: normal;
+      line-height: 1.15;
+      overflow: hidden;
+    }
+
+    // Under the two "Rodyti … taškus", across the whole row.
+    .leaderboard-view-btn ~ #finish-game-btn {
+      flex-basis: 100%;
+    }
+
+    // A phone, with "Sekantis" too — three in the row: "Ankstesnis" only
+    // its ← (the word still read out), for the buttons forward to keep
+    // theirs.
+    @media (max-width: 575px) {
+      #prev-btn:has(~ #forward-btn) {
+        flex: none;
+        width: 44px;
+        padding: 0;
+        font-size: 0;
+
+        .icon {
+          font-size: 20px;
+        }
+      }
+    }
   }
 
   .host-bar-main {
-    flex: 1;
-    min-width: 0;
-    gap: 8px;
+    grid-column: 1 / -1;
+    grid-row: 1;
+    flex-wrap: wrap;
+  }
+
+  .host-bar-side {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .host-bar-end {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: #{$host-bar-one-row + side-panel.$side-panel-width - 1px}) {
+  body:has(#host-bar):not(.side-panel-open) {
+    @include host-bar-two-rows;
+  }
+}
+
+@media (max-width: #{$host-bar-one-row + side-panel.$side-panel-open-width - 1px}) {
+  body:has(#host-bar).side-panel-open {
+    @include host-bar-two-rows;
+  }
+}
+
+// Phones: smaller icon buttons and text, so a 360px screen still fits
+// ✕ ⛶ ▶ ■ and − 100% + side by side.
+@media (max-width: 575px) {
+  .host-bar-btn {
+    width: 40px;
+    height: 40px;
   }
 
   #host-bar {
@@ -582,12 +675,7 @@ body:has(#host-bar) {
     .leaderboard-view-btn,
     #next-btn,
     #finish-game-btn {
-      flex: 1 1 0;
-      min-width: 0;
-      padding: 0 6px;
       font-size: 14px;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
   }
 }

@@ -222,6 +222,8 @@ function fitRules() {
   gameRulesListEl.style.fontSize = `${lo}px`;
 }
 window.addEventListener('resize', fitRules);
+// The bar collapsed or back (_bar-toggle.ejs) changes the room left too.
+document.getElementById('preview-bar').addEventListener('barchange', fitRules);
 // A font finishing loading (Mulish, usually after the first fit on a fresh
 // load — fonts.ready would already have resolved by then) changes the size.
 document.fonts.addEventListener('loadingdone', fitRules);
@@ -594,6 +596,8 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault();
     toggleAudio();
   } else if (e.code === 'KeyF') toggleFullscreen();
+  // B: the bar collapsed / back ("bar"), by the key's place like F.
+  else if (e.code === 'KeyB') document.getElementById('preview-bar-toggle').click();
   // Esc: only closes an open fullscreen picture — leaving is the ✕'s job.
   else if (e.key === 'Escape' && isFullscreenOpen()) closeFullscreen();
   else return;

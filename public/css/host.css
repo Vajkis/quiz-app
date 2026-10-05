@@ -217,6 +217,7 @@
 }
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,
@@ -434,7 +435,7 @@ h1 {
 @media (min-width: 768px) {
   body.has-side-panel #host-bar {
     left: 52px;
-    transition: left 0.2s ease;
+    transition: left 0.2s ease, transform 0.2s ease;
   }
 }
 @media (min-width: 768px) {
@@ -677,7 +678,15 @@ h1 {
     cursor: pointer;
   }
   body:has(#host-bar) .side-panel-fab {
-    bottom: 80px;
+    bottom: calc(var(--host-bar-height) + 16px);
+    transition: transform 0.2s ease;
+  }
+  body:has(#host-bar.is-collapsed) .side-panel-fab {
+    transform: translateY(var(--host-bar-height));
+  }
+  body:has(#host-bar.is-dragging) .side-panel-fab {
+    transform: translateY(var(--bar-drag));
+    transition: none;
   }
 }
 
@@ -1091,7 +1100,17 @@ h1 {
 }
 
 body:has(#host-bar) {
-  padding-bottom: 80px;
+  --host-bar-height: 64px;
+  padding-bottom: calc(var(--host-bar-height) + 16px);
+}
+
+body:has(#host-bar.is-collapsed) {
+  padding-bottom: 26px;
+}
+@media not all and (min-width: 768px) {
+  body:has(#host-bar.is-collapsed) {
+    padding-bottom: 84px;
+  }
 }
 
 #host-bar {
@@ -1104,11 +1123,67 @@ body:has(#host-bar) {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 8px;
-  height: 64px;
+  height: var(--host-bar-height);
   padding: 0 12px;
   background: var(--color-card);
   border-top: 1px solid var(--color-border);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease;
+}
+#host-bar > .bar-toggle {
+  --grab-x: 8px;
+  --grab-y: 8px;
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  width: calc(120px + 2 * var(--grab-x));
+  height: calc(10px + var(--grab-y));
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+}
+@media (hover: none) {
+  #host-bar > .bar-toggle {
+    --grab-x: 24px;
+    --grab-y: 20px;
+  }
+}
+#host-bar > .bar-toggle::after {
+  content: "";
+  position: absolute;
+  left: var(--grab-x);
+  right: var(--grab-x);
+  bottom: 0;
+  height: 10px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  padding: 0 36px;
+  background: radial-gradient(circle, var(--color-muted) 1px, transparent 1.5px) center/9px 100% repeat-x content-box, var(--color-card);
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.06);
+  clip-path: inset(-10px -10px 0);
+  transition: clip-path 0.15s ease;
+}
+@media (hover: hover) {
+  #host-bar:not(.is-collapsed, .is-near, .is-dragging) > .bar-toggle:not(:focus-visible)::after {
+    clip-path: inset(100% -10px 0);
+  }
+}
+#host-bar.is-collapsed {
+  transform: translateY(100%);
+  box-shadow: none;
+}
+#host-bar.is-collapsed > :not(.bar-toggle) {
+  visibility: hidden;
+  transition: visibility 0s 0.2s;
+}
+#host-bar.is-dragging > :not(.bar-toggle) {
+  visibility: visible;
+  transition: none;
 }
 #host-bar #prev-btn,
 #host-bar #forward-btn,
@@ -1234,31 +1309,127 @@ body:has(#host-bar) {
   stroke-linejoin: round;
 }
 
-@media (max-width: 575px) {
-  #host-bar {
-    display: flex;
-    gap: 8px;
+@media (max-width: 1041px) {
+  body:has(#host-bar):not(.side-panel-open) {
+    --host-bar-height: 112px;
   }
-  .host-bar-side,
-  .host-bar-end {
-    gap: 8px;
+  body:has(#host-bar):not(.side-panel-open):has(.leaderboard-view-btn) {
+    --host-bar-height: 164px;
   }
-  .host-bar-main {
-    flex: 1;
+  body:has(#host-bar):not(.side-panel-open) #host-bar {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 44px;
+    align-content: center;
+    row-gap: 8px;
+  }
+  body:has(#host-bar):not(.side-panel-open) #host-bar #prev-btn,
+  body:has(#host-bar):not(.side-panel-open) #host-bar #forward-btn,
+  body:has(#host-bar):not(.side-panel-open) #host-bar .leaderboard-view-btn,
+  body:has(#host-bar):not(.side-panel-open) #host-bar #next-btn,
+  body:has(#host-bar):not(.side-panel-open) #host-bar #finish-game-btn {
+    flex: 1 1 0;
     min-width: 0;
-    gap: 8px;
+    padding: 0 8px;
+    white-space: normal;
+    line-height: 1.15;
+    overflow: hidden;
+  }
+  body:has(#host-bar):not(.side-panel-open) #host-bar .leaderboard-view-btn ~ #finish-game-btn {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 1041px) and (max-width: 575px) {
+  body:has(#host-bar):not(.side-panel-open) #host-bar #prev-btn:has(~ #forward-btn) {
+    flex: none;
+    width: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+  body:has(#host-bar):not(.side-panel-open) #host-bar #prev-btn:has(~ #forward-btn) .icon {
+    font-size: 20px;
+  }
+}
+@media (max-width: 1041px) {
+  body:has(#host-bar):not(.side-panel-open) .host-bar-main {
+    grid-column: 1/-1;
+    grid-row: 1;
+    flex-wrap: wrap;
+  }
+  body:has(#host-bar):not(.side-panel-open) .host-bar-side {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  body:has(#host-bar):not(.side-panel-open) .host-bar-end {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+@media (max-width: 1229px) {
+  body:has(#host-bar).side-panel-open {
+    --host-bar-height: 112px;
+  }
+  body:has(#host-bar).side-panel-open:has(.leaderboard-view-btn) {
+    --host-bar-height: 164px;
+  }
+  body:has(#host-bar).side-panel-open #host-bar {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 44px;
+    align-content: center;
+    row-gap: 8px;
+  }
+  body:has(#host-bar).side-panel-open #host-bar #prev-btn,
+  body:has(#host-bar).side-panel-open #host-bar #forward-btn,
+  body:has(#host-bar).side-panel-open #host-bar .leaderboard-view-btn,
+  body:has(#host-bar).side-panel-open #host-bar #next-btn,
+  body:has(#host-bar).side-panel-open #host-bar #finish-game-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 8px;
+    white-space: normal;
+    line-height: 1.15;
+    overflow: hidden;
+  }
+  body:has(#host-bar).side-panel-open #host-bar .leaderboard-view-btn ~ #finish-game-btn {
+    flex-basis: 100%;
+  }
+}
+@media (max-width: 1229px) and (max-width: 575px) {
+  body:has(#host-bar).side-panel-open #host-bar #prev-btn:has(~ #forward-btn) {
+    flex: none;
+    width: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+  body:has(#host-bar).side-panel-open #host-bar #prev-btn:has(~ #forward-btn) .icon {
+    font-size: 20px;
+  }
+}
+@media (max-width: 1229px) {
+  body:has(#host-bar).side-panel-open .host-bar-main {
+    grid-column: 1/-1;
+    grid-row: 1;
+    flex-wrap: wrap;
+  }
+  body:has(#host-bar).side-panel-open .host-bar-side {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  body:has(#host-bar).side-panel-open .host-bar-end {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
+@media (max-width: 575px) {
+  .host-bar-btn {
+    width: 40px;
+    height: 40px;
   }
   #host-bar #prev-btn,
   #host-bar #forward-btn,
   #host-bar .leaderboard-view-btn,
   #host-bar #next-btn,
   #host-bar #finish-game-btn {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0 6px;
     font-size: 14px;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 }
 #new-room-btn {

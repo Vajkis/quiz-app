@@ -54,9 +54,16 @@
 </div>
 
 <nav id="preview-bar">
-  <a id="preview-exit" class="preview-btn" href="<%= docs ? 'index.html' : '/host/games' %>" title="Atgal į žaidimus"><%- icon('close') %></a>
-  <button type="button" id="preview-audio" class="preview-btn" title="Groti / pauzė" aria-label="Groti" hidden><%- icon('play') %></button>
-  <button type="button" id="preview-audio-stop" class="preview-btn" title="Stabdyti" aria-label="Stabdyti" hidden><%- icon('stop') %></button>
+  <%- include('_bar-toggle', { bar: 'preview-bar', key: 'quizPreviewBarCollapsed' }) %>
+  <%# The left edge: ✕, then the fullscreen toggle and ▶ / II + ■ when the screen has a picture or music. %>
+  <div id="preview-bar-start">
+    <a id="preview-exit" class="preview-btn" href="<%= docs ? 'index.html' : '/host/games' %>" title="Atgal į žaidimus"><%- icon('close') %></a>
+    <button type="button" id="preview-fullscreen" class="preview-btn preview-icon-btn" title="Per visą ekraną" aria-label="Per visą ekraną" aria-pressed="false" hidden>
+      <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+    </button>
+    <button type="button" id="preview-audio" class="preview-btn" title="Groti / pauzė" aria-label="Groti" hidden><%- icon('play') %></button>
+    <button type="button" id="preview-audio-stop" class="preview-btn" title="Stabdyti" aria-label="Stabdyti" hidden><%- icon('stop') %></button>
+  </div>
   <button type="button" id="preview-prev" class="preview-btn" title="Ankstesnis"><%- icon('arrow-left') %> Atgal</button>
   <span id="preview-counter"></span>
   <button type="button" id="preview-next" class="preview-btn preview-btn--primary" title="Kitas">Kitas <%- icon('arrow-right') %></button>
@@ -65,9 +72,6 @@
     <button type="button" id="preview-scale-down" class="preview-btn preview-icon-btn" title="Mažesnis tekstas" aria-label="Mažesnis tekstas"><%- icon('minus') %></button>
     <span id="preview-scale-value" title="Teksto dydis">100%</span>
     <button type="button" id="preview-scale-up" class="preview-btn preview-icon-btn" title="Didesnis tekstas" aria-label="Didesnis tekstas"><%- icon('plus') %></button>
-    <button type="button" id="preview-fullscreen" class="preview-btn preview-icon-btn" title="Per visą ekraną" aria-label="Per visą ekraną" aria-pressed="false" hidden>
-      <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
-    </button>
   </div>
 </nav>
 

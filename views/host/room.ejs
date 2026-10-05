@@ -68,8 +68,17 @@
   </div>
 
   <nav id="host-bar">
+    <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
+      <% if (currentQuestionImg || currentQuestionOptionImages) { %>
+        <button type="button" id="host-bar-fullscreen" class="host-bar-btn" title="Per visą ekraną (žiūrovų ekrane)" aria-label="Per visą ekraną" aria-pressed="false"
+          data-room="<%= roomId %>"
+          <% if (currentQuestionImg) { %>data-src="<%= currentQuestionImg %>"<% } %>
+          <% if (currentQuestionOptionImages) { %>data-images='<%- JSON.stringify(currentQuestionOptionImages).replace(/'/g, "&#39;") %>'<% } %>>
+          <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+        </button>
+      <% } %>
       <% if (currentQuestionAudio) { %>
         <button type="button" id="host-bar-audio" class="host-bar-btn" title="Groti / pauzė" aria-label="Groti"><%- icon('play') %></button>
         <button type="button" id="host-bar-audio-stop" class="host-bar-btn" title="Stabdyti" aria-label="Stabdyti"><%- icon('stop') %></button>
@@ -87,14 +96,6 @@
     </div>
     <div class="host-bar-end">
       <%- include('_text-scale', { roomId }) %>
-      <% if (currentQuestionImg || currentQuestionOptionImages) { %>
-        <button type="button" id="host-bar-fullscreen" class="host-bar-btn" title="Per visą ekraną (žiūrovų ekrane)" aria-label="Per visą ekraną" aria-pressed="false"
-          data-room="<%= roomId %>"
-          <% if (currentQuestionImg) { %>data-src="<%= currentQuestionImg %>"<% } %>
-          <% if (currentQuestionOptionImages) { %>data-images='<%- JSON.stringify(currentQuestionOptionImages).replace(/'/g, "&#39;") %>'<% } %>>
-          <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
-        </button>
-      <% } %>
     </div>
   </nav>
   <%- include('_team-status', { roomId }) %>

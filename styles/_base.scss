@@ -31,6 +31,9 @@
 
 * {
   box-sizing: border-box;
+  // No grey / blue box flashed over whatever a phone taps — the buttons
+  // show their own states.
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,

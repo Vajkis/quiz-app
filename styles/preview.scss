@@ -5,18 +5,25 @@
 
 $bar-height: 64px;
 
+// The room the bar takes along the bottom: all of it, or just its strip
+// while it's collapsed (_bar-toggle.ejs).
 body {
-  padding-bottom: $bar-height + 8px;
+  --bar-space: #{$bar-height};
+  padding-bottom: calc(var(--bar-space) + 8px);
+}
+
+body:has(#preview-bar.is-collapsed) {
+  --bar-space: #{v.$bar-toggle-height};
 }
 
 .view-app {
-  min-height: calc(100vh - 16px - #{$bar-height});
+  min-height: calc(100vh - 16px - var(--bar-space));
 }
 
 // Same pin as at the end of view.scss, minus the bar.
 .view-app:has(#view-question:not([hidden]) #view-options.image-options),
 .view-app:has(#view-question:not([hidden]) #view-question-box.has-image) {
-  height: calc(100vh - 16px - #{$bar-height});
+  height: calc(100vh - 16px - var(--bar-space));
 }
 
 #preview-error {
@@ -46,12 +53,15 @@ body {
   background: v.$color-card;
   border-top: 1px solid v.$color-border;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
+  // Collapsed by its strip or B.
+  @include v.collapsible-bar;
 }
 
 // The view screen's fullscreen overlay, but ending at the bar's top edge so
-// the bar (and its toggle) stays visible and clickable while it's open.
+// the bar (and its toggle) stays visible and clickable while it's open —
+// collapsed, at its strip's.
 #fullscreen-overlay {
-  bottom: $bar-height;
+  bottom: var(--bar-space);
 }
 
 #preview-counter {
@@ -98,9 +108,26 @@ body {
   }
 }
 
-#preview-exit {
+// The edges: ✕ (then ⛶, ▶ / II and ■ when there's a picture or music) on
+// the left, the text size − 100% + on the right — out of the flow, so the
+// middle buttons stay centred.
+#preview-bar-start,
+#preview-bar-end {
   position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#preview-bar-start {
   left: 12px;
+}
+
+#preview-bar-end {
+  right: 12px;
+}
+
+#preview-exit {
   width: 44px;
   padding: 0;
   font-size: 22px;
@@ -108,11 +135,9 @@ body {
   color: v.$color-muted;
 }
 
-// Icon only (▶ / II, then ■), right next to the ✕.
+// Icon only (▶ / II, then ■).
 #preview-audio,
 #preview-audio-stop {
-  position: absolute;
-  left: 12px + 44px + 8px;
   width: 44px;
   padding: 0;
   font-size: 22px;
@@ -131,22 +156,12 @@ body {
 
 // Stopping the music: red, like the room bar's.
 #preview-audio-stop {
-  left: 12px + (44px + 8px) * 2;
   border-color: v.$color-danger;
   color: v.$color-danger;
 
   @include v.hover-only {
     background: v.$color-danger-soft;
   }
-}
-
-// The right edge: text size − 100% + and the fullscreen toggle.
-#preview-bar-end {
-  position: absolute;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .preview-icon-btn {
@@ -182,17 +197,55 @@ body {
   stroke-linejoin: round;
 }
 
-// Phones: the ✕, ▶ and ■ join the row instead of floating left over the buttons.
-@media (max-width: 575px) {
-  #preview-bar {
-    gap: 8px;
+// Too narrow for one row (the side groups would run into the middle one):
+// two — Atgal, the counter and Kitas across the top, sharing its width, and
+// under them ✕ ⛶ ▶ ■ on the left, the text size on the right.
+// A 100%-wide nothing ordered between them (::before) breaks the row; the
+// row gap comes twice around it, so half.
+@media (max-width: 767px) {
+  body {
+    --bar-space: #{v.$host-bar-two-rows-height};
   }
 
+  #preview-bar {
+    flex-wrap: wrap;
+    align-content: center;
+    row-gap: 4px;
+    height: v.$host-bar-two-rows-height;
+
+    &::before {
+      content: '';
+      order: 1;
+      flex-basis: 100%;
+    }
+  }
+
+  #preview-bar-start,
+  #preview-bar-end {
+    position: static;
+    order: 2;
+  }
+
+  #preview-bar-end {
+    margin-left: auto;
+  }
+
+  #preview-prev,
+  #preview-next {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+// Phones: smaller icon buttons and text, so a 360px screen still fits
+// ✕ ⛶ ▶ ■ and − 100% + side by side.
+@media (max-width: 575px) {
   #preview-exit,
   #preview-audio,
   #preview-audio-stop,
-  #preview-fullscreen {
-    position: static;
+  .preview-icon-btn {
+    width: 40px;
+    height: 40px;
   }
 
   #preview-counter {
@@ -200,19 +253,9 @@ body {
     font-size: 14px;
   }
 
-  // share whatever width is left instead of overflowing the screen
   #preview-prev,
   #preview-next {
-    flex: 1 1 0;
-    min-width: 0;
     padding: 0 6px;
     font-size: 14px;
-  }
-
-  #preview-exit,
-  #preview-audio,
-  #preview-audio-stop,
-  #preview-fullscreen {
-    flex-shrink: 0;
   }
 }

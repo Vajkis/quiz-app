@@ -40,11 +40,12 @@ body.has-side-panel {
     padding-bottom: 84px;
   }
 
-  // A room's bottom bar starts where the panel ends.
+  // A room's bottom bar starts where the panel ends. (Its own sliding down,
+  // host.scss, kept in the transition.)
   #host-bar {
     @include side-panel-desktop {
       left: $side-panel-width;
-      transition: left 0.2s ease;
+      transition: left 0.2s ease, transform 0.2s ease;
     }
   }
 
@@ -306,9 +307,21 @@ body.has-side-panel {
     right: 16px;
     bottom: 16px;
 
-    // Above a room's bottom bar.
+    // Above a room's bottom bar, and riding along with it: slid down as far
+    // as the bar when it collapses (back in the corner), at the bar's pace,
+    // and where a drag of its strip has it (--bar-drag, _bar-toggle.ejs).
     body:has(#host-bar) & {
-      bottom: v.$host-bar-height + 16px;
+      bottom: calc(var(--host-bar-height) + 16px);
+      transition: transform 0.2s ease;
+    }
+
+    body:has(#host-bar.is-collapsed) & {
+      transform: translateY(var(--host-bar-height));
+    }
+
+    body:has(#host-bar.is-dragging) & {
+      transform: translateY(var(--bar-drag));
+      transition: none;
     }
 
     z-index: 95;

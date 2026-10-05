@@ -174,6 +174,13 @@ body {
   white-space: pre-line;
 }
 
+// A word too long for the line (a game's name written without spaces) breaks
+// rather than running off the screen.
+.stage-intro-name,
+.stage-intro-topic {
+  overflow-wrap: break-word;
+}
+
 // The game's rules (the slide after its name): a readable-from-the-room
 // list, left-aligned so multi-line rules line up under their bullets.
 .game-rules-list {
@@ -187,6 +194,34 @@ body {
   // In em, so the gaps shrink along with the text (see fitRules in view.js).
   li + li {
     margin-top: 0.5em;
+  }
+}
+
+// Phones (the preview, mostly): the intro and rules text sized for a hand,
+// not a room — still times the text scale.
+@media (max-width: 575px) {
+  .stage-intro-label {
+    font-size: v.text(20px);
+  }
+
+  .stage-intro-name {
+    font-size: v.text(36px);
+    padding: 0 8px;
+  }
+
+  .stage-intro-topic {
+    font-size: v.text(26px);
+    padding: 0 8px;
+  }
+
+  .stage-intro-description {
+    font-size: v.text(18px);
+    padding: 0 8px;
+  }
+
+  .game-rules-list {
+    font-size: v.text(20px);
+    padding: 0 8px 0 1.2em;
   }
 }
 
@@ -630,6 +665,18 @@ body.has-game-bg {
 
   #game-intro-screen .stage-intro-name {
     padding: 24px 40px;
+  }
+
+  // Phones: the panels' sides narrower, for the text to keep the room.
+  @media (max-width: 575px) {
+    #stage-intro-screen,
+    #game-rules-screen {
+      padding: 16px;
+    }
+
+    #game-intro-screen .stage-intro-name {
+      padding: 16px;
+    }
   }
 
   .leaderboard-title {

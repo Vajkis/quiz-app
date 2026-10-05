@@ -217,6 +217,7 @@
 }
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,
@@ -560,6 +561,11 @@ body {
   white-space: pre-line;
 }
 
+.stage-intro-name,
+.stage-intro-topic {
+  overflow-wrap: break-word;
+}
+
 .game-rules-list {
   max-width: 1100px;
   margin: 0;
@@ -572,6 +578,27 @@ body {
   margin-top: 0.5em;
 }
 
+@media (max-width: 575px) {
+  .stage-intro-label {
+    font-size: calc(20px * var(--text-scale, 1));
+  }
+  .stage-intro-name {
+    font-size: calc(36px * var(--text-scale, 1));
+    padding: 0 8px;
+  }
+  .stage-intro-topic {
+    font-size: calc(26px * var(--text-scale, 1));
+    padding: 0 8px;
+  }
+  .stage-intro-description {
+    font-size: calc(18px * var(--text-scale, 1));
+    padding: 0 8px;
+  }
+  .game-rules-list {
+    font-size: calc(20px * var(--text-scale, 1));
+    padding: 0 8px 0 1.2em;
+  }
+}
 .view-option {
   position: relative;
   display: block;
@@ -922,6 +949,15 @@ body.has-game-bg #game-rules-screen {
 }
 body.has-game-bg #game-intro-screen .stage-intro-name {
   padding: 24px 40px;
+}
+@media (max-width: 575px) {
+  body.has-game-bg #stage-intro-screen,
+  body.has-game-bg #game-rules-screen {
+    padding: 16px;
+  }
+  body.has-game-bg #game-intro-screen .stage-intro-name {
+    padding: 16px;
+  }
 }
 body.has-game-bg .leaderboard-title {
   width: fit-content;

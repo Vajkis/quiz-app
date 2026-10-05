@@ -1,0 +1,106 @@
+<%# The strip on a bottom bar's top edge (the host's #host-bar, the preview's #preview-bar) that slides the bar down out of the way and back — also the B key (host.js, preview.js). `bar` is the bar's id, `key` where this browser remembers it collapsed. Put back right here, before the page shows: the host's every move reloads the page, so it never slides on its own. %>
+<button type="button" id="<%= bar %>-toggle" class="bar-toggle" title="Suskleisti juostą" aria-label="Suskleisti juostą" aria-expanded="true"></button>
+<script>
+  (() => {
+    const bar = document.getElementById('<%= bar %>');
+    const btn = document.getElementById('<%= bar %>-toggle');
+    const key = '<%= key %>';
+    const show = () => {
+      const collapsed = bar.classList.contains('is-collapsed');
+      const label = collapsed ? 'Išskleisti juostą' : 'Suskleisti juostą';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('aria-expanded', !collapsed);
+    };
+    try {
+      if (localStorage.getItem(key) === '1') bar.classList.add('is-collapsed');
+    } catch (e) {}
+    show();
+    // Collapsed or open, remembered, and told to the page (barchange — the
+    // preview re-fits its rules).
+    const setCollapsed = (collapsed) => {
+      bar.classList.toggle('is-collapsed', collapsed);
+      show();
+      try {
+        localStorage.setItem(key, collapsed ? '1' : '');
+      } catch (e) {}
+      bar.dispatchEvent(new Event('barchange'));
+    };
+    // A tap or click on the strip: the other way. Not the click a drag
+    // (below) ends with — that has decided already.
+    let draggedAt = 0;
+    btn.addEventListener('click', () => {
+      if (Date.now() - draggedAt < 400) return;
+      setCollapsed(!bar.classList.contains('is-collapsed'));
+    });
+    // Dragged (a finger, or the mouse held down, DRAG_PX or more — less is
+    // a tap): the bar follows it, and let go it goes all the way, no half
+    // way, the way the drag last went — down collapsed, up open, however it
+    // started (pulled down and back up, it stays open). Steps under TURN_PX
+    // are a finger's shake, not a turn.
+    const DRAG_PX = 6;
+    const TURN_PX = 2;
+    let drag = null;
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      drag = {
+        id: e.pointerId,
+        startY: e.clientY,
+        // Where the way it goes (dir: 1 down, -1 up) was last taken from.
+        turnY: e.clientY,
+        dir: 0,
+        height: bar.offsetHeight,
+        from: bar.classList.contains('is-collapsed') ? bar.offsetHeight : 0,
+        moved: false,
+      };
+      btn.setPointerCapture(e.pointerId);
+    });
+    btn.addEventListener('pointermove', (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const step = e.clientY - drag.turnY;
+      if (Math.abs(step) >= TURN_PX) {
+        drag.dir = Math.sign(step);
+        drag.turnY = e.clientY;
+      }
+      const dy = e.clientY - drag.startY;
+      if (!drag.moved && Math.abs(dy) < DRAG_PX) return;
+      drag.moved = true;
+      bar.classList.add('is-dragging');
+      const y = Math.min(Math.max(drag.from + dy, 0), drag.height);
+      bar.style.transition = 'none';
+      bar.style.transform = `translateY(${y}px)`;
+      // For what rides along with the bar (the side panel's ☰ on a phone).
+      document.body.style.setProperty('--bar-drag', `${y}px`);
+    });
+    const endDrag = (e) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      // The way the moves went — a cancelled pointer's own place is none.
+      const { moved, dir } = drag;
+      drag = null;
+      if (!moved) return;
+      draggedAt = Date.now();
+      // Class and inline style dropped together, so the bar slides on from
+      // where the finger left it.
+      bar.classList.remove('is-dragging');
+      bar.style.transition = '';
+      bar.style.transform = '';
+      document.body.style.removeProperty('--bar-drag');
+      const collapsed = dir > 0;
+      if (dir && collapsed !== bar.classList.contains('is-collapsed')) setCollapsed(collapsed);
+    };
+    btn.addEventListener('pointerup', endDrag);
+    btn.addEventListener('pointercancel', endDrag);
+    // The mouse within NEAR_PX of the strip, above the bar: it slides out (on
+    // an open bar it's tucked away otherwise — see collapsible-bar in
+    // _variables.scss). Not on the bar itself, among its buttons.
+    const NEAR_PX = 48;
+    document.addEventListener('mousemove', (e) => {
+      const r = btn.getBoundingClientRect();
+      const dx = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+      const dy = Math.max(r.top - e.clientY, 0, e.clientY - r.bottom);
+      const aboveBar = e.clientY < bar.getBoundingClientRect().top;
+      bar.classList.toggle('is-near', aboveBar && Math.hypot(dx, dy) <= NEAR_PX);
+    });
+    document.documentElement.addEventListener('mouseleave', () => bar.classList.remove('is-near'));
+  })();
+</script>

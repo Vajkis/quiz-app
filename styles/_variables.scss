@@ -36,6 +36,9 @@ $shadow-overlay: var(--shadow-overlay);
 // The room page's bar along the bottom (host.scss), which the side panel
 // (_side-panel.scss) also keeps clear of.
 $host-bar-height: 64px;
+// Two rows of 44px buttons, 8px apart and from the edges — on a screen too
+// narrow for one (host.scss).
+$host-bar-two-rows-height: 112px;
 
 // Hover states only make sense with a real pointer — on touch devices
 // :hover either does nothing useful or "sticks" after a tap. 992px is the
@@ -57,6 +60,96 @@ $host-bar-height: 64px;
     max-width: 300px;
     margin-left: auto;
     margin-right: auto;
+  }
+}
+
+// A bottom bar that slides down out of the way (_bar-toggle.ejs: the host's
+// #host-bar, the preview's #preview-bar). Its strip on the top edge, centred
+// — a thin tab of the bar's own card, nothing on it — goes down with it,
+// so collapsed only the strip is left at the screen's edge. The bar's
+// other children are hidden once it's down, so Tab can't land on them (the
+// keys still press them).
+$bar-toggle-height: 10px;
+
+@mixin collapsible-bar {
+  transition: transform 0.2s ease;
+
+  // The button: the strip plus --grab-x / --grab-y more to the sides and
+  // above, easier to hit than it looks, and see-through — the strip is its
+  // ::after. It's there to point at even with the strip tucked away, so the
+  // pointer turns a hand as soon as it's over it; a clipped button would
+  // only once the mouse moved again. Dragged (_bar-toggle.ejs), the page
+  // under it doesn't scroll.
+  > .bar-toggle {
+    --grab-x: 8px;
+    --grab-y: 8px;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    translate: -50% 0;
+    width: calc(120px + 2 * var(--grab-x));
+    height: calc($bar-toggle-height + var(--grab-y));
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    touch-action: none;
+
+    // A finger is bigger than a pointer: more room to catch it by.
+    @media (hover: none) {
+      --grab-x: 24px;
+      --grab-y: 20px;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: var(--grab-x);
+      right: var(--grab-x);
+      bottom: 0;
+      height: $bar-toggle-height;
+      box-sizing: border-box;
+      border: 1px solid $color-border;
+      border-bottom: none;
+      border-radius: $radius-sm $radius-sm 0 0;
+      // A grip of dots in the middle, to show it's there to take hold of:
+      // repeated 9px apart over the content box only, the padding keeping
+      // it to five; the card under them over the whole strip.
+      padding: 0 36px;
+      background:
+        radial-gradient(circle, $color-muted 1px, transparent 1.5px) center / 9px 100% repeat-x content-box,
+        $color-card;
+      box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.06);
+      // Shown: clipped only below (its shadow stays whole), so tucked away
+      // it slides back down into the bar's edge.
+      clip-path: inset(-10px -10px 0);
+      transition: clip-path 0.15s ease;
+    }
+  }
+
+  // Open, with a mouse: the strip tucked away until the mouse comes near it
+  // (.is-near, _bar-toggle.ejs) or Tab lands on it. Collapsed — and on a
+  // touch screen, with no mouse to come near — it always shows.
+  @media (hover: hover) {
+    &:not(.is-collapsed, .is-near, .is-dragging) > .bar-toggle:not(:focus-visible)::after {
+      clip-path: inset(100% -10px 0);
+    }
+  }
+
+  &.is-collapsed {
+    transform: translateY(100%);
+    box-shadow: none;
+
+    > :not(.bar-toggle) {
+      visibility: hidden;
+      transition: visibility 0s 0.2s;
+    }
+  }
+
+  // Being dragged up from collapsed: its buttons come along in sight.
+  &.is-dragging > :not(.bar-toggle) {
+    visibility: visible;
+    transition: none;
   }
 }
 

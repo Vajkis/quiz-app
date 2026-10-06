@@ -412,7 +412,7 @@ h1 {
 
 #login-error, #season-error, #dashboard-error, #create-room-error, #editor-error,
 #games-error,
-#games-file-error {
+#games-file-error, .media-load-error {
   color: var(--color-danger);
   font-size: calc(14px * var(--text-scale, 1));
   margin-top: 8px;
@@ -2492,6 +2492,18 @@ select option:checked {
 #games-error,
 #games-file-error {
   margin-top: 16px;
+}
+
+#game-editor input.has-load-error {
+  border-color: var(--color-danger);
+}
+
+.media-load-error {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.media-load-error[hidden] {
+  display: none;
 }
 
 .error-jump-btn {

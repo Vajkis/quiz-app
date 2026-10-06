@@ -118,6 +118,54 @@
     });
   }
 
+  // A picture or music link that doesn't open — most often a web page's
+  // address instead of the file's, or a site that won't share it: its
+  // preview (hideEl) goes, the field is marked red and a note under it says
+  // why, until it's changed to one that opens. mediaEl is the thumbnail
+  // <img> or the <audio>.
+  function watchMediaLoad(mediaEl, input, hideEl, kind) {
+    const note = document.createElement('p');
+    note.className = 'media-load-error';
+    note.hidden = true;
+    note.textContent =
+      kind === 'audio'
+        ? 'Nepavyko atidaryti garso įrašo. Nuoroda turi vesti tiesiai į failą (pvz. .mp3), o ne į puslapį.'
+        : 'Nepavyko atidaryti nuotraukos. Nuoroda turi vesti tiesiai į paveikslėlį (pvz. .jpg, .png), o ne į puslapį.';
+    (input.closest('.file-url-field') || input).after(note);
+    const show = (broken) => {
+      note.hidden = !broken;
+      input.classList.toggle('has-load-error', broken);
+    };
+    mediaEl.addEventListener('error', () => {
+      if (!input.value.trim()) return;
+      show(true);
+      hideEl.hidden = true;
+      // So a thumbnail shown again for the same link (see thumbShown)
+      // stays hidden.
+      mediaEl.dataset.brokenSrc = mediaEl.getAttribute('src') || '';
+    });
+    mediaEl.addEventListener(kind === 'audio' ? 'loadedmetadata' : 'load', () => show(false));
+    input.addEventListener('input', () => {
+      if (!input.value.trim()) show(false);
+    });
+  }
+
+  // Whether a thumbnail (or the music's player) shows for src: not for
+  // none, nor for a link that already failed to open (see watchMediaLoad).
+  function thumbShown(thumb, src) {
+    return !!src && src !== thumb.dataset.brokenSrc;
+  }
+
+  // The preview follows a link as it's typed or pasted, not only once the
+  // field is left (its change event).
+  function followTyping(input, sync) {
+    let timer = null;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(sync, 400);
+    });
+  }
+
   function createOptionRow(option) {
     const row = document.createElement('div');
     row.className = 'option-row';
@@ -150,16 +198,18 @@
     const thumbWrap = row.querySelector('.option-img-thumb-wrap');
     const thumb = row.querySelector('.option-img-thumb');
     attachThumbRemove(thumb, imgInput);
+    watchMediaLoad(thumb, imgInput, thumbWrap, 'image');
     row.syncOptionImage = () => {
       const src = imgInput.value.trim()
         ? global.QuizGameEditorCore.resolveAudioSrc(imgInput.value.trim())
         : '';
       const showThumb = !!src;
       textInput.hidden = showThumb;
-      thumbWrap.hidden = !showThumb;
+      thumbWrap.hidden = !thumbShown(thumb, src);
       if (showThumb && thumb.getAttribute('src') !== src) thumb.src = src;
     };
     imgInput.addEventListener('change', row.syncOptionImage);
+    followTyping(imgInput, row.syncOptionImage);
     return row;
   }
 
@@ -251,14 +301,16 @@
     const imgThumbWrap = card.querySelector('.question-img-thumb-wrap');
     const imgThumb = imgThumbWrap.querySelector('img');
     attachThumbRemove(imgThumb, imgInput);
+    watchMediaLoad(imgThumb, imgInput, imgThumbWrap, 'image');
     function syncQuestionImage() {
       const url = imgInput.value.trim();
       const src = url ? resolveAudioSrc(url) : '';
-      imgThumbWrap.hidden = !src;
+      imgThumbWrap.hidden = !thumbShown(imgThumb, src);
       if (src && imgThumb.getAttribute('src') !== src) imgThumb.src = src;
     }
     syncQuestionImage();
     imgInput.addEventListener('change', syncQuestionImage);
+    followTyping(imgInput, syncQuestionImage);
     card
       .querySelector('.remove-question-btn')
       .addEventListener('click', () => card.remove());
@@ -285,11 +337,14 @@
     function syncAudioPreview() {
       const url = audioInput.value.trim();
       const src = url ? resolveAudioSrc(url) : '';
-      audioClipControls.hidden = !src;
-      if (src) audioPreview.src = src;
+      audioClipControls.hidden = !thumbShown(audioPreview, src);
+      // Only a new link: setting the same one again would stop it playing.
+      if (src && audioPreview.getAttribute('src') !== src) audioPreview.src = src;
     }
+    watchMediaLoad(audioPreview, audioInput, audioClipControls, 'audio');
     syncAudioPreview();
     audioInput.addEventListener('change', syncAudioPreview);
+    followTyping(audioInput, syncAudioPreview);
 
     // ✕ next to the track: the question has no music any more, and its
     // "nuo / iki" go with it. An uploaded file is deleted once the game is
@@ -549,15 +604,17 @@
     const thumbWrap = row.querySelector('.chain-clue-thumb-wrap');
     const thumb = thumbWrap.querySelector('img');
     attachThumbRemove(thumb, imgInput);
+    watchMediaLoad(thumb, imgInput, thumbWrap, 'image');
     function syncClueImage() {
       const url = imgInput.value.trim();
       const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
       clueInput.hidden = !!src;
-      thumbWrap.hidden = !src;
+      thumbWrap.hidden = !thumbShown(thumb, src);
       if (src && thumb.getAttribute('src') !== src) thumb.src = src;
     }
     syncClueImage();
     imgInput.addEventListener('change', syncClueImage);
+    followTyping(imgInput, syncClueImage);
     return row;
   }
 
@@ -920,13 +977,15 @@
       const thumbWrap = field.querySelector('.question-img-thumb-wrap');
       const thumb = thumbWrap.querySelector('img');
       attachThumbRemove(thumb, input);
+      watchMediaLoad(thumb, input, thumbWrap, 'image');
       field.syncThumb = () => {
         const url = input.value.trim();
         const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
-        thumbWrap.hidden = !src;
+        thumbWrap.hidden = !thumbShown(thumb, src);
         if (src && thumb.getAttribute('src') !== src) thumb.src = src;
       };
       input.addEventListener('change', field.syncThumb);
+      followTyping(input, field.syncThumb);
     }
     field.querySelector('.game-background-input').value = value || '';
     field.syncThumb();

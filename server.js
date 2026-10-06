@@ -1241,6 +1241,14 @@ function navigateTo(room, roomId, targetIndex) {
   return true;
 }
 
+// Pictures and music linked from other sites are fetched without saying
+// which page asked: many sites refuse a file to someone else's page (and
+// a server on a hotspot's address is that), but hand it out when it isn't
+// said. Nothing here needs it either.
+app.use((req, res, next) => {
+  res.set('Referrer-Policy', 'no-referrer');
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 // JSZip for the game editor's .zip import (see public/game-media-zip.js).
@@ -1450,11 +1458,13 @@ app.use(
 );
 
 // Every uploaded file a game or draft points at, as "<folder>/<file>" (or
-// just "<file>" for one in data/media itself).
+// just "<file>" for one in data/media itself) — by its path, or by a full
+// link to this server (its address copied from a thumbnail, say).
 function usedMediaFiles() {
   const used = new Set();
   const json = JSON.stringify([games, drafts]);
-  for (const match of json.matchAll(/"\/media\/([^"]+)"/g)) used.add(match[1]);
+  for (const match of json.matchAll(/(?:"|\/\/[^"/]+)\/media\/([^"?#]+)/g))
+    used.add(match[1]);
   return used;
 }
 

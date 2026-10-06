@@ -1902,6 +1902,22 @@ select option {
   margin-top: 16px;
 }
 
+// A picture or music link that doesn't open (watchMediaLoad): its field in
+// red and why, right under it.
+#game-editor input.has-load-error {
+  border-color: v.$color-danger;
+}
+
+.media-load-error {
+  @extend %error-text;
+  margin: 0 0 8px;
+  font-size: 13px;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
 // "Rodyti" after the editor's error (addErrorJump): a link in the
 // message's own red, not a button.
 .error-jump-btn {

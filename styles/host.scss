@@ -121,11 +121,14 @@
 // from the card (a tint; in high contrast the card's own colour, outlined),
 // the played part and the dot in the primary colour.
 .audio-player {
+  // Its width decides where the volume goes (see .audio-player-volume).
+  container-type: inline-size;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 6px;
+  gap: 0 8px;
+  min-height: 44px;
+  padding: 6px;
   border-radius: v.$radius-sm; // like the fields around it
   background: v.$color-neutral-soft;
   color: v.$color-text;
@@ -235,11 +238,26 @@
 // Volume: the speaker, and a slider drawn like the bar (--volume set by
 // audio-player.js) to its left. With a mouse it slides out when the
 // speaker's pointed at, as in Chrome — leftwards, the bar making room, so
-// the speaker stays put; on touch screens it's always there.
+// the speaker stays put. On touch screens it's always out, and where that
+// leaves the bar too little room (a phone) the volume gets a row of its
+// own under the rest: the speaker under ▶, the slider the rest of the row.
 .audio-player-volume {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+
+  @media (hover: none) {
+    @container (max-width: 379px) {
+      flex-basis: 100%;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+
+      .audio-player-volume-slider {
+        flex: 1;
+        margin: 0 8px;
+      }
+    }
+  }
 }
 
 .audio-player-volume-slider {
@@ -1112,37 +1130,43 @@ $select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
   padding: 8px;
   margin-bottom: 8px;
 
-  // The question's track, above its "nuo / iki" fields.
-  .audio-player {
+  // The question's track, above its "nuo / iki" fields, with the ✕ that
+  // removes it on its right.
+  .audio-clip-player-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-bottom: 8px;
+  }
+
+  .audio-player {
+    flex: 1;
+    min-width: 0;
   }
 }
 
-// One row per control on mobile; from 768px up all three sit on a single
-// row (nowrap — the field-group buttons and the play button below shrink
-// via flex-shrink/flex-basis rather than wrapping to a second line).
+// On mobile "Nuo" and "Iki" share a row, half each, with the play button
+// the full width under them; from 768px up all three sit on a single row,
+// a third each (nowrap — the buttons' text gets an ellipsis rather than
+// wrapping to a second line).
 .audio-clip-times {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   font-size: 13px;
 
   @media (min-width: 768px) {
-    flex-direction: row;
     flex-wrap: nowrap;
-    align-items: center;
   }
 }
 
 // "Nuo"/"Iki" each group their number input and "set from current time"
 // button into one fused control (shared border, input's right/button's left
 // corners squared off) rather than two loose fields side by side. The
-// "Nuo (s)"/"Iki (s)" label lives as the input's placeholder instead of a
-// separate element above it, so the group stays a single compact row. The
-// group spans the full row on mobile (button stretches to fill what the
-// fixed-width input doesn't use) and shrinks to a fixed-width pair on
-// desktop, where the button no longer needs to be that wide.
+// "Nuo"/"Iki" label lives as the input's placeholder instead of a separate
+// element above it, so the group stays a single compact row; the button
+// stretches to fill what the fixed-width input doesn't use.
 // Shared row height for the clip controls — the input and both button
 // kinds have different default vertical rhythm (padding/line-height), so
 // without a fixed height + zero vertical padding they don't align.
@@ -1150,17 +1174,16 @@ $clip-control-height: 38px;
 
 .audio-clip-field-group {
   display: flex;
-  width: 100%;
-
-  @media (min-width: 768px) {
-    width: auto;
-  }
+  flex: 1 1 0;
+  min-width: 0;
 
   input[type='number'] {
-    width: 56px;
+    // Narrower on a phone, where "Nuo"/"Iki" share a row and the
+    // button's text needs the room.
+    width: 48px;
     height: $clip-control-height;
     flex-shrink: 0;
-    padding: 0 8px;
+    padding: 0 4px;
     font-size: 13px;
     text-align: center;
     border: 1px solid v.$color-border;
@@ -1170,6 +1193,11 @@ $clip-control-height: 38px;
     &::placeholder {
       color: v.$color-muted;
     }
+
+    @media (min-width: 768px) {
+      width: 56px;
+      padding: 0 8px;
+    }
   }
 
   button {
@@ -1177,7 +1205,7 @@ $clip-control-height: 38px;
     min-width: 0;
     height: $clip-control-height;
     margin: 0;
-    padding: 0 10px;
+    padding: 0 6px;
     font-size: 13px;
     background: v.$color-card;
     color: v.$color-primary;
@@ -1189,17 +1217,34 @@ $clip-control-height: 38px;
     text-overflow: ellipsis;
 
     @media (min-width: 768px) {
-      flex: 0 1 200px;
+      padding: 0 10px;
     }
 
     @include v.hover-only {
       background: v.$color-primary-soft;
     }
   }
+
+  // On a phone, half a row only fits "Dabartinė" — the field beside it
+  // already says "Nuo"/"Iki".
+  .clip-btn-long {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .clip-btn-long {
+      display: inline;
+    }
+
+    .clip-btn-short {
+      display: none;
+    }
+  }
 }
 
-// Sits in the same row as the two field-groups from 768px up and takes
-// whatever width is left over (flex-grow) instead of just hugging its text.
+// A row of its own on mobile (a 100% basis wraps it under "Nuo"/"Iki");
+// from 768px up in theirs, as wide as each of them (flex: 1 1 0 — the same
+// share whatever the text is).
 // min-width: 0 lets it actually shrink that low when the row is tight,
 // instead of the default intrinsic min-width forcing the row to overflow.
 // Selector is doubled up (.play-from-start-btn.secondary-btn, not just
@@ -1208,7 +1253,7 @@ $clip-control-height: 38px;
 // wins, which was silently reintroducing that 8px and fighting the row's
 // gap: 8px.
 .play-from-start-btn.secondary-btn {
-  flex: 1 1 auto;
+  flex: 1 0 100%;
   min-width: 0;
   height: $clip-control-height;
   margin-top: 0;
@@ -1216,6 +1261,10 @@ $clip-control-height: 38px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  @media (min-width: 768px) {
+    flex: 1 1 0;
+  }
 }
 
 .options-container {
@@ -1282,6 +1331,51 @@ $clip-control-height: 38px;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
   background: v.$color-surface-alt;
+}
+
+// The thumbnail with its ✕ (attachThumbRemove): a red badge sitting on the
+// picture's top right corner — mostly off it, so it hides little of a small
+// thumbnail — in the editor's other ✕s' red. It shows when the picture's
+// pointed at; on touch screens it's always there.
+.img-thumb-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.remove-img-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  // Ringed in the card's colour, so it stands apart from the picture.
+  border: 2px solid v.$color-card;
+  border-radius: 50%;
+  background: v.$color-danger;
+  color: v.$color-on-danger;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+
+  .icon {
+    stroke-width: 3.5;
+  }
+
+  @media (hover: hover) {
+    opacity: 0;
+
+    .img-thumb-frame:hover &,
+    &:focus-visible {
+      opacity: 1;
+    }
+  }
 }
 
 .option-img-input {
@@ -1699,7 +1793,8 @@ select option {
 .remove-hint-btn,
 .remove-text-answer-btn,
 .remove-bonus-btn,
-.remove-rule-btn {
+.remove-rule-btn,
+.remove-audio-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1727,7 +1822,8 @@ select option {
 .remove-hint-btn,
 .remove-text-answer-btn,
 .remove-bonus-btn,
-.remove-rule-btn {
+.remove-rule-btn,
+.remove-audio-btn {
   color: v.$color-danger;
 
   @include v.hover-only {
@@ -1748,7 +1844,8 @@ select option {
 .remove-hint-btn,
 .remove-text-answer-btn,
 .remove-bonus-btn,
-.remove-rule-btn {
+.remove-rule-btn,
+.remove-audio-btn {
   width: 32px;
   height: 32px;
 }
@@ -1803,6 +1900,50 @@ select option {
 #games-file-error {
   @extend %error-text;
   margin-top: 16px;
+}
+
+// "Rodyti" after the editor's error (addErrorJump): a link in the
+// message's own red, not a button.
+.error-jump-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+// What "Rodyti" went to, in red until it's dealt with (see markError),
+// pulsing twice as it's reached: a field red-bordered on a red tint (over
+// its focus colour — it has the cursor), anything else (a "+" button,
+// Taip/Ne, a card) ringed in red.
+#game-editor .is-error-target {
+  outline: 2px solid v.$color-danger;
+  outline-offset: 2px;
+  animation: error-target-pulse 0.5s ease 2;
+}
+
+#game-editor :is(input, textarea, select).is-error-target {
+  outline: none;
+  border-color: v.$color-danger !important;
+  background-color: v.$color-danger-soft;
+  box-shadow: 0 0 0 3px v.$color-danger-soft;
+  animation-name: error-field-pulse;
+}
+
+@keyframes error-target-pulse {
+  50% {
+    outline-offset: 6px;
+  }
+}
+
+@keyframes error-field-pulse {
+  50% {
+    box-shadow: 0 0 0 7px v.$color-danger-soft;
+  }
 }
 
 #games-file-error[hidden] {
@@ -2648,11 +2789,6 @@ select option {
     flex: 1;
     min-width: 0;
     margin-bottom: 0;
-  }
-
-  // a question's picture or music field, while the other one is filled in
-  &[hidden] {
-    display: none;
   }
 }
 

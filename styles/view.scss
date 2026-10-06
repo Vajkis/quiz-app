@@ -59,7 +59,9 @@ body {
     }
   }
 
-  .view-option + .view-option {
+  // A hints question's "type your answer" note comes after its hints.
+  .view-option + .view-option,
+  .view-option + .view-text-answer-hint {
     margin-top: 8px;
   }
 

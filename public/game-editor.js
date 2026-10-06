@@ -104,7 +104,9 @@ function saveDraft({ keepalive = false } = {}) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: json,
-    keepalive,
+    // The browser refuses a keepalive request over 64 KB outright; a big
+    // game is sent without it, which may still get through.
+    keepalive: keepalive && json.length < 60000,
   })
     .then(async (res) => {
       if (!res.ok) {
@@ -125,10 +127,14 @@ function saveDraft({ keepalive = false } = {}) {
   return draftRequest;
 }
 
+// The first change is saved at once, not after the delay: until it is, the
+// page is still /host/games/new, and a reload would open a blank new game
+// while what was typed went into a draft under the old id.
 function scheduleDraftSave() {
   if (gameId || gameSaved) return;
   clearTimeout(draftTimer);
-  draftTimer = setTimeout(saveDraft, 800);
+  if (!draftSaved && !draftRequest) saveDraft();
+  else draftTimer = setTimeout(saveDraft, 800);
 }
 
 if (!gameId) {

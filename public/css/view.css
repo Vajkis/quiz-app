@@ -461,7 +461,8 @@ body {
 .view-app #view-options:empty {
   margin-top: 0;
 }
-.view-app .view-option + .view-option {
+.view-app .view-option + .view-option,
+.view-app .view-option + .view-text-answer-hint {
   margin-top: 8px;
 }
 .view-app .options-grid .view-option + .view-option {

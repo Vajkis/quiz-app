@@ -95,6 +95,29 @@
     });
   }
 
+  // A ✕ in the top right corner of a picture's thumbnail (shown when it's
+  // pointed at; always on touch screens) that empties its field — the
+  // thumbnail goes, and the text field, if it gave way to it, comes back.
+  // A file it was uploaded as is deleted once the game is saved without it.
+  function attachThumbRemove(thumb, input) {
+    const frame = document.createElement('span');
+    frame.className = 'img-thumb-frame';
+    thumb.before(frame);
+    frame.appendChild(thumb);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'remove-img-btn';
+    btn.title = 'Pašalinti nuotrauką';
+    btn.setAttribute('aria-label', 'Pašalinti nuotrauką');
+    btn.innerHTML = icon('close');
+    frame.appendChild(btn);
+    btn.addEventListener('click', () => {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+
   function createOptionRow(option) {
     const row = document.createElement('div');
     row.className = 'option-row';
@@ -126,6 +149,7 @@
     const imgInput = row.querySelector('.option-img-input');
     const thumbWrap = row.querySelector('.option-img-thumb-wrap');
     const thumb = row.querySelector('.option-img-thumb');
+    attachThumbRemove(thumb, imgInput);
     row.syncOptionImage = () => {
       const src = imgInput.value.trim()
         ? global.QuizGameEditorCore.resolveAudioSrc(imgInput.value.trim())
@@ -161,15 +185,18 @@
       <div class="question-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></div>
       <input type="text" class="question-audio-input" placeholder="Klausimo muzikos/garso URL (nebūtina)">
       <div class="audio-clip-controls" hidden>
-        <audio class="question-audio-preview" controls></audio>
+        <div class="audio-clip-player-row">
+          <audio class="question-audio-preview" controls></audio>
+          <button type="button" class="remove-audio-btn" title="Pašalinti garso įrašą" aria-label="Pašalinti garso įrašą">${icon('close')}</button>
+        </div>
         <div class="audio-clip-times">
           <div class="audio-clip-field-group">
-            <input type="number" min="0" step="1" class="audio-start-input" placeholder="Nuo (s)">
-            <button type="button" class="set-audio-start-btn">Nuo dabartinės</button>
+            <input type="number" min="0" step="1" class="audio-start-input" placeholder="Nuo">
+            <button type="button" class="set-audio-start-btn" title="Nuo dabartinės vietos"><span class="clip-btn-long">Nuo dabartinės</span><span class="clip-btn-short">Dabartinė</span></button>
           </div>
           <div class="audio-clip-field-group">
-            <input type="number" min="0" step="1" class="audio-end-input" placeholder="Iki (s)">
-            <button type="button" class="set-audio-end-btn">Iki dabartinės</button>
+            <input type="number" min="0" step="1" class="audio-end-input" placeholder="Iki">
+            <button type="button" class="set-audio-end-btn" title="Iki dabartinės vietos"><span class="clip-btn-long">Iki dabartinės</span><span class="clip-btn-short">Dabartinė</span></button>
           </div>
           <button type="button" class="play-from-start-btn secondary-btn">${icon('play')} Groti pažymėtą dalį</button>
         </div>
@@ -223,6 +250,7 @@
     // thumbnail a picture option gets (see createOptionRow).
     const imgThumbWrap = card.querySelector('.question-img-thumb-wrap');
     const imgThumb = imgThumbWrap.querySelector('img');
+    attachThumbRemove(imgThumb, imgInput);
     function syncQuestionImage() {
       const url = imgInput.value.trim();
       const src = url ? resolveAudioSrc(url) : '';
@@ -263,21 +291,18 @@
     syncAudioPreview();
     audioInput.addEventListener('change', syncAudioPreview);
 
-    // A question has a picture or music, not both: once one is filled in,
-    // the other's field (with its 📁 button, if any) goes away until it's
-    // cleared again. One that somehow has both keeps both, to clear one.
-    const imgField = imgInput.closest('.file-url-field') || imgInput;
-    const audioField = audioInput.closest('.file-url-field') || audioInput;
-    function syncMediaFields() {
-      const hasImg = !!imgInput.value.trim();
-      const hasAudio = !!audioInput.value.trim();
-      imgField.hidden = !hasImg && hasAudio;
-      audioField.hidden = !hasAudio && hasImg;
-    }
-    syncMediaFields();
-    [imgInput, audioInput].forEach((input) => {
-      input.addEventListener('input', syncMediaFields);
-      input.addEventListener('change', syncMediaFields);
+    // ✕ next to the track: the question has no music any more, and its
+    // "nuo / iki" go with it. An uploaded file is deleted once the game is
+    // saved without it, as a removed picture's is (see attachThumbRemove).
+    card.querySelector('.remove-audio-btn').addEventListener('click', () => {
+      audioPreview.pause();
+      audioInput.value = '';
+      audioStartInput.value = '';
+      audioEndInput.value = '';
+      [audioStartInput, audioEndInput, audioInput].forEach((input) => {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
     });
 
     // The marked part on the preview's bar (audio-player.js reads data-start
@@ -523,6 +548,7 @@
     // a thumbnail of it, as a picture option's does (see createOptionRow).
     const thumbWrap = row.querySelector('.chain-clue-thumb-wrap');
     const thumb = thumbWrap.querySelector('img');
+    attachThumbRemove(thumb, imgInput);
     function syncClueImage() {
       const url = imgInput.value.trim();
       const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
@@ -893,6 +919,7 @@
       attachFilePicker(input, 'image');
       const thumbWrap = field.querySelector('.question-img-thumb-wrap');
       const thumb = thumbWrap.querySelector('img');
+      attachThumbRemove(thumb, input);
       field.syncThumb = () => {
         const url = input.value.trim();
         const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
@@ -1095,6 +1122,7 @@
       stagesContainer.dispatchEvent(new Event('stage-errors'));
     };
     check();
+    addErrorJump(stagesContainer, nameInput);
     if (stagesContainer.dataset.errorsFollowed) return;
     stagesContainer.dataset.errorsFollowed = 'true';
     ['input', 'change', 'click'].forEach((type) =>
@@ -1104,6 +1132,137 @@
     new MutationObserver(() => setTimeout(check)).observe(stagesContainer, {
       childList: true
     });
+  }
+
+  // Where the checks' first problem is — the one the error message names,
+  // as they stop there: the game's name, a stage's name, the question
+  // that fails on its own, or else the stage (one with no questions). Null
+  // when the checks pass (e.g. a problem only the server finds).
+  function findFirstError(stagesContainer, nameInput) {
+    const { normalizeGamePayload } = global.QuizGameShared;
+    const payload = collectPayload(stagesContainer, nameInput);
+    if (!normalizeGamePayload(payload).error) return null;
+    if (!payload.name) return nameInput;
+    const cards = Array.from(stagesContainer.querySelectorAll('.stage-card'));
+    if (!cards.length) return document.getElementById('add-stage-btn');
+    for (let i = 0; i < cards.length; i++) {
+      const stage = payload.stages[i];
+      if (!normalizeGamePayload({ name: '-', stages: [stage] }).error) continue;
+      if (!stage.name) return cards[i].querySelector('.stage-name-input');
+      const questionCards = cards[i].querySelectorAll('.question-card');
+      for (let j = 0; j < stage.questions.length; j++) {
+        const alone = { name: '-', stages: [{ name: '-', questions: [stage.questions[j]] }] };
+        if (normalizeGamePayload(alone).error) return errorField(questionCards[j], stage.questions[j]);
+      }
+      return cards[i];
+    }
+    return null;
+  }
+
+  // Within a question that fails its checks, the field the first problem
+  // is in — in the order normalizeGamePayload (game-shared.js) checks them:
+  // an empty field, or the "+" button when there are too few of something.
+  // The card itself if it's none of those.
+  function errorField(card, q) {
+    const $ = (selector) => card.querySelector(selector);
+    const firstEmpty = (rows, field, isEmpty) => {
+      const row = Array.from(card.querySelectorAll(rows)).find(isEmpty);
+      return row && row.querySelector(field);
+    };
+    const hasMedia = !!(q.img || q.audio);
+    if (!q.question && q.type !== 'chain' && q.type !== 'hints' && !hasMedia)
+      return $('.question-text-input');
+    let field = null;
+    if (q.type === 'choice') {
+      field =
+        q.options.length < 2
+          ? $('.add-option-btn')
+          : firstEmpty('.option-row', '.option-text-input', (row) =>
+              !row.querySelector('.option-text-input').value.trim() &&
+              !row.querySelector('.option-img-input').value.trim());
+    } else if (q.type === 'text') {
+      field =
+        firstEmpty('.text-answer-row', '.answer-text-input', (row) =>
+          !row.querySelector('.answer-text-input').value.trim()) ||
+        (q.options.length < 1 ? $('.add-text-answer-btn') : null);
+    } else if (q.type === 'yesno') {
+      if (q.answer !== 'yes' && q.answer !== 'no') field = $('.yesno-section');
+    } else if (q.type === 'hints') {
+      field =
+        q.hints.length < 2
+          ? $('.add-hint-btn')
+          : firstEmpty('.hint-row', '.hint-input', (row) =>
+              !row.querySelector('.hint-input').value.trim()) ||
+            (!q.answer ? $('.hints-answer-input') : null);
+    } else if (q.type === 'chain') {
+      if (q.links.length < 2) field = $('.add-chain-link-btn');
+      else {
+        const row = Array.from(card.querySelectorAll('.chain-link-row')).find(
+          (r) =>
+            (!r.querySelector('.chain-clue-input').value.trim() &&
+              !r.querySelector('.chain-clue-img-input').value.trim()) ||
+            !r.querySelector('.chain-answer-input').value.trim()
+        );
+        if (row)
+          field =
+            !row.querySelector('.chain-clue-input').value.trim() &&
+            !row.querySelector('.chain-clue-img-input').value.trim()
+              ? row.querySelector('.chain-clue-input')
+              : row.querySelector('.chain-answer-input');
+      }
+    }
+    if (field) return field;
+    if (q.audio && Number(q.audioEnd) > 0 && Number(q.audioEnd) <= (Number(q.audioStart) || 0))
+      return $('.audio-end-input');
+    if (q.bonus && q.bonus.question && !q.bonus.answer) return $('.bonus-answer-input');
+    return card;
+  }
+
+  // "Rodyti" after the error message under the editor: opens the stage the
+  // problem is in, if it's shut, scrolls to the problem and marks it in red
+  // (a field also gets the cursor) — until it's dealt with: typed in, or,
+  // for a button or Taip/Ne, clicked. Looked up again on each click, so it
+  // goes to whatever is first by then; once there's nothing left, it goes.
+  let markedError = null;
+  function unmarkError() {
+    if (!markedError) return;
+    markedError.el.classList.remove('is-error-target');
+    markedError.el.removeEventListener('input', unmarkError);
+    markedError.el.removeEventListener('click', markedError.onClick);
+    markedError = null;
+  }
+  function markError(el) {
+    unmarkError();
+    el.classList.add('is-error-target');
+    const isField = el.matches('input, textarea, select');
+    // A field clears once typed in; clicking into it doesn't count.
+    const onClick = isField ? () => {} : () => setTimeout(unmarkError);
+    el.addEventListener('input', unmarkError);
+    el.addEventListener('click', onClick);
+    markedError = { el, onClick };
+    if (isField) el.focus({ preventScroll: true });
+  }
+
+  function addErrorJump(stagesContainer, nameInput) {
+    const errorEl = document.getElementById('editor-error');
+    if (!errorEl || !errorEl.textContent.trim()) return;
+    if (!findFirstError(stagesContainer, nameInput)) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'error-jump-btn';
+    btn.textContent = 'Rodyti';
+    btn.addEventListener('click', () => {
+      const target = findFirstError(stagesContainer, nameInput);
+      if (!target) {
+        btn.remove();
+        return;
+      }
+      const stageCard = target.closest('.stage-card');
+      if (stageCard && stageCard !== target && stageCard.collapse) stageCard.collapse.set(false);
+      // A third of the way down the screen, so what's around it shows too.
+      glide(target, window.innerHeight / 3, 300, () => markError(target));
+    });
+    errorEl.append(' ', btn);
   }
 
   // "← Atgal į žaidimus" (and the side panel's links) asks first

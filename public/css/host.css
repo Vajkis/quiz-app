@@ -833,11 +833,13 @@ h1 {
 }
 
 .audio-player {
+  container-type: inline-size;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 6px;
+  gap: 0 8px;
+  min-height: 44px;
+  padding: 6px;
   border-radius: 6px;
   background: var(--color-neutral-soft);
   color: var(--color-text);
@@ -932,6 +934,19 @@ h1 {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+}
+@media (hover: none) {
+  @container (max-width: 379px) {
+    .audio-player-volume {
+      flex-basis: 100%;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+    }
+    .audio-player-volume .audio-player-volume-slider {
+      flex: 1;
+      margin: 0 8px;
+    }
+  }
 }
 
 .audio-player-volume-slider {
@@ -1810,39 +1825,40 @@ body:has(#host-bar.is-collapsed) {
   padding: 8px;
   margin-bottom: 8px;
 }
-.audio-clip-controls .audio-player {
+.audio-clip-controls .audio-clip-player-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
+}
+.audio-clip-controls .audio-player {
+  flex: 1;
+  min-width: 0;
 }
 
 .audio-clip-times {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   font-size: 13px;
 }
 @media (min-width: 768px) {
   .audio-clip-times {
-    flex-direction: row;
     flex-wrap: nowrap;
-    align-items: center;
   }
 }
 
 .audio-clip-field-group {
   display: flex;
-  width: 100%;
-}
-@media (min-width: 768px) {
-  .audio-clip-field-group {
-    width: auto;
-  }
+  flex: 1 1 0;
+  min-width: 0;
 }
 .audio-clip-field-group input[type=number] {
-  width: 56px;
+  width: 48px;
   height: 38px;
   flex-shrink: 0;
-  padding: 0 8px;
+  padding: 0 4px;
   font-size: 13px;
   text-align: center;
   border: 1px solid var(--color-border);
@@ -1852,12 +1868,18 @@ body:has(#host-bar.is-collapsed) {
 .audio-clip-field-group input[type=number]::placeholder {
   color: var(--color-muted);
 }
+@media (min-width: 768px) {
+  .audio-clip-field-group input[type=number] {
+    width: 56px;
+    padding: 0 8px;
+  }
+}
 .audio-clip-field-group button {
   flex: 1;
   min-width: 0;
   height: 38px;
   margin: 0;
-  padding: 0 10px;
+  padding: 0 6px;
   font-size: 13px;
   background: var(--color-card);
   color: var(--color-primary);
@@ -1870,7 +1892,7 @@ body:has(#host-bar.is-collapsed) {
 }
 @media (min-width: 768px) {
   .audio-clip-field-group button {
-    flex: 0 1 200px;
+    padding: 0 10px;
   }
 }
 @media (min-width: 992px) {
@@ -1878,9 +1900,20 @@ body:has(#host-bar.is-collapsed) {
     background: var(--color-primary-soft);
   }
 }
+.audio-clip-field-group .clip-btn-long {
+  display: none;
+}
+@media (min-width: 768px) {
+  .audio-clip-field-group .clip-btn-long {
+    display: inline;
+  }
+  .audio-clip-field-group .clip-btn-short {
+    display: none;
+  }
+}
 
 .play-from-start-btn.secondary-btn {
-  flex: 1 1 auto;
+  flex: 1 0 100%;
   min-width: 0;
   height: 38px;
   margin-top: 0;
@@ -1888,6 +1921,11 @@ body:has(#host-bar.is-collapsed) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+@media (min-width: 768px) {
+  .play-from-start-btn.secondary-btn {
+    flex: 1 1 0;
+  }
 }
 
 .options-container {
@@ -1947,6 +1985,44 @@ body:has(#host-bar.is-collapsed) {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   background: var(--color-surface-alt);
+}
+
+.img-thumb-frame {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+
+.remove-img-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 2px solid var(--color-card);
+  border-radius: 50%;
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.remove-img-btn .icon {
+  stroke-width: 3.5;
+}
+@media (hover: hover) {
+  .remove-img-btn {
+    opacity: 0;
+  }
+  .img-thumb-frame:hover .remove-img-btn, .remove-img-btn:focus-visible {
+    opacity: 1;
+  }
 }
 
 .option-img-input {
@@ -2297,7 +2373,8 @@ select option:checked {
 .remove-hint-btn,
 .remove-text-answer-btn,
 .remove-bonus-btn,
-.remove-rule-btn {
+.remove-rule-btn,
+.remove-audio-btn {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2325,7 +2402,8 @@ select option:checked {
 .remove-hint-btn,
 .remove-text-answer-btn,
 .remove-bonus-btn,
-.remove-rule-btn {
+.remove-rule-btn,
+.remove-audio-btn {
   color: var(--color-danger);
 }
 @media (min-width: 992px) {
@@ -2336,7 +2414,8 @@ select option:checked {
   .remove-hint-btn:hover:not(:disabled),
   .remove-text-answer-btn:hover:not(:disabled),
   .remove-bonus-btn:hover:not(:disabled),
-  .remove-rule-btn:hover:not(:disabled) {
+  .remove-rule-btn:hover:not(:disabled),
+  .remove-audio-btn:hover:not(:disabled) {
     background: var(--color-danger-soft);
   }
 }
@@ -2355,7 +2434,8 @@ select option:checked {
 .remove-hint-btn,
 .remove-text-answer-btn,
 .remove-bonus-btn,
-.remove-rule-btn {
+.remove-rule-btn,
+.remove-audio-btn {
   width: 32px;
   height: 32px;
 }
@@ -2414,6 +2494,42 @@ select option:checked {
   margin-top: 16px;
 }
 
+.error-jump-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+#game-editor .is-error-target {
+  outline: 2px solid var(--color-danger);
+  outline-offset: 2px;
+  animation: error-target-pulse 0.5s ease 2;
+}
+
+#game-editor :is(input, textarea, select).is-error-target {
+  outline: none;
+  border-color: var(--color-danger) !important;
+  background-color: var(--color-danger-soft);
+  box-shadow: 0 0 0 3px var(--color-danger-soft);
+  animation-name: error-field-pulse;
+}
+
+@keyframes error-target-pulse {
+  50% {
+    outline-offset: 6px;
+  }
+}
+@keyframes error-field-pulse {
+  50% {
+    box-shadow: 0 0 0 7px var(--color-danger-soft);
+  }
+}
 #games-file-error[hidden] {
   display: none;
 }
@@ -3138,9 +3254,6 @@ select option:checked {
   flex: 1;
   min-width: 0;
   margin-bottom: 0;
-}
-.file-url-field[hidden] {
-  display: none;
 }
 
 .option-row .file-url-field {

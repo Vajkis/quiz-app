@@ -1449,6 +1449,59 @@ app.use(
   express.static(MEDIA_DIR, { maxAge: '365d', immutable: true, index: false })
 );
 
+// Every uploaded file a game or draft points at, as "<folder>/<file>" (or
+// just "<file>" for one in data/media itself).
+function usedMediaFiles() {
+  const used = new Set();
+  const json = JSON.stringify([games, drafts]);
+  for (const match of json.matchAll(/"\/media\/([^"]+)"/g)) used.add(match[1]);
+  return used;
+}
+
+// Deletes the uploads in these folders (a game's id, or '' for data/media
+// itself) that no game or draft points at any more — a deleted game's, a
+// picture removed or replaced in the editor — and a folder left empty.
+// Only folders the caller knows are settled are looked through: another
+// game's editor may be open with an upload its game isn't saved with yet.
+function removeUnusedMedia(folders) {
+  const used = usedMediaFiles();
+  for (const folder of folders) {
+    const dir = folder ? path.join(MEDIA_DIR, folder) : MEDIA_DIR;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue; // no such folder: nothing was ever uploaded there
+    }
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (used.has(folder ? `${folder}/${entry.name}` : entry.name)) continue;
+      try {
+        fs.rmSync(path.join(dir, entry.name), { force: true });
+      } catch (err) {
+        console.error('Nepavyko ištrinti failo', path.join(dir, entry.name), err.message);
+      }
+    }
+    if (folder) {
+      try {
+        fs.rmdirSync(dir); // only goes if it's empty now
+      } catch {}
+    }
+  }
+}
+
+// At startup, what was left behind before deleting a game took its files
+// with it: folders of games and drafts that are gone, and data/media's own
+// files nothing uses.
+try {
+  const orphanFolders = fs
+    .readdirSync(MEDIA_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && GAME_ID_PATTERN.test(e.name))
+    .map((e) => e.name)
+    .filter((id) => !games[id] && !drafts[id]);
+  removeUnusedMedia(['', ...orphanFolders]);
+} catch {}
+
 app.post(
   '/api/host/upload',
   express.raw({ type: () => true, limit: MEDIA_MAX_BYTES }),
@@ -2016,6 +2069,9 @@ app.post('/api/games', (req, res) => {
     delete drafts[requested];
     saveDrafts();
   }
+  // Files uploaded while it was written but not kept in it (a removed or
+  // replaced picture).
+  removeUnusedMedia([gameId]);
   res.json({ gameId });
 });
 
@@ -2050,6 +2106,7 @@ app.delete('/api/host/drafts/:draftId', (req, res) => {
     return res.status(404).json({ error: 'Juodraštis nerastas' });
   delete drafts[draftId];
   saveDrafts();
+  removeUnusedMedia([draftId]);
   res.json({ ok: true });
 });
 
@@ -2063,6 +2120,8 @@ app.put('/api/games/:gameId', (req, res) => {
   rememberAllHistoryNames();
   games[gameId] = result.game;
   saveGames();
+  // A picture removed or replaced in the editor takes its file with it.
+  removeUnusedMedia([gameId]);
   res.json({ ok: true });
 });
 
@@ -2079,6 +2138,8 @@ app.delete('/api/games/:gameId', (req, res) => {
   rememberAllHistoryNames();
   delete games[gameId];
   saveGames();
+  // Its uploaded pictures and music go with it.
+  removeUnusedMedia([gameId]);
   res.json({ ok: true });
 });
 

@@ -33,7 +33,9 @@ QuizGameEditorCore.uploadFile = async (file) => {
 QuizGameEditorCore.mountSidePanel(stagesContainer);
 
 async function showGame(game) {
-  await QuizMediaPreview.load(game);
+  // A file that can't be read just has no preview — the game still opens
+  // (and its draft keeps being saved).
+  await QuizMediaPreview.load(game).catch(() => {});
   renderGame(stagesContainer, nameInput, game);
 }
 
@@ -89,10 +91,14 @@ function saveDraft() {
   draftStatusEl.textContent = 'Juodraštis išsaugotas';
 }
 
+// The first change is saved at once, not after the delay: until it is, the
+// page has no ?draft=, and a reload would open a blank new game while what
+// was typed went into a draft under the old id.
 function scheduleDraftSave() {
   if (gameId || gameSaved) return;
   clearTimeout(draftTimer);
-  draftTimer = setTimeout(saveDraft, 800);
+  if (!draftSaved) saveDraft();
+  else draftTimer = setTimeout(saveDraft, 800);
 }
 
 showGame(initialGame).then(() => {

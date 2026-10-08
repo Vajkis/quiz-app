@@ -26,14 +26,15 @@
     <p class="section-label">Dar nesužaista nė vieno žaidimo su sezonu.</p>
   <% } %>
 
-  <%# Newest season first and open; older ones below, collapsed. %>
-  <% seasonList.forEach(function(season, i) { %>
+  <%# Newest season first; the active one open (the newest if the active has no history), the rest collapsed. %>
+  <% seasonList.forEach(function(season) { %>
+    <% const open = season.seasonId === openSeasonId; %>
     <div class="stage-card season-section" data-season-id="<%= season.seasonId %>">
       <div class="stage-header season-section-header">
-        <button type="button" class="toggle-stage-btn<%= i === 0 ? '' : ' collapsed' %>" title="Suskleisti/išskleisti sezoną"><span class="chevron-icon"></span></button>
+        <button type="button" class="toggle-stage-btn<%= open ? '' : ' collapsed' %>" title="Suskleisti/išskleisti sezoną"><span class="chevron-icon"></span></button>
         <span class="season-section-title">Sezonas <%= season.seasonId %></span>
       </div>
-      <div class="stage-body season-section-body"<%- i === 0 ? '' : ' style="max-height: 0px"' %>>
+      <div class="stage-body season-section-body"<%- open ? '' : ' style="max-height: 0px"' %>>
         <div class="season-section-inner">
           <% season.teams.forEach(function(team) { %>
             <div class="team-card">

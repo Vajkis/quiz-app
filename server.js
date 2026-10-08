@@ -831,19 +831,17 @@ function gameDisplayName(gameId, team) {
 
 // Each team's total across every game and stage recorded under a season
 // (see recordStageScores), ranked for the end-of-game season standings.
-// Teams in this room always show up, even with nothing recorded yet (0).
+// Only teams that have played in the season — a team in this room that has
+// nothing recorded under it isn't listed.
 function buildSeasonLeaderboard(room) {
   const seasonId = room.seasonId;
   const teams = loadTeams();
   return Object.entries(teams)
-    .filter(
-      ([teamId, t]) =>
-        (t.seasons && t.seasons[seasonId]) || room.joinedTeams.has(teamId)
-    )
+    .filter(([, t]) => t.seasons && t.seasons[seasonId])
     .map(([teamId, t]) => ({
       teamId,
       name: t.name,
-      score: Object.values((t.seasons && t.seasons[seasonId]) || {}).reduce(
+      score: Object.values(t.seasons[seasonId]).reduce(
         (sum, stages) =>
           sum + Object.values(stages).reduce((s, score) => s + score, 0),
         0
@@ -859,7 +857,7 @@ function seasonPenalty(team, seasonId) {
 }
 
 // Every team with penalty points this season, most first. Teams in this room
-// always show up, even with none (0) — same as buildSeasonLeaderboard.
+// always show up, even with none (0).
 function buildPenaltyLeaderboard(room) {
   const seasonId = room.seasonId;
   const teams = loadTeams();
@@ -1930,9 +1928,16 @@ app.get('/host/teams', (req, res) => {
       b.seasonId.localeCompare(a.seasonId, undefined, { numeric: true })
     );
 
+  // Opened on arrival: the active season, or the newest if it has no history.
+  const activeSeason = loadSettings().activeSeason;
+  const openSeasonId = seasonList.some((s) => s.seasonId === String(activeSeason))
+    ? String(activeSeason)
+    : seasonList[0] && seasonList[0].seasonId;
+
   res.render('host/teams', {
     title: 'Quiz - Komandų istorija',
     seasonList,
+    openSeasonId,
     teamCount,
     error: null
   });

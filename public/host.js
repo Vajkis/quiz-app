@@ -767,7 +767,8 @@ document.querySelectorAll('.reveal-btn').forEach((btn) => {
 
 // Team history: each season's chevron collapses/expands its section, the
 // same way (and with the same button) as a stage in the game editor — see
-// attachCollapse in game-editor-core.js. The newest season starts open, and
+// attachCollapse in game-editor-core.js. The active season starts open (the
+// newest if the active one has no history — server.js), and
 // one is open at a time. As with the editor's stages (collapseOtherStages
 // in game-editor-core.js), in two steps: the opened season slides open
 // while the page scrolls up to it, then the rest slide shut while the page
@@ -839,6 +840,11 @@ seasonSections.forEach((section) => {
     });
   });
 });
+
+// The season open on arrival scrolled to, unless it's the first one —
+// already in view, under the heading.
+const openSeason = seasonSections.find((s) => !s.collapse.isCollapsed());
+if (openSeason && openSeason !== seasonSections[0]) scrollAlong(openSeason);
 
 // The seasons in the side panel too, numbered like the editor's stages:
 // clicking one opens it (shutting the others) and scrolls to it.

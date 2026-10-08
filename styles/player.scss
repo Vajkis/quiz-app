@@ -130,15 +130,21 @@
   }
 }
 
-// Typed-answer question: a single empty field instead of option buttons.
+// Typed-answer question: a single empty field instead of option buttons —
+// a text box one line tall, growing a line at a time as the answer wraps
+// (its height set by fitTextBox in app.js, so no handle to drag).
 .text-answer-input {
   display: block;
   width: 100%;
   padding: 12px;
   margin-top: 8px;
+  font-family: inherit;
   font-size: 16px;
+  line-height: 1.4;
   border: 1px solid v.$color-border;
   border-radius: v.$radius-sm;
+  resize: none;
+  overflow: hidden;
 }
 
 // A chain: one numbered field per clue (the clues are on the big screen).
@@ -155,9 +161,14 @@
   }
 }
 
-// Just wide enough for "9." (there are never 10 fields) or a "•".
+// Just wide enough for "9." (there are never 10 fields) or a "•". Level
+// with the box's first line, however many it has grown to.
 .chain-answer-number {
   flex: 0 0 16px;
+  align-self: flex-start;
+  padding-top: 13px; // the box's border and padding
+  font-size: 16px;
+  line-height: 1.4;
   font-weight: 700;
   text-align: center;
 }
@@ -318,4 +329,40 @@
 .hint-lock-error {
   margin: 8px 0 0;
   color: v.$color-danger;
+}
+
+// A hints question being played: the team tells the host it's ready to move
+// on — outlined until pressed, then green with a note on taking it back.
+.ready-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  background: v.$color-card;
+  color: v.$color-primary;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius;
+  cursor: pointer;
+
+  &.is-ready {
+    background: v.$color-success;
+    color: v.$color-on-success;
+    border-color: transparent;
+  }
+}
+
+.ready-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: v.$color-muted;
+
+  &:empty {
+    display: none;
+  }
 }

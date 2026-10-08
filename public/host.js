@@ -551,12 +551,49 @@ if (teamStatusEl) {
       badge.className = 'team-status-badge';
       if (icon) badge.innerHTML = `${QuizIcons.icon(icon)} `;
       badge.append(text);
-      row.append(name, badge);
+      row.append(name);
+      if (team.answer) row.appendChild(answerStatus(team.answer));
+      row.appendChild(badge);
       if (team.offline && paperEditable) row.appendChild(paperPointsField(team));
       if (team.penalty != null) row.appendChild(penaltyControls(team));
       row.appendChild(removeButton(team));
       listEl.appendChild(row);
     });
+  }
+
+  // The team's answer to the question on screen, as one icon (the words in
+  // its tooltip) — the first of: being typed, locked in (for N points),
+  // ready to move on (a hints question), all its fields filled in, some of
+  // them (2/3), nothing yet. With an extra answer to give, a purple icon
+  // for it beside: being typed, typed in, or not yet.
+  function answerStatus(answer) {
+    const wrap = document.createElement('span');
+    wrap.className = 'team-answers';
+    const add = (cls, iconName, title, text) => {
+      const el = document.createElement('span');
+      el.className = `team-answer ${cls}`;
+      el.innerHTML = QuizIcons.icon(iconName);
+      if (text != null) el.append(String(text));
+      el.title = title;
+      el.setAttribute('role', 'img');
+      el.setAttribute('aria-label', title);
+      wrap.appendChild(el);
+    };
+    if (answer.typing) add('is-typing', 'edit', 'Rašo atsakymą…');
+    else if (answer.lockedPoints != null)
+      add('is-locked', 'lock', `Atsakymas užrakintas už ${answer.lockedPoints} tšk.`, answer.lockedPoints);
+    else if (answer.ready) add('is-ready', 'arrow-right', 'Galima judėti toliau');
+    else if (answer.filled === 0) add('is-unanswered', 'circle-dashed', 'Neatsakyta');
+    else if (answer.filled < answer.total)
+      add('is-partial', 'check', `Atsakyta ${answer.filled} iš ${answer.total}`, `${answer.filled}/${answer.total}`);
+    else add('is-answered', 'check', 'Atsakyta');
+
+    if (answer.bonusFilled != null) {
+      if (answer.typingBonus) add('is-bonus is-typing', 'edit', 'Rašo papildomą atsakymą…');
+      else if (answer.bonusFilled) add('is-bonus is-answered', 'check', 'Papildomas atsakymas įrašytas');
+      else add('is-bonus is-unanswered', 'circle-dashed', 'Papildomas atsakymas neįrašytas');
+    }
+    return wrap;
   }
 
   // − count + for the team's penalty points this season; the new count

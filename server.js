@@ -939,10 +939,12 @@ function createHistoryEntry(q) {
     // server), how many are shown so far — the first one right away, the
     // rest one by one as the host reveals them; kept here, so stepping back
     // to the question later shows them all again — and per team, the points
-    // its answer was locked in for (see hintPoints).
+    // its answer was locked in for (see hintPoints) — and the teams that
+    // pressed "Galime judėti toliau" (see the 'ready' handler).
     hints: type === 'hints' ? q.hints.slice() : null,
     revealedHints: type === 'hints' ? 1 : 0,
     locks: {},
+    ready: {},
     bonusQuestion: q.bonus ? q.bonus.question || '' : null,
     bonusAnswer: q.bonus ? q.bonus.answer : null,
     img: resolveMediaSrc(q.img),
@@ -1132,6 +1134,8 @@ function answerFieldsFor(entry, teamId) {
     ordered: entry.ordered,
     linkCount: entry.clues ? entry.clues.length : 0,
     myLock: entry.locks && teamId in entry.locks ? entry.locks[teamId] : null,
+    myReady: !!(entry.ready && entry.ready[teamId]),
+    lastHint: entry.type === 'hints' && entry.revealedHints >= entry.hints.length,
     hasBonus: entry.bonusAnswer != null,
     mySelection: mySelectionFor(entry, teamId),
     myBonus: mySelectionFor(entry, teamId, entry.bonusSelections)
@@ -1167,6 +1171,35 @@ function mySelectionFor(entry, teamId, selections = entry.selections) {
       Array.isArray(value) && typeof value[i] === 'string' ? value[i] : ''
     );
   return typeof value === 'string' ? value : '';
+}
+
+// A team's answer to a question, for the host's team list: how many of its
+// fields are filled in (one for a pick or a single typed answer; one per
+// clue, or per answer when there are several), a hints answer's locked-in
+// points, and whether the team said it's ready to move on.
+function answerStatusFor(entry, teamId) {
+  const selection = mySelectionFor(entry, teamId);
+  const fields = Array.isArray(selection) ? selection : [selection];
+  return {
+    filled: fields.filter((s) => s.trim()).length,
+    total: fields.length,
+    lockedPoints: teamId in entry.locks ? entry.locks[teamId] : null,
+    ready: !!entry.ready[teamId],
+    // The extra answer: typed in or not — null when there's none to give.
+    bonusFilled:
+      entry.bonusAnswer != null
+        ? !!mySelectionFor(entry, teamId, entry.bonusSelections).trim()
+        : null
+  };
+}
+
+// A team's "Galime judėti toliau", on or off, to every phone of that team
+// in the room.
+function sendReady(roomId, index, teamId, ready) {
+  for (const [, socket] of io.sockets.sockets) {
+    if (socket.data.roomId === roomId && socket.data.teamId === teamId)
+      socket.emit('ready', { index, ready });
+  }
 }
 
 // A team (player) gets the latest shown question plus all the others to
@@ -2328,7 +2361,10 @@ app.post('/api/host/room/:roomId/goto', (req, res) => {
     !room.questionHistory[index]
   )
     return res.status(400).json({ error: 'Šis klausimas dar nerodytas' });
-  if (index !== room.questionIndex) navigateTo(room, roomId, index);
+  if (index !== room.questionIndex) {
+    navigateTo(room, roomId, index);
+    emitTeamStatus(roomId);
+  }
   res.json({ phase: 'question' });
 });
 
@@ -2361,6 +2397,7 @@ app.post('/api/host/room/:roomId/prev', (req, res) => {
   if (!navigateTo(room, roomId, room.questionIndex - 1)) {
     return res.status(400).json({ error: 'Tai pirmas etapo klausimas' });
   }
+  emitTeamStatus(roomId);
   res.json({ phase: 'question' });
 });
 
@@ -2403,6 +2440,18 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
     ) {
       entry.revealedHints++;
       broadcastHints(room, roomId, room.questionIndex);
+      // A new hint: every team says again whether it's ready for the next one.
+      Object.keys(entry.ready).forEach((teamId) => {
+        delete entry.ready[teamId];
+        sendReady(roomId, room.questionIndex, teamId, false);
+      });
+      // With the last one shown, locking in is worth no more than not doing
+      // it (see hintPoints), so the phones drop their lock button.
+      if (entry.revealedHints === entry.hints.length)
+        for (const [, socket] of io.sockets.sockets) {
+          if (socket.data.roomId === roomId && socket.data.teamId)
+            socket.emit('last-hint', { index: room.questionIndex });
+        }
       return res.json({ phase: 'question' });
     }
     // Otherwise on to a new question — after the furthest one shown, even
@@ -2637,6 +2686,7 @@ app.delete('/api/host/room/:roomId/teams/:teamId', (req, res) => {
       'textOverrides',
       'bonusOverrides',
       'locks',
+      'ready',
       'awardedPoints'
     ].forEach((key) => entry[key] && delete entry[key][teamId]);
   });
@@ -2722,16 +2772,24 @@ function hostWatchChannel(roomId) {
 // its last internet check (online, and how long ago — the host page treats
 // an old check as unknown) and its penalty points this season (null when
 // the room has no season, so there's nowhere to keep them) — or, for a team
-// playing on paper, the points entered for it this stage. Plus every
+// playing on paper, the points entered for it this stage. While a question
+// is up, a phone team's answer to the one the host is on (see
+// answerStatusFor) and whether it's being typed right now. Plus every
 // registered team not in the room, to add one playing on paper.
 function teamStatusPayload(roomId) {
   const room = rooms[roomId];
   const teams = loadTeams();
   const connected = new Set();
+  const typing = new Set();
+  const typingBonus = new Set();
   for (const [, s] of io.sockets.sockets) {
-    if (s.connected && s.data.roomId === roomId && s.data.teamId)
-      connected.add(s.data.teamId);
+    if (!s.connected || s.data.roomId !== roomId || !s.data.teamId) continue;
+    connected.add(s.data.teamId);
+    if (s.data.typingIndex === room.questionIndex)
+      (s.data.typingBonus ? typingBonus : typing).add(s.data.teamId);
   }
+  const entry =
+    room.phase === 'question' ? room.questionHistory[room.questionIndex] : null;
   const now = Date.now();
   const list = Array.from(room.joinedTeams)
     .map((teamId) => {
@@ -2746,7 +2804,15 @@ function teamStatusPayload(roomId) {
           ? seasonPenalty(teams[teamId], room.seasonId)
           : null,
         offline: room.offlineTeams.has(teamId),
-        paperPoints: (room.paperScores[room.stageIndex] || {})[teamId] || 0
+        paperPoints: (room.paperScores[room.stageIndex] || {})[teamId] || 0,
+        answer:
+          entry && !room.offlineTeams.has(teamId)
+            ? {
+                ...answerStatusFor(entry, teamId),
+                typing: typing.has(teamId),
+                typingBonus: typingBonus.has(teamId)
+              }
+            : null
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'lt'));
@@ -2906,6 +2972,7 @@ io.on('connection', (socket) => {
       selection = value;
     }
 
+    const statusBefore = JSON.stringify(answerStatusFor(entry, teamId));
     updateEntry(room, targetIndex, () => {
       // A changed typed answer drops the host's earlier call on the old one.
       if (
@@ -2914,6 +2981,13 @@ io.on('connection', (socket) => {
         delete entry.textOverrides[teamId];
       entry.selections[teamId] = selection;
     });
+    // The host's team list only when what it shows changed (not on every
+    // keystroke that's sent).
+    if (
+      targetIndex === room.questionIndex &&
+      JSON.stringify(answerStatusFor(entry, teamId)) !== statusBefore
+    )
+      emitTeamStatus(socket.data.roomId);
   });
 
   // Locks a hints question's typed answer in (sent along, so the last few
@@ -2928,6 +3002,8 @@ io.on('connection', (socket) => {
     const { room, targetIndex, entry } = target;
     const teamId = socket.data.teamId;
     if (teamId in entry.locks) return reply({ points: entry.locks[teamId] });
+    if (entry.revealedHints >= entry.hints.length)
+      return reply({ error: 'Po paskutinės užuominos užrakinti nebereikia' });
     const selection = value.slice(0, 200).trim();
     if (!selection) return reply({ error: 'Pirma įrašyk atsakymą' });
     updateEntry(room, targetIndex, () => {
@@ -2937,6 +3013,47 @@ io.on('connection', (socket) => {
       entry.locks[teamId] = hintPoints(entry);
     });
     reply({ points: entry.locks[teamId] });
+    // A locked-in team is done with the question: no "Galime judėti
+    // toliau" any more.
+    if (entry.ready[teamId]) {
+      delete entry.ready[teamId];
+      sendReady(socket.data.roomId, targetIndex, teamId, false);
+    }
+    emitTeamStatus(socket.data.roomId);
+  });
+
+  // A hints question's "Galime judėti toliau" on a phone, or taken back:
+  // the team is ready for the next hint (or question). Shown in the host's
+  // team list; a new hint clears it (see the 'next' route). Not once the
+  // team's answer is locked in.
+  socket.on('ready', (index, ready) => {
+    const target = answerTarget(index);
+    if (!target || target.entry.type !== 'hints') return;
+    const { targetIndex, entry } = target;
+    const teamId = socket.data.teamId;
+    if (teamId in entry.locks) return;
+    if (!!entry.ready[teamId] === !!ready) return;
+    if (ready) entry.ready[teamId] = true;
+    else delete entry.ready[teamId];
+    sendReady(socket.data.roomId, targetIndex, teamId, !!ready);
+    emitTeamStatus(socket.data.roomId);
+  });
+
+  // The answer field a phone is typing in (its question's index, and
+  // whether it's the extra answer's), or null once it stops — "Rašo…" in
+  // the host's team list.
+  socket.on('typing', (index, bonus) => {
+    if (!rooms[socket.data.roomId] || !socket.data.teamId) return;
+    const typingIndex = Number.isInteger(index) ? index : null;
+    const typingBonus = typingIndex != null && !!bonus;
+    if (
+      (socket.data.typingIndex ?? null) === typingIndex &&
+      !!socket.data.typingBonus === typingBonus
+    )
+      return;
+    socket.data.typingIndex = typingIndex;
+    socket.data.typingBonus = typingBonus;
+    emitTeamStatus(socket.data.roomId);
   });
 
   socket.on('select-bonus', (value, index) => {
@@ -2946,11 +3063,17 @@ io.on('connection', (socket) => {
     if (entry.bonusAnswer == null) return;
     const teamId = socket.data.teamId;
     const selection = value.slice(0, 200);
+    const statusBefore = JSON.stringify(answerStatusFor(entry, teamId));
     updateEntry(room, targetIndex, () => {
       if (entry.bonusSelections[teamId] !== selection)
         delete entry.bonusOverrides[teamId];
       entry.bonusSelections[teamId] = selection;
     });
+    if (
+      targetIndex === room.questionIndex &&
+      JSON.stringify(answerStatusFor(entry, teamId)) !== statusBefore
+    )
+      emitTeamStatus(socket.data.roomId);
   });
 
   // The host's <audio> element is muted — it's just there so the host can see

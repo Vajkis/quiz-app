@@ -3103,6 +3103,70 @@ select option:checked {
   overflow-wrap: anywhere;
 }
 
+.team-answers {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.team-answer {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+}
+.team-answer.is-unanswered {
+  background: var(--color-neutral-soft);
+  color: var(--color-muted);
+}
+.team-answer.is-typing {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.team-answer.is-typing .icon {
+  animation: team-answer-typing 1s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .team-answer.is-typing .icon {
+    animation: none;
+  }
+}
+.team-answer.is-partial {
+  background: var(--color-amber-soft);
+  color: var(--color-amber-text);
+}
+.team-answer.is-answered, .team-answer.is-locked {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+.team-answer.is-ready {
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+.team-answer.is-bonus {
+  background: color-mix(in srgb, var(--color-purple) 10%, transparent);
+  color: var(--color-purple);
+}
+.team-answer.is-bonus.is-answered {
+  background: color-mix(in srgb, var(--color-purple) 22%, transparent);
+}
+
+@keyframes team-answer-typing {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
 .team-penalty {
   flex: 0 0 auto;
   display: flex;

@@ -95,12 +95,36 @@ if (!currentTeam) {
   const socket = io();
 
   socket.on('connect', () => {
+    typingIndex = null; // a new connection starts out not typing
+    typingBonus = false;
     socket.emit('join-room', {
       roomId: ROOM_ID,
       teamId: currentTeam.id,
       teamName: currentTeam.name
     });
     checkInternet(socket);
+  });
+
+  // Typing in any answer field — the live question's or an earlier one's.
+  quizEl.addEventListener('input', (e) => {
+    if (!e.target.matches('.text-answer-input')) return;
+    const details = e.target.closest('.previous-question');
+    setTyping(socket, Number((details || quizEl).dataset.index), e.target.classList.contains('bonus-answer-input'));
+  });
+  quizEl.addEventListener('focusout', (e) => {
+    if (e.target.matches('.text-answer-input')) setTyping(socket, null);
+  });
+
+  // "Galime judėti toliau" pressed (or taken back) on another phone of the
+  // team, or cleared by a new hint.
+  socket.on('ready', ({ index, ready }) => {
+    if (readyButton && readyButton.index === index) readyButton.show(ready);
+  });
+
+  // The hints question's last hint is up: no more locking in.
+  socket.on('last-hint', ({ index }) => {
+    const wrap = quizEl.querySelector(`.hints-answer[data-index="${index}"]`);
+    if (wrap && wrap._dropLock) wrap._dropLock();
   });
 
   document
@@ -213,6 +237,26 @@ function renderLeaderboard({ rows, final, stageName, seasonId, penalties }) {
   });
 }
 
+// Tells the host which answer field is being typed in (its question's
+// index, and whether it's the extra answer's) and when typing stops — a
+// few seconds' pause, or leaving the field — for "Rašo…" in their team list.
+const TYPING_IDLE_MS = 3000;
+let typingIndex = null;
+let typingBonus = false;
+let typingTimer = null;
+function setTyping(socket, index, bonus = false) {
+  clearTimeout(typingTimer);
+  if (index != null) typingTimer = setTimeout(() => setTyping(socket, null), TYPING_IDLE_MS);
+  if (index === typingIndex && bonus === typingBonus) return;
+  typingIndex = index;
+  typingBonus = bonus;
+  socket.emit('typing', index, bonus);
+}
+
+// The live hints question's "Galime judėti toliau" (see renderReadyButton):
+// its question's index and how to show it pressed or not.
+let readyButton = null;
+
 function renderQuestion(q, socket) {
   // Keep the earlier question the player had expanded open across re-renders
   // (every host navigation sends a fresh 'question'); one mid-collapse doesn't count.
@@ -222,6 +266,8 @@ function renderQuestion(q, socket) {
     )
   );
   quizEl.innerHTML = '';
+  quizEl.dataset.index = q.index;
+  readyButton = null;
 
   const p = document.createElement('p');
   p.className = 'question-text';
@@ -235,8 +281,22 @@ function renderQuestion(q, socket) {
     q,
     (value) => socket.emit('select', value, q.index),
     (value) => socket.emit('select-bonus', value, q.index),
-    (value) => lockAnswer(socket, value, q.index)
+    (value) =>
+      lockAnswer(socket, value, q.index).then((points) => {
+        // Locked in, the team is done with it: no more "Galime judėti toliau".
+        if (readyButton) readyButton.remove();
+        readyButton = null;
+        return points;
+      })
   );
+
+  // Only on the question being played, not on an earlier one, and not once
+  // its answer is locked in.
+  if (q.type === 'hints' && q.myLock == null)
+    readyButton = {
+      index: q.index,
+      ...renderReadyButton(quizEl, q.myReady, (ready) => socket.emit('ready', q.index, ready))
+    };
 
   renderPreviousQuestions(q, socket, openIndexes);
 }
@@ -338,6 +398,7 @@ function expandQuestion(details) {
   const fromHeight = details.open ? body.getBoundingClientRect().height : 0;
   details.classList.remove('closing');
   details.open = true;
+  fitTextBoxes(details); // collapsed, they couldn't be sized
   animateQuestionBody(details, fromHeight, body.scrollHeight, () => {});
 }
 
@@ -382,7 +443,9 @@ function renderAnswerInput(container, q, onChange, onBonusChange, onLock) {
     label.className = 'bonus-answer-label';
     label.textContent = 'Papildomas atsakymas';
     container.appendChild(label);
-    container.appendChild(createTypedInput(q.myBonus || '', 'Įrašyk papildomą atsakymą', onBonusChange));
+    const bonusInput = createTypedInput(q.myBonus || '', 'Įrašyk papildomą atsakymą', onBonusChange);
+    bonusInput.classList.add('bonus-answer-input'); // typing in it is told apart (see setTyping)
+    container.appendChild(bonusInput);
   }
 }
 
@@ -405,6 +468,7 @@ function lockAnswer(socket, value, index) {
 function renderHintsAnswer(container, q, onChange, onLock) {
   const wrap = document.createElement('div');
   wrap.className = 'hints-answer';
+  wrap.dataset.index = q.index;
   container.appendChild(wrap);
 
   const input = createTypedInput(q.mySelection || '', 'Įrašyk atsakymą', onChange);
@@ -471,6 +535,49 @@ function renderHintsAnswer(container, q, onChange, onLock) {
       message.textContent = err.message;
     }
   });
+
+  // With the last hint shown, locking in is worth no more than not doing
+  // it, so there's no button for it — gone as soon as that hint is.
+  wrap._dropLock = () => {
+    lockBtn.remove();
+    confirmRow.remove();
+    message.textContent = '';
+  };
+  if (q.lastHint) wrap._dropLock();
+}
+
+// A hints question being played: "Galime judėti toliau" lets the host know
+// the team is ready for the next hint (or question); pressed again, it's
+// taken back. A new hint clears it. Returns show (pressed: true, or not) and
+// remove.
+function renderReadyButton(container, ready, onChange) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ready-btn';
+  const note = document.createElement('p');
+  note.className = 'ready-note';
+  container.append(btn, note);
+
+  function show(on) {
+    btn.classList.toggle('is-ready', on);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.innerHTML = `${QuizIcons.icon(on ? 'check' : 'arrow-right')} `;
+    btn.append('Galime judėti toliau');
+    note.textContent = on ? 'Vedėjas mato, kad galite judėti toliau. Paspauskite dar kartą, jei norite atšaukti.' : '';
+  }
+  show(!!ready);
+  btn.addEventListener('click', () => {
+    const on = !btn.classList.contains('is-ready');
+    show(on);
+    onChange(on);
+  });
+  return {
+    show,
+    remove() {
+      btn.remove();
+      note.remove();
+    }
+  };
 }
 
 // count typed fields in a list, numbered (1., 2., …) or bulleted — every
@@ -498,15 +605,29 @@ function renderTypedFields(container, count, selection, numbered, onChange) {
   container.appendChild(list);
 }
 
-// Typing is sent after a short pause, and immediately when the field is left.
+// A text box one line tall that grows with what's typed (wrapped onto more
+// lines) — still one line of answer: Enter leaves it, and a line break
+// pasted in becomes a space. Typing is sent after a short pause, and
+// immediately when the field is left.
 function createTypedInput(initialValue, placeholder, onChange) {
-  const input = document.createElement('input');
-  input.type = 'text';
+  const input = document.createElement('textarea');
+  input.rows = 1;
+  input.enterKeyHint = 'done'; // the keyboard's Enter key: no new line
   input.className = 'text-answer-input';
   input.placeholder = placeholder;
   input.maxLength = 200;
   input.autocomplete = 'off';
   input.value = initialValue;
+  input.addEventListener('input', () => {
+    if (/[\r\n]/.test(input.value)) {
+      const caret = input.selectionStart;
+      input.value = input.value.replace(/\r\n?|\n/g, ' ');
+      input.setSelectionRange(caret, caret);
+    }
+    fitTextBox(input);
+  });
+  // Sized once it's on the page (it has no height before).
+  requestAnimationFrame(() => fitTextBox(input));
 
   let lastSent = input.value;
   let timer = null;
@@ -523,10 +644,27 @@ function createTypedInput(initialValue, placeholder, onChange) {
   });
   input.addEventListener('change', send);
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') input.blur();
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    input.blur();
   });
   return input;
 }
+
+// A text box as tall as its text: its rows, plus the border. Not while it
+// isn't shown (a collapsed earlier question) — there's nothing to measure.
+function fitTextBox(box) {
+  if (!box.isConnected || !box.getClientRects().length) return;
+  box.style.height = 'auto';
+  box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`;
+}
+
+function fitTextBoxes(root) {
+  root.querySelectorAll('textarea.text-answer-input').forEach(fitTextBox);
+}
+
+// Wrapping changes with the width.
+window.addEventListener('resize', () => fitTextBoxes(quizEl));
 
 // Renders one question's option buttons into container — one pick at a
 // time, starting from selectedId — and reports every new pick (its option

@@ -2624,6 +2624,84 @@ select option {
   overflow-wrap: anywhere;
 }
 
+// The team's answer to the question on screen, as one icon — and one more
+// for the extra answer, if there is one (see answerStatus in host.js).
+.team-answers {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+}
+
+.team-answer {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 24px;
+  padding: 2px 6px;
+  border-radius: v.$radius;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: default;
+
+  &.is-unanswered {
+    background: v.$color-neutral-soft;
+    color: v.$color-muted;
+  }
+
+  &.is-typing {
+    background: v.$color-primary-soft;
+    color: v.$color-primary;
+
+    .icon {
+      animation: team-answer-typing 1s ease-in-out infinite alternate;
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+      }
+    }
+  }
+
+  &.is-partial {
+    background: v.$color-amber-soft;
+    color: v.$color-amber-text;
+  }
+
+  &.is-answered,
+  &.is-locked {
+    background: v.$color-success-soft;
+    color: v.$color-success;
+  }
+
+  &.is-ready {
+    background: v.$color-primary;
+    color: v.$color-on-accent;
+  }
+
+  // The extra answer, in the extra question's purple (as everywhere else),
+  // drawn like the main answer's icon: the icon in purple on a faint purple
+  // — a stronger one once it's typed in.
+  &.is-bonus {
+    background: color-mix(in srgb, v.$color-purple 10%, transparent);
+    color: v.$color-purple;
+
+    &.is-answered {
+      background: color-mix(in srgb, v.$color-purple 22%, transparent);
+    }
+  }
+}
+
+@keyframes team-answer-typing {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.3;
+  }
+}
+
 // The team's penalty points this season, with − / + for the host.
 .team-penalty {
   flex: 0 0 auto;

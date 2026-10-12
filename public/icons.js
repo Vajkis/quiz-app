@@ -23,6 +23,7 @@
     upload: '<path d="M12 21V8M7 13l5-5 5 5M5 3h14"/>',
     download: '<path d="M12 3v13M7 11l5 5 5-5M5 21h14"/>',
     lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    'lock-off': '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4M3 3l18 18"/>',
     dot: `<circle cx="12" cy="12" r="3.5" ${filled}/>`,
     'circle-dashed': '<circle cx="12" cy="12" r="8" stroke-dasharray="3.5 3"/>',
     paper: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',

@@ -3123,7 +3123,7 @@ select option:checked {
   white-space: nowrap;
   cursor: default;
 }
-.team-answer.is-unanswered {
+.team-answer.is-unanswered, .team-answer.is-unlocked {
   background: var(--color-neutral-soft);
   color: var(--color-muted);
 }
@@ -3143,7 +3143,7 @@ select option:checked {
   background: var(--color-amber-soft);
   color: var(--color-amber-text);
 }
-.team-answer.is-answered, .team-answer.is-locked {
+.team-answer.is-locked {
   background: var(--color-success-soft);
   color: var(--color-success);
 }

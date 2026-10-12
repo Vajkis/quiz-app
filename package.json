@@ -1,6 +1,6 @@
 {
   "name": "quiz-app",
-  "version": "1.9.6",
+  "version": "1.9.7",
   "private": true,
   "description": "Simple quiz app served over local network",
   "main": "server.js",

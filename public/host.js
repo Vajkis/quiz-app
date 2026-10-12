@@ -563,8 +563,8 @@ if (teamStatusEl) {
 
   // The team's answer to the question on screen, as one icon (the words in
   // its tooltip) — the first of: being typed, locked in (for N points),
-  // ready to move on (a hints question), all its fields filled in, some of
-  // them (2/3), nothing yet. With an extra answer to give, a purple icon
+  // ready to move on (a hints question), all its fields filled in but not
+  // locked (a crossed-out lock), some of them (2/3), nothing yet. With an extra answer to give, a purple icon
   // for it beside: being typed, typed in, or not yet.
   function answerStatus(answer) {
     const wrap = document.createElement('span');
@@ -586,7 +586,7 @@ if (teamStatusEl) {
     else if (answer.filled === 0) add('is-unanswered', 'circle-dashed', 'Neatsakyta');
     else if (answer.filled < answer.total)
       add('is-partial', 'check', `Atsakyta ${answer.filled} iš ${answer.total}`, `${answer.filled}/${answer.total}`);
-    else add('is-answered', 'check', 'Atsakyta');
+    else add('is-unlocked', 'lock-off', 'Atsakyta, bet neužrakinta');
 
     if (answer.bonusFilled != null) {
       if (answer.typingBonus) add('is-bonus is-typing', 'edit', 'Rašo papildomą atsakymą…');

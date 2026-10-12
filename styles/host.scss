@@ -2646,7 +2646,8 @@ select option {
   white-space: nowrap;
   cursor: default;
 
-  &.is-unanswered {
+  &.is-unanswered,
+  &.is-unlocked {
     background: v.$color-neutral-soft;
     color: v.$color-muted;
   }
@@ -2669,7 +2670,6 @@ select option {
     color: v.$color-amber-text;
   }
 
-  &.is-answered,
   &.is-locked {
     background: v.$color-success-soft;
     color: v.$color-success;

@@ -121,10 +121,11 @@ if (!currentTeam) {
     if (readyButton && readyButton.index === index) readyButton.show(ready);
   });
 
-  // The hints question's last hint is up: no more locking in.
-  socket.on('last-hint', ({ index }) => {
+  // A new hint is up: a locked-in answer can't be taken back any more, and
+  // after the last one there's no more locking in.
+  socket.on('hint-shown', ({ index, last }) => {
     const wrap = quizEl.querySelector(`.hints-answer[data-index="${index}"]`);
-    if (wrap && wrap._dropLock) wrap._dropLock();
+    if (wrap && wrap._hintShown) wrap._hintShown(last);
   });
 
   document
@@ -282,21 +283,26 @@ function renderQuestion(q, socket) {
     (value) => socket.emit('select', value, q.index),
     (value) => socket.emit('select-bonus', value, q.index),
     (value) =>
-      lockAnswer(socket, value, q.index).then((points) => {
-        // Locked in, the team is done with it: no more "Galime judėti toliau".
-        if (readyButton) readyButton.remove();
-        readyButton = null;
-        return points;
+      lockAnswer(socket, value, q.index).then((lock) => {
+        // Locked in, the team is done with it: no "Galime judėti toliau".
+        if (readyButton) readyButton.setHidden(true);
+        return lock;
+      }),
+    () =>
+      unlockAnswer(socket, q.index).then(() => {
+        if (readyButton) readyButton.setHidden(false);
       })
   );
 
-  // Only on the question being played, not on an earlier one, and not once
-  // its answer is locked in.
-  if (q.type === 'hints' && q.myLock == null)
+  // Only on the question being played, not on an earlier one, and hidden
+  // while its answer is locked in.
+  if (q.type === 'hints') {
     readyButton = {
       index: q.index,
       ...renderReadyButton(quizEl, q.myReady, (ready) => socket.emit('ready', q.index, ready))
     };
+    readyButton.setHidden(q.myLock != null);
+  }
 
   renderPreviousQuestions(q, socket, openIndexes);
 }
@@ -363,7 +369,8 @@ function renderPreviousQuestions(q, socket, openIndexes) {
         showStatus(value);
       },
       (value) => socket.emit('select-bonus', value, prev.index),
-      (value) => lockAnswer(socket, value, prev.index)
+      (value) => lockAnswer(socket, value, prev.index),
+      () => unlockAnswer(socket, prev.index)
     );
 
     section.appendChild(details);
@@ -425,13 +432,13 @@ function isAnswered(selection) {
 // field per clue (the clues themselves are only on the view screen). Several
 // fields are sent together, in order. A question with an extra answer gets
 // one more field under it, sent through onBonusChange.
-function renderAnswerInput(container, q, onChange, onBonusChange, onLock) {
+function renderAnswerInput(container, q, onChange, onBonusChange, onLock, onUnlock) {
   if (q.type === 'chain') {
     renderTypedFields(container, q.linkCount, q.mySelection, true, onChange);
   } else if (q.textAnswer && q.answerCount > 1) {
     renderTypedFields(container, q.answerCount, q.mySelection, q.ordered, onChange);
   } else if (q.type === 'hints') {
-    renderHintsAnswer(container, q, onChange, onLock);
+    renderHintsAnswer(container, q, onChange, onLock, onUnlock);
   } else if (q.textAnswer) {
     container.appendChild(createTypedInput(q.mySelection || '', 'Įrašyk atsakymą', onChange));
   } else {
@@ -450,13 +457,26 @@ function renderAnswerInput(container, q, onChange, onBonusChange, onLock) {
 }
 
 // Locks a hints question's answer in on the server — resolves with the
-// points it was locked in for, or rejects with the reason it wasn't.
+// points it was locked in for and whether it can still be taken back
+// ({ points, undoable }), or rejects with the reason it wasn't.
 function lockAnswer(socket, value, index) {
   return new Promise((resolve, reject) => {
     socket.timeout(5000).emit('lock-answer', value, index, (err, res) => {
       if (err) reject(new Error('Nepavyko susisiekti su serveriu'));
       else if (!res || res.error) reject(new Error((res && res.error) || 'Nepavyko užrakinti'));
-      else resolve(res.points);
+      else resolve(res);
+    });
+  });
+}
+
+// Takes a hints question's locked-in answer back on the server — resolves
+// once it is, or rejects with the reason it wasn't.
+function unlockAnswer(socket, index) {
+  return new Promise((resolve, reject) => {
+    socket.timeout(5000).emit('unlock-answer', index, (err, res) => {
+      if (err) reject(new Error('Nepavyko susisiekti su serveriu'));
+      else if (!res || res.error) reject(new Error((res && res.error) || 'Atšaukti nepavyko'));
+      else resolve();
     });
   });
 }
@@ -464,8 +484,9 @@ function lockAnswer(socket, value, index) {
 // A hints question: the answer field and a button to lock it in, which
 // asks once more (Atšaukti / Patvirtinti, side by side) before locking.
 // What an answer is worth is only told once it's locked in — after that it
-// can't be changed. (The hints themselves are only on the view screen.)
-function renderHintsAnswer(container, q, onChange, onLock) {
+// can't be changed, only taken back until the next hint is shown. (The
+// hints themselves are only on the view screen.)
+function renderHintsAnswer(container, q, onChange, onLock, onUnlock) {
   const wrap = document.createElement('div');
   wrap.className = 'hints-answer';
   wrap.dataset.index = q.index;
@@ -492,64 +513,117 @@ function renderHintsAnswer(container, q, onChange, onLock) {
   confirmRow.append(cancelBtn, confirmBtn);
 
   const message = document.createElement('p');
-  wrap.append(lockBtn, confirmRow, message);
 
-  function showLocked(points) {
+  const unlockBtn = document.createElement('button');
+  unlockBtn.type = 'button';
+  unlockBtn.className = 'unlock-answer-btn';
+  unlockBtn.textContent = 'Atšaukti užrakinimą';
+
+  const unlockError = document.createElement('p');
+  unlockError.className = 'hint-lock-error';
+  const unlockNote = document.createElement('p');
+  unlockNote.className = 'unlock-note';
+  unlockNote.textContent = 'Užrakinimą galima atšaukti, kol neparodyta kita užuomina.';
+  wrap.append(lockBtn, confirmRow, message, unlockBtn, unlockNote, unlockError);
+
+  // The button to take a locked-in answer back, with a note on until when.
+  function setUndoable(on) {
+    unlockBtn.hidden = !on;
+    unlockNote.hidden = !on;
+  }
+
+  // With the last hint shown, locking in is worth no more than not doing
+  // it, so there's no button for it.
+  let lastHint = !!q.lastHint;
+  let locked = false;
+
+  function showLocked(points, undoable) {
+    locked = true;
     input.disabled = true;
-    lockBtn.remove();
-    confirmRow.remove();
+    lockBtn.hidden = true;
+    confirmRow.hidden = true;
+    setUndoable(undoable);
+    unlockBtn.disabled = false;
+    unlockError.textContent = '';
     message.className = 'hint-locked-message';
     message.innerHTML = `${QuizIcons.icon('lock')} `;
     message.append(`Atsakymas patvirtintas už ${points} tšk.`);
   }
-  if (q.myLock != null) {
-    showLocked(q.myLock);
-    return;
+
+  function showMessage(className, text) {
+    message.className = className;
+    message.textContent = text;
   }
 
   function setConfirming(confirming) {
-    lockBtn.hidden = confirming;
-    confirmRow.hidden = !confirming;
+    lockBtn.hidden = confirming || lastHint;
+    confirmRow.hidden = !confirming || lastHint;
     lockBtn.disabled = !input.value.trim();
     confirmBtn.disabled = false;
   }
-  setConfirming(false);
+
+  function showUnlocked() {
+    locked = false;
+    input.disabled = false;
+    setUndoable(false);
+    unlockError.textContent = '';
+    showMessage('', '');
+    setConfirming(false);
+  }
+
+  if (q.myLock != null) showLocked(q.myLock, q.myLockUndoable);
+  else showUnlocked();
+
   // A changed answer has to be locked in again.
   input.addEventListener('input', () => {
-    message.textContent = '';
+    showMessage('', '');
     setConfirming(false);
   });
 
   lockBtn.addEventListener('click', () => {
-    message.textContent = '';
+    showMessage('', '');
     setConfirming(true);
   });
   cancelBtn.addEventListener('click', () => setConfirming(false));
   confirmBtn.addEventListener('click', async () => {
     confirmBtn.disabled = true;
     try {
-      showLocked(await onLock(input.value.trim()));
+      const { points, undoable } = await onLock(input.value.trim());
+      showLocked(points, undoable);
     } catch (err) {
       setConfirming(false);
-      message.className = 'hint-lock-error';
-      message.textContent = err.message;
+      showMessage('hint-lock-error', err.message);
     }
   });
 
-  // With the last hint shown, locking in is worth no more than not doing
-  // it, so there's no button for it — gone as soon as that hint is.
-  wrap._dropLock = () => {
-    lockBtn.remove();
-    confirmRow.remove();
-    message.textContent = '';
+  unlockBtn.addEventListener('click', async () => {
+    unlockBtn.disabled = true;
+    try {
+      await onUnlock();
+      showUnlocked();
+      input.focus();
+    } catch (err) {
+      setUndoable(false);
+      unlockError.textContent = err.message;
+    }
+  });
+
+  // A new hint: a locked-in answer stays as it is; after the last one,
+  // there's no locking in either.
+  wrap._hintShown = (last) => {
+    setUndoable(false);
+    if (!last) return;
+    lastHint = true;
+    if (locked) return;
+    showMessage('', '');
+    setConfirming(false);
   };
-  if (q.lastHint) wrap._dropLock();
 }
 
 // A hints question being played: "Galime judėti toliau" lets the host know
 // the team is ready for the next hint (or question); pressed again, it's
 // taken back. A new hint clears it. Returns show (pressed: true, or not) and
-// remove.
+// setHidden (while the answer is locked in).
 function renderReadyButton(container, ready, onChange) {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -573,9 +647,9 @@ function renderReadyButton(container, ready, onChange) {
   });
   return {
     show,
-    remove() {
-      btn.remove();
-      note.remove();
+    setHidden(hidden) {
+      btn.hidden = hidden;
+      note.hidden = hidden;
     }
   };
 }

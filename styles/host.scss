@@ -2670,6 +2670,7 @@ select option {
     color: v.$color-amber-text;
   }
 
+  &.is-answered,
   &.is-locked {
     background: v.$color-success-soft;
     color: v.$color-success;

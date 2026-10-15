@@ -275,8 +275,10 @@
 }
 
 // A hints question: the lock button, then Atšaukti / Patvirtinti side by
-// side (the confirm one red), and the locked answer's points.
+// side (the confirm one red), and the locked answer's points with a button
+// to take it back.
 .lock-answer-btn,
+.unlock-answer-btn,
 .lock-confirm-row button {
   display: block;
   width: 100%;
@@ -320,6 +322,23 @@
   }
 }
 
+.unlock-answer-btn {
+  margin-top: 8px;
+  background: v.$color-card;
+  color: v.$color-text;
+  border-color: v.$color-border;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.unlock-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: v.$color-muted;
+}
+
 .hint-locked-message {
   margin: 8px 0 0;
   font-weight: 700;
@@ -329,6 +348,10 @@
 .hint-lock-error {
   margin: 8px 0 0;
   color: v.$color-danger;
+
+  &:empty {
+    display: none;
+  }
 }
 
 // A hints question being played: the team tells the host it's ready to move
@@ -354,6 +377,10 @@
     background: v.$color-success;
     color: v.$color-on-success;
     border-color: transparent;
+  }
+
+  &[hidden] {
+    display: none;
   }
 }
 

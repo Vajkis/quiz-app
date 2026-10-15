@@ -951,6 +951,7 @@ h1 {
 }
 
 .lock-answer-btn,
+.unlock-answer-btn,
 .lock-confirm-row button {
   display: block;
   width: 100%;
@@ -990,6 +991,22 @@ h1 {
   color: var(--color-on-danger);
 }
 
+.unlock-answer-btn {
+  margin-top: 8px;
+  background: var(--color-card);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.unlock-answer-btn[hidden] {
+  display: none;
+}
+
+.unlock-note {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--color-muted);
+}
+
 .hint-locked-message {
   margin: 8px 0 0;
   font-weight: 700;
@@ -999,6 +1016,9 @@ h1 {
 .hint-lock-error {
   margin: 8px 0 0;
   color: var(--color-danger);
+}
+.hint-lock-error:empty {
+  display: none;
 }
 
 .ready-btn {
@@ -1022,6 +1042,9 @@ h1 {
   background: var(--color-success);
   color: var(--color-on-success);
   border-color: transparent;
+}
+.ready-btn[hidden] {
+  display: none;
 }
 
 .ready-note {

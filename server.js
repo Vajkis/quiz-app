@@ -986,6 +986,16 @@ function hintPoints(entry) {
   return entry.hints.length - entry.revealedHints + 1;
 }
 
+// A team's locked-in hints answer can be taken back until the next hint is
+// shown — while it's still worth what it was locked in for.
+function lockUndoable(entry, teamId) {
+  return (
+    entry.type === 'hints' &&
+    teamId in entry.locks &&
+    entry.locks[teamId] === hintPoints(entry)
+  );
+}
+
 // A hints question's progress for the view screen: the hints shown so far —
 // never one not shown yet, nor how many are left. What an answer is worth
 // is only told to a team once it's locked in, so it goes nowhere else.
@@ -1134,6 +1144,7 @@ function answerFieldsFor(entry, teamId) {
     ordered: entry.ordered,
     linkCount: entry.clues ? entry.clues.length : 0,
     myLock: entry.locks && teamId in entry.locks ? entry.locks[teamId] : null,
+    myLockUndoable: !!entry.locks && lockUndoable(entry, teamId),
     myReady: !!(entry.ready && entry.ready[teamId]),
     lastHint: entry.type === 'hints' && entry.revealedHints >= entry.hints.length,
     hasBonus: entry.bonusAnswer != null,
@@ -1176,7 +1187,8 @@ function mySelectionFor(entry, teamId, selections = entry.selections) {
 // A team's answer to a question, for the host's team list: how many of its
 // fields are filled in (one for a pick or a single typed answer; one per
 // clue, or per answer when there are several), a hints answer's locked-in
-// points, and whether the team said it's ready to move on.
+// points, whether it can still be locked in (a hints question before its
+// last hint), and whether the team said it's ready to move on.
 function answerStatusFor(entry, teamId) {
   const selection = mySelectionFor(entry, teamId);
   const fields = Array.isArray(selection) ? selection : [selection];
@@ -1184,6 +1196,8 @@ function answerStatusFor(entry, teamId) {
     filled: fields.filter((s) => s.trim()).length,
     total: fields.length,
     lockedPoints: teamId in entry.locks ? entry.locks[teamId] : null,
+    lockable:
+      entry.type === 'hints' && entry.revealedHints < entry.hints.length,
     ready: !!entry.ready[teamId],
     // The extra answer: typed in or not — null when there's none to give.
     bonusFilled:
@@ -2445,13 +2459,15 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
         delete entry.ready[teamId];
         sendReady(roomId, room.questionIndex, teamId, false);
       });
-      // With the last one shown, locking in is worth no more than not doing
-      // it (see hintPoints), so the phones drop their lock button.
-      if (entry.revealedHints === entry.hints.length)
-        for (const [, socket] of io.sockets.sockets) {
-          if (socket.data.roomId === roomId && socket.data.teamId)
-            socket.emit('last-hint', { index: room.questionIndex });
-        }
+      // A locked-in answer can't be taken back any more (see lockUndoable),
+      // and with the last one shown, locking in is worth no more than not
+      // doing it (see hintPoints), so the phones drop their lock button.
+      const last = entry.revealedHints === entry.hints.length;
+      for (const [, socket] of io.sockets.sockets) {
+        if (socket.data.roomId === roomId && socket.data.teamId)
+          socket.emit('hint-shown', { index: room.questionIndex, last });
+      }
+      emitTeamStatus(roomId);
       return res.json({ phase: 'question' });
     }
     // Otherwise on to a new question — after the furthest one shown, even
@@ -2992,8 +3008,9 @@ io.on('connection', (socket) => {
 
   // Locks a hints question's typed answer in (sent along, so the last few
   // keystrokes still waiting to be sent aren't lost) for the points it's
-  // worth right now — it can't be changed after that. Answers the phone
-  // with those points, or an error.
+  // worth right now — it can't be changed after that, only taken back
+  // until the next hint (see 'unlock-answer'). Answers the phone with those
+  // points and whether it can still be taken back, or an error.
   socket.on('lock-answer', (value, index, ack) => {
     const reply = typeof ack === 'function' ? ack : () => {};
     const target = answerTarget(index);
@@ -3001,7 +3018,11 @@ io.on('connection', (socket) => {
       return reply({ error: 'Atsakymo užrakinti nepavyko' });
     const { room, targetIndex, entry } = target;
     const teamId = socket.data.teamId;
-    if (teamId in entry.locks) return reply({ points: entry.locks[teamId] });
+    const locked = () => ({
+      points: entry.locks[teamId],
+      undoable: lockUndoable(entry, teamId)
+    });
+    if (teamId in entry.locks) return reply(locked());
     if (entry.revealedHints >= entry.hints.length)
       return reply({ error: 'Po paskutinės užuominos užrakinti nebereikia' });
     const selection = value.slice(0, 200).trim();
@@ -3012,13 +3033,33 @@ io.on('connection', (socket) => {
       entry.selections[teamId] = selection;
       entry.locks[teamId] = hintPoints(entry);
     });
-    reply({ points: entry.locks[teamId] });
+    reply(locked());
     // A locked-in team is done with the question: no "Galime judėti
     // toliau" any more.
     if (entry.ready[teamId]) {
       delete entry.ready[teamId];
       sendReady(socket.data.roomId, targetIndex, teamId, false);
     }
+    emitTeamStatus(socket.data.roomId);
+  });
+
+  // Takes a locked-in hints answer back before the next hint is shown (see
+  // lockUndoable): it can be changed and locked in again. Answers the phone
+  // with ok, or an error.
+  socket.on('unlock-answer', (index, ack) => {
+    const reply = typeof ack === 'function' ? ack : () => {};
+    const target = answerTarget(index);
+    if (!target || target.entry.type !== 'hints')
+      return reply({ error: 'Atšaukti nepavyko' });
+    const { room, targetIndex, entry } = target;
+    const teamId = socket.data.teamId;
+    if (!(teamId in entry.locks)) return reply({ ok: true });
+    if (!lockUndoable(entry, teamId))
+      return reply({ error: 'Po naujos užuominos atšaukti nebegalima' });
+    updateEntry(room, targetIndex, () => {
+      delete entry.locks[teamId];
+    });
+    reply({ ok: true });
     emitTeamStatus(socket.data.roomId);
   });
 

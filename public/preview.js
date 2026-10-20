@@ -30,6 +30,7 @@ const questionAreaEl = document.getElementById('view-question');
 const questionBoxEl = document.getElementById('view-question-box');
 const imageWrapEl = document.getElementById('view-image-wrap');
 const imageEl = document.getElementById('view-image');
+const imagesEl = document.getElementById('view-images');
 const questionTextEl = document.getElementById('view-question-text');
 const optionsEl = document.getElementById('view-options');
 const bonusQuestionEl = document.getElementById('view-bonus-question');
@@ -122,6 +123,41 @@ function createGridCell(className, { img, text, label }) {
   }
   div.appendChild(createOptionBadge(label));
   return div;
+}
+
+// A hints question's picture hints shown so far, each with its hint's
+// number — the last one shown being the new one. Empty for any other
+// question.
+function hintPictureCells(screen) {
+  if (screen.questionType !== 'hints') return [];
+  const imgs = screen.question.hintImgs || [];
+  const cells = [];
+  for (let i = 0; i < screen.revealedHints; i++) {
+    if (imgs[i])
+      cells.push({ img: resolveMedia(imgs[i]), label: String(i + 1), isNew: i === screen.revealedHints - 1 && i > 0 });
+  }
+  return cells;
+}
+
+// A hints question's picture hints, under its title and above its text
+// hints: in one row, or 2x2 for 4 (see renderHintPictures in view.js).
+function renderHintPictures(cells) {
+  questionBoxEl.classList.toggle('has-image', !imageWrapEl.hidden || cells.length > 0);
+  imagesEl.innerHTML = '';
+  imagesEl.hidden = !cells.length;
+  const { cols, rows } = pickGridSize(cells.length);
+  imagesEl.style.setProperty('--cols', cols);
+  imagesEl.style.setProperty('--rows', rows);
+  cells.forEach(({ img, label, isNew }) => {
+    const cell = document.createElement('div');
+    cell.className = 'view-images-cell';
+    if (isNew) cell.classList.add('is-new-hint');
+    const imgEl = document.createElement('img');
+    imgEl.src = img;
+    imgEl.alt = '';
+    cell.append(imgEl, createOptionBadge(label));
+    imagesEl.appendChild(cell);
+  });
 }
 
 // The first option is the correct one in a stored game (see
@@ -269,12 +305,13 @@ function showQuestion(screen) {
   audioProgressFill.style.width = '0%';
 
   const imgSrc = resolveMedia(q.img);
-  questionBoxEl.classList.toggle('has-image', !!imgSrc);
   imageWrapEl.hidden = !imgSrc;
   if (imgSrc) imageEl.src = imgSrc;
+  const hintCells = hintPictureCells(screen);
+  renderHintPictures(hintCells);
 
   const cells = gridCellsFor(screen);
-  fullscreenBtn.hidden = !imgSrc && !cells.length;
+  fullscreenBtn.hidden = !imgSrc && !cells.length && !hintCells.length;
   optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
 
@@ -295,9 +332,11 @@ function showQuestion(screen) {
 
   // A hints question: the hints shown so far, and the same "type your
   // answer" note as a typed-answer question (see renderHints in view.js).
+  // Its picture hints are above, under the title (hintPictureCells).
   if (screen.questionType === 'hints') {
     const shown = q.hints.slice(0, screen.revealedHints);
     shown.forEach((hint, i) => {
+      if (q.hintImgs && q.hintImgs[i]) return;
       const div = document.createElement('div');
       div.className = 'view-option view-chain-clue';
       if (i === shown.length - 1 && i > 0) div.classList.add('is-new-hint');
@@ -448,7 +487,9 @@ function buildFullscreenContent(screen) {
     bigImg.alt = '';
     return bigImg;
   }
-  const cells = gridCellsFor(screen);
+  // A hints question's picture hints shown so far, as the host's.
+  const hintCells = hintPictureCells(screen);
+  const cells = hintCells.length ? hintCells : gridCellsFor(screen);
   const grid = document.createElement('div');
   grid.className = 'fullscreen-grid';
   const { cols, rows } = pickGridSize(cells.length);

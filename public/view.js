@@ -15,6 +15,7 @@ const questionAreaEl = document.getElementById('view-question');
 const questionBoxEl = document.getElementById('view-question-box');
 const imageWrapEl = document.getElementById('view-image-wrap');
 const imageEl = document.getElementById('view-image');
+const imagesEl = document.getElementById('view-images');
 const questionTextEl = document.getElementById('view-question-text');
 const optionsEl = document.getElementById('view-options');
 const bonusQuestionEl = document.getElementById('view-bonus-question');
@@ -193,6 +194,7 @@ socket.on('question', (q) => {
   } else {
     imageWrapEl.hidden = true;
   }
+  renderHintPictures([]);
 
   optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
@@ -257,17 +259,47 @@ function renderChainClues(container, clues, imgs) {
   });
 }
 
+// A hints question's picture hints shown so far, under its title and above
+// its text hints: in one row, or 2x2 for 4 (see pickGridSize), sharing the
+// room the text hints leave, each badged with its hint's number. A newly
+// revealed one (isNew) fades in.
+function renderHintPictures(pictures) {
+  questionBoxEl.classList.toggle('has-image', !imageWrapEl.hidden || pictures.length > 0);
+  imagesEl.innerHTML = '';
+  imagesEl.hidden = !pictures.length;
+  const { cols, rows } = pickGridSize(pictures.length);
+  imagesEl.style.setProperty('--cols', cols);
+  imagesEl.style.setProperty('--rows', rows);
+  pictures.forEach(({ src, label, isNew }) => {
+    const cell = document.createElement('div');
+    cell.className = 'view-images-cell';
+    if (isNew) cell.classList.add('is-new-hint');
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = '';
+    cell.append(img, createOptionBadge(label));
+    imagesEl.appendChild(cell);
+  });
+}
+
 // A hints question: the hints shown so far (the server never sends one
 // before the host reveals it), numbered — a newly revealed one (animate)
 // fades in — and under them the same "type your answer" note as a
-// typed-answer question.
-function renderHints(container, { hints }, animate) {
+// typed-answer question. A picture hint goes above them, with the
+// question's other picture hints (see renderHintPictures).
+function renderHints(container, { hints, hintImgs }, animate) {
   container.className = 'options-list';
   container.innerHTML = '';
+  const pictures = [];
   hints.forEach((hint, i) => {
+    const isNew = animate && i === hints.length - 1;
+    if (hintImgs && hintImgs[i]) {
+      pictures.push({ src: hintImgs[i], label: String(i + 1), isNew });
+      return;
+    }
     const div = document.createElement('div');
     div.className = 'view-option view-chain-clue';
-    if (animate && i === hints.length - 1) div.classList.add('is-new-hint');
+    if (isNew) div.classList.add('is-new-hint');
     const number = document.createElement('span');
     number.className = 'chain-clue-number';
     number.textContent = `${i + 1}.`;
@@ -278,6 +310,7 @@ function renderHints(container, { hints }, animate) {
   note.className = 'view-text-answer-hint';
   note.textContent = 'Įrašykite atsakymą';
   container.appendChild(note);
+  renderHintPictures(pictures);
 }
 
 // The host revealed the next hint of the question on screen.

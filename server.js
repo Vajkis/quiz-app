@@ -180,8 +180,9 @@ const YES_NO_OPTIONS = [
 // [{ id?, type, question, img, audio, audioStart, audioEnd, bonus?: {
 // question, answer }, and by type: options: [{ id?, text, img }]
 // (choice/text, with ordered?: true on a text one whose answers go in
-// order), answer: 'yes'|'no' (yesno), hints: [string] and answer:
-// string (hints) or links: [{ clue, img?, answer }]
+// order), answer: 'yes'|'no' (yesno), hints: [string], hintImgs?:
+// [string] (each hint's picture, '' for a text one) and answer: string,
+// with no img or audio (hints) or links: [{ clue, img?, answer }]
 // (chain) }] }] }) into the games.json shape. The first option in the array
 // is always taken as the correct answer (see the editor's createOptionRow).
 //
@@ -328,19 +329,28 @@ function normalizeGamePayload(body) {
           };
         question.answer = q.answer;
       } else if (type === 'hints') {
-        const hints = (Array.isArray(q.hints) ? q.hints : []).map((h) =>
-          typeof h === 'string' ? h.trim() : ''
+        // A hint can be a picture instead of text — shown by its number on
+        // the view screen, so like a picture clue it keeps no text.
+        const imgs = Array.isArray(q.hintImgs) ? q.hintImgs : [];
+        const trim = (v) => (typeof v === 'string' ? v.trim() : '');
+        const hintImgs = (Array.isArray(q.hints) ? q.hints : []).map((h, i) =>
+          trim(imgs[i])
         );
+        const hints = hintImgs.map((img, i) => (img ? '' : trim(q.hints[i])));
         if (hints.length < 2)
           return { error: `Klausimas "${label}" turi turėti bent 2 užuominas` };
-        if (hints.some((h) => !h))
-          return { error: `Klausimas "${label}" turi tuščią užuominą` };
+        if (hints.some((h, i) => !h && !hintImgs[i]))
+          return {
+            error: `Klausimas "${label}": kiekviena užuomina turi turėti tekstą arba nuotrauką`
+          };
         const answer = typeof q.answer === 'string' ? q.answer.trim() : '';
         if (!answer)
           return {
             error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą`
           };
+        optionImgs = hintImgs;
         question.hints = hints;
+        if (hintImgs.some(Boolean)) question.hintImgs = hintImgs;
         question.answer = answer;
       } else {
         // A clue can be a picture instead of text — shown by its number
@@ -368,7 +378,8 @@ function normalizeGamePayload(body) {
       // "media:..." points at a file kept in the GitHub Pages editor's
       // browser — it only works once imported from that editor's .zip export
       // (the file is uploaded then), never as-is.
-      const mediaValues = [q.img, q.audio, ...optionImgs];
+      const mediaValues =
+        type === 'hints' ? optionImgs : [q.img, q.audio, ...optionImgs];
       if (
         mediaValues.some((v) => typeof v === 'string' && v.startsWith('media:'))
       )
@@ -376,9 +387,10 @@ function normalizeGamePayload(body) {
           error: `Klausimas "${label}" nurodo failą, kurio nėra — importuok žaidimą iš .zip failo`
         };
 
-      const img = (q.img || '').trim();
+      // A hints question's pictures are its hints', and it has no music.
+      const img = type === 'hints' ? '' : (q.img || '').trim();
       if (img) question.img = img;
-      const audio = (q.audio || '').trim();
+      const audio = type === 'hints' ? '' : (q.audio || '').trim();
       if (audio) {
         question.audio = audio;
         const audioStart = Number(q.audioStart);
@@ -681,6 +693,17 @@ function chainClueImages(links) {
   );
 }
 
+// A hints question's picture hints for the host's fullscreen grid — the
+// first `shown` of its hints only (all by default), each with its number
+// as on the view screen — or null when none of them is a picture.
+function hintImageCells(hintImgs, shown) {
+  const cells = (hintImgs || [])
+    .slice(0, shown)
+    .map((img, i) => img && { src: resolveMediaSrc(img), label: String(i + 1) })
+    .filter(Boolean);
+  return cells.length ? cells : null;
+}
+
 function buildStageReview(room) {
   const stage = currentStage(room);
   return {
@@ -703,6 +726,8 @@ function buildStageReview(room) {
           : null,
         clueImages: chainClueImages(q.links),
         hints: q.hints || null,
+        hintImgs: q.hintImgs ? q.hintImgs.map(resolveMediaSrc) : null,
+        hintImages: hintImageCells(q.hintImgs),
         bonus: q.bonus
           ? { question: q.bonus.question, answer: q.bonus.answer }
           : null,
@@ -942,6 +967,9 @@ function createHistoryEntry(q) {
     // its answer was locked in for (see hintPoints) — and the teams that
     // pressed "Galime judėti toliau" (see the 'ready' handler).
     hints: type === 'hints' ? q.hints.slice() : null,
+    // Each hint's picture (null for a text one), or null with none.
+    hintImgs:
+      type === 'hints' && q.hintImgs ? q.hintImgs.map(resolveMediaSrc) : null,
     revealedHints: type === 'hints' ? 1 : 0,
     locks: {},
     ready: {},
@@ -1001,7 +1029,12 @@ function lockUndoable(entry, teamId) {
 // is only told to a team once it's locked in, so it goes nowhere else.
 function hintsProgress(entry) {
   if (entry.type !== 'hints') return {};
-  return { hints: entry.hints.slice(0, entry.revealedHints) };
+  return {
+    hints: entry.hints.slice(0, entry.revealedHints),
+    hintImgs: entry.hintImgs
+      ? entry.hintImgs.slice(0, entry.revealedHints)
+      : null
+  };
 }
 
 // A typed-answer question's answers: with one, the typed string; with
@@ -1403,6 +1436,7 @@ function referencedLocalPaths() {
     game.stages.forEach((stage) =>
       stage.questions.forEach((q) => {
         add(q.img);
+        (q.hintImgs || []).forEach(add);
         add(q.audio);
         (q.options || []).forEach((o) => add(o.img));
         (q.links || []).forEach((l) => add(l.img));
@@ -1813,19 +1847,28 @@ function renderHostRoom(req, res, roomId) {
     // come) and how many are shown — "next" reveals the next one first.
     currentQuestionHints:
       currentEntry && currentEntry.type === 'hints' ? currentEntry.hints : null,
+    currentQuestionHintImgs:
+      currentEntry && currentEntry.type === 'hints'
+        ? currentEntry.hintImgs
+        : null,
     revealedHints: currentEntry ? currentEntry.revealedHints || 0 : 0,
     // Taken from the room's history entry, not the stored question — that
     // entry holds this room's shuffled order, the one players and the view
     // screen actually see, so the fullscreen grid matches it. With a
     // picture among them, a text option is a cell of the grid too. A
-    // chain's clues go in the same grid, by their numbers.
+    // chain's clues go in the same grid, by their numbers, and so do a hints
+    // question's picture hints shown so far.
     currentQuestionOptionImages:
       currentEntry && currentEntry.options.some((o) => o.img)
         ? currentEntry.options.map((o) =>
             o.img ? { src: o.img } : { text: o.text }
           )
         : currentQuestion
-          ? chainClueImages(currentQuestion.links)
+          ? chainClueImages(currentQuestion.links) ||
+            hintImageCells(
+              currentQuestion.hintImgs,
+              currentEntry ? currentEntry.revealedHints : 0
+            )
           : null,
     // How many of the stage's questions have been shown — each gets a
     // number button to jump back (or forward again) to it.
@@ -3066,13 +3109,14 @@ io.on('connection', (socket) => {
   // A hints question's "Galime judėti toliau" on a phone, or taken back:
   // the team is ready for the next hint (or question). Shown in the host's
   // team list; a new hint clears it (see the 'next' route). Not once the
-  // team's answer is locked in.
+  // team's answer is locked in, nor once the last hint is up.
   socket.on('ready', (index, ready) => {
     const target = answerTarget(index);
     if (!target || target.entry.type !== 'hints') return;
     const { targetIndex, entry } = target;
     const teamId = socket.data.teamId;
     if (teamId in entry.locks) return;
+    if (ready && entry.revealedHints >= entry.hints.length) return;
     if (!!entry.ready[teamId] === !!ready) return;
     if (ready) entry.ready[teamId] = true;
     else delete entry.ready[teamId];

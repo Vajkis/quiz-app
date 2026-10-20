@@ -231,24 +231,26 @@
         <button type="button" class="remove-question-btn" title="Pašalinti klausimą">${icon('close')}</button>
       </div>
       <input type="text" class="question-text-input" placeholder="Klausimo tekstas">
-      <input type="text" class="question-img-input" placeholder="Klausimo nuotraukos URL (nebūtina)">
-      <div class="question-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></div>
-      <input type="text" class="question-audio-input" placeholder="Klausimo muzikos/garso URL (nebūtina)">
-      <div class="audio-clip-controls" hidden>
-        <div class="audio-clip-player-row">
-          <audio class="question-audio-preview" controls></audio>
-          <button type="button" class="remove-audio-btn" title="Pašalinti garso įrašą" aria-label="Pašalinti garso įrašą">${icon('close')}</button>
-        </div>
-        <div class="audio-clip-times">
-          <div class="audio-clip-field-group">
-            <input type="number" min="0" step="1" class="audio-start-input" placeholder="Nuo">
-            <button type="button" class="set-audio-start-btn" title="Nuo dabartinės vietos"><span class="clip-btn-long">Nuo dabartinės</span><span class="clip-btn-short">Dabartinė</span></button>
+      <div class="question-media-fields">
+        <input type="text" class="question-img-input" placeholder="Klausimo nuotraukos URL (nebūtina)">
+        <div class="question-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></div>
+        <input type="text" class="question-audio-input" placeholder="Klausimo muzikos/garso URL (nebūtina)">
+        <div class="audio-clip-controls" hidden>
+          <div class="audio-clip-player-row">
+            <audio class="question-audio-preview" controls></audio>
+            <button type="button" class="remove-audio-btn" title="Pašalinti garso įrašą" aria-label="Pašalinti garso įrašą">${icon('close')}</button>
           </div>
-          <div class="audio-clip-field-group">
-            <input type="number" min="0" step="1" class="audio-end-input" placeholder="Iki">
-            <button type="button" class="set-audio-end-btn" title="Iki dabartinės vietos"><span class="clip-btn-long">Iki dabartinės</span><span class="clip-btn-short">Dabartinė</span></button>
+          <div class="audio-clip-times">
+            <div class="audio-clip-field-group">
+              <input type="number" min="0" step="1" class="audio-start-input" placeholder="Nuo">
+              <button type="button" class="set-audio-start-btn" title="Nuo dabartinės vietos"><span class="clip-btn-long">Nuo dabartinės</span><span class="clip-btn-short">Dabartinė</span></button>
+            </div>
+            <div class="audio-clip-field-group">
+              <input type="number" min="0" step="1" class="audio-end-input" placeholder="Iki">
+              <button type="button" class="set-audio-end-btn" title="Iki dabartinės vietos"><span class="clip-btn-long">Iki dabartinės</span><span class="clip-btn-short">Dabartinė</span></button>
+            </div>
+            <button type="button" class="play-from-start-btn secondary-btn">${icon('play')} Groti pažymėtą dalį</button>
           </div>
-          <button type="button" class="play-from-start-btn secondary-btn">${icon('play')} Groti pažymėtą dalį</button>
         </div>
       </div>
       <p class="correct-answer-hint"></p>
@@ -472,8 +474,10 @@
 
     // Hints: shown one at a time, in the order here, then one answer.
     const hintsContainer = card.querySelector('.hints-container');
-    ((question && question.hints) || []).forEach((hint) =>
-      hintsContainer.appendChild(createHintRow(hint))
+    ((question && question.hints) || []).forEach((hint, i) =>
+      hintsContainer.appendChild(
+        createHintRow(hint, question.hintImgs && question.hintImgs[i])
+      )
     );
     card.querySelector('.add-hint-btn').addEventListener('click', () => {
       hintsContainer.appendChild(createHintRow(''));
@@ -519,7 +523,7 @@
       chain:
         '[edit] Kiekviena užuomina turi savo atsakymą, kuris nuo ankstesnio skiriasi viena raide — žaidėjai juos įrašys eilės tvarka. Taškas skiriamas, tik jei teisingi visi. Vietoj užuominos teksto gali būti nuotrauka.',
       hints:
-        '[edit] Užuominos rodomos po vieną. Užrakinus atsakymą po pirmos užuominos gaunama tiek taškų, kiek yra užuominų, po kiekvienos kitos — vienu mažiau; neužrakintas teisingas atsakymas — 1 taškas.'
+        '[edit] Užuominos rodomos po vieną. Užrakinus atsakymą po pirmos užuominos gaunama tiek taškų, kiek yra užuominų, po kiekvienos kitos — vienu mažiau; neužrakintas teisingas atsakymas — 1 taškas. Vietoj užuominos teksto gali būti nuotrauka.'
     };
     typeSelect.value = global.QuizGameShared.questionType(question || {});
     function syncQuestionType() {
@@ -546,6 +550,8 @@
       card.querySelector('.yesno-section').hidden = type !== 'yesno';
       card.querySelector('.chain-section').hidden = type !== 'chain';
       card.querySelector('.hints-section').hidden = type !== 'hints';
+      // A hints question's pictures are its hints', and it has no music.
+      card.querySelector('.question-media-fields').hidden = type === 'hints';
       // "[check] text": the icon, then the text.
       const [, hintIcon, hintText] = HINTS[type].match(/^\[([\w-]+)\] (.*)$/);
       hint.innerHTML = `${icon(hintIcon)} `;
@@ -635,19 +641,48 @@
     return row;
   }
 
-  // One hint of a hints question, numbered in the order it's shown.
-  function createHintRow(hint) {
+  // One hint of a hints question, numbered in the order it's shown: its
+  // text, or a picture instead.
+  function createHintRow(hint, img) {
     const row = document.createElement('div');
     row.className = 'hint-row';
     row.innerHTML = `
       <span class="hint-number"></span>
-      <input type="text" class="hint-input" placeholder="Užuomina">
-      <button type="button" class="remove-hint-btn" title="Pašalinti užuominą">${icon('close')}</button>
+      <div class="hint-fields">
+        <div class="hint-main">
+          <input type="text" class="hint-input" placeholder="Užuomina">
+          <span class="hint-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></span>
+          <button type="button" class="remove-hint-btn" title="Pašalinti užuominą">${icon('close')}</button>
+        </div>
+        <input type="text" class="hint-img-input" placeholder="Užuominos nuotraukos URL (nebūtina)">
+      </div>
     `;
-    row.querySelector('.hint-input').value = hint || '';
+    const hintInput = row.querySelector('.hint-input');
+    const imgInput = row.querySelector('.hint-img-input');
+    hintInput.value = hint || '';
+    imgInput.value = img || '';
+    attachFilePicker(imgInput, 'image');
     row
       .querySelector('.remove-hint-btn')
       .addEventListener('click', () => row.remove());
+
+    // A picture hint is shown by its number on the view screen, so it needs
+    // no text: once it has a picture, the hint field gives way to a
+    // thumbnail of it, as a picture clue's does (see createChainLinkRow).
+    const thumbWrap = row.querySelector('.hint-thumb-wrap');
+    const thumb = thumbWrap.querySelector('img');
+    attachThumbRemove(thumb, imgInput);
+    watchMediaLoad(thumb, imgInput, thumbWrap, 'image');
+    function syncHintImage() {
+      const url = imgInput.value.trim();
+      const src = url ? global.QuizGameEditorCore.resolveAudioSrc(url) : '';
+      hintInput.hidden = !!src;
+      thumbWrap.hidden = !thumbShown(thumb, src);
+      if (src && thumb.getAttribute('src') !== src) thumb.src = src;
+    }
+    syncHintImage();
+    imgInput.addEventListener('change', syncHintImage);
+    followTyping(imgInput, syncHintImage);
     return row;
   }
 
@@ -1051,9 +1086,9 @@
         } else if (type === 'yesno') {
           out.answer = qEl.dataset.yesNo || '';
         } else if (type === 'hints') {
-          out.hints = Array.from(qEl.querySelectorAll('.hint-input')).map((input) =>
-            input.value.trim()
-          );
+          const hintRows = Array.from(qEl.querySelectorAll('.hint-row'));
+          out.hints = hintRows.map((row) => row.querySelector('.hint-input').value.trim());
+          out.hintImgs = hintRows.map((row) => row.querySelector('.hint-img-input').value.trim());
           out.answer = qEl.querySelector('.hints-answer-input').value.trim();
         } else {
           out.links = Array.from(qEl.querySelectorAll('.chain-link-row')).map(
@@ -1251,7 +1286,8 @@
         q.hints.length < 2
           ? $('.add-hint-btn')
           : firstEmpty('.hint-row', '.hint-input', (row) =>
-              !row.querySelector('.hint-input').value.trim()) ||
+              !row.querySelector('.hint-input').value.trim() &&
+              !row.querySelector('.hint-img-input').value.trim()) ||
             (!q.answer ? $('.hints-answer-input') : null);
     } else if (q.type === 'chain') {
       if (q.links.length < 2) field = $('.add-chain-link-btn');
@@ -1271,7 +1307,8 @@
       }
     }
     if (field) return field;
-    if (q.audio && Number(q.audioEnd) > 0 && Number(q.audioEnd) <= (Number(q.audioStart) || 0))
+    // (A hints question's music field is hidden, and its music dropped.)
+    if (q.type !== 'hints' && q.audio && Number(q.audioEnd) > 0 && Number(q.audioEnd) <= (Number(q.audioStart) || 0))
       return $('.audio-end-input');
     if (q.bonus && q.bonus.question && !q.bonus.answer) return $('.bonus-answer-input');
     return card;

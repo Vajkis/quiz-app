@@ -122,10 +122,11 @@ if (!currentTeam) {
   });
 
   // A new hint is up: a locked-in answer can't be taken back any more, and
-  // after the last one there's no more locking in.
+  // after the last one there's no more locking in or "Galime judėti toliau".
   socket.on('hint-shown', ({ index, last }) => {
     const wrap = quizEl.querySelector(`.hints-answer[data-index="${index}"]`);
     if (wrap && wrap._hintShown) wrap._hintShown(last);
+    if (last && readyButton && readyButton.index === index) readyButton.setLastHint();
   });
 
   document
@@ -285,23 +286,36 @@ function renderQuestion(q, socket) {
     (value) =>
       lockAnswer(socket, value, q.index).then((lock) => {
         // Locked in, the team is done with it: no "Galime judėti toliau".
-        if (readyButton) readyButton.setHidden(true);
+        if (readyButton) readyButton.setLocked(true);
         return lock;
       }),
     () =>
       unlockAnswer(socket, q.index).then(() => {
-        if (readyButton) readyButton.setHidden(false);
+        if (readyButton) readyButton.setLocked(false);
       })
   );
 
   // Only on the question being played, not on an earlier one, and hidden
-  // while its answer is locked in.
+  // while its answer is locked in or once the last hint is up (nothing left
+  // to move on to).
   if (q.type === 'hints') {
+    const btn = renderReadyButton(quizEl, q.myReady, (ready) => socket.emit('ready', q.index, ready));
+    let locked = q.myLock != null;
+    let last = !!q.lastHint;
+    const update = () => btn.setHidden(locked || last);
     readyButton = {
       index: q.index,
-      ...renderReadyButton(quizEl, q.myReady, (ready) => socket.emit('ready', q.index, ready))
+      show: btn.show,
+      setLocked(on) {
+        locked = on;
+        update();
+      },
+      setLastHint() {
+        last = true;
+        update();
+      }
     };
-    readyButton.setHidden(q.myLock != null);
+    update();
   }
 
   renderPreviousQuestions(q, socket, openIndexes);

@@ -624,6 +624,7 @@ body {
 
 .view-option img,
 #view-image,
+.view-images-cell img,
 #fullscreen-content img,
 .fullscreen-grid img {
   filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
@@ -655,6 +656,33 @@ body {
   font-size: calc(24px * var(--text-scale, 1));
   text-align: center;
   flex-shrink: 0;
+}
+
+#view-images {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+#view-images[hidden] {
+  display: none;
+}
+
+.view-images-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+.view-images-cell img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .audio-progress-wrap {

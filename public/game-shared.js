@@ -30,6 +30,16 @@
     return q && Array.isArray(q.options) && q.options.length === 1 ? 'text' : 'choice';
   }
 
+  // A hints question's hints, each its text or (hintImgs, the same length)
+  // its picture — a picture hint keeps no text. Mirrors server.js.
+  function normalizeHints(q) {
+    const trim = (v) => (typeof v === 'string' ? v.trim() : '');
+    const imgs = Array.isArray(q.hintImgs) ? q.hintImgs : [];
+    const hintImgs = (Array.isArray(q.hints) ? q.hints : []).map((h, i) => trim(imgs[i]));
+    const hints = hintImgs.map((img, i) => (img ? '' : trim(q.hints[i])));
+    return { hints, hintImgs };
+  }
+
   // The optional extra answer players type in (e.g. the artist, after the
   // song), worth a point only when the main answer is right. Its question
   // is optional; with neither filled in, there's no extra answer at all.
@@ -46,8 +56,9 @@
   // audio?, audioStart?, audioEnd?, bonus?: { question, answer }, and by
   // type: options: [{ text, img? }] (choice/text, with ordered?: true on a
   // text one whose answers go in order), answer: 'yes'|'no'
-  // (yesno), links: [{ clue, img?, answer }] (chain) or hints: [string] and
-  // answer: string (hints) }] }] }, the first option
+  // (yesno), links: [{ clue, img?, answer }] (chain) or hints: [string],
+  // hintImgs?: [string] (each hint's picture, '' for a text one) and
+  // answer: string, with no img or audio (hints) }] }] }, the first option
   // being the correct one (the editor's own convention — see
   // createOptionRow in game-editor-core.js). It carries no ids at all: this
   // runs in the GitHub Pages editor and for exports, and ids are only ever
@@ -132,12 +143,17 @@
           }
           question.answer = q.answer;
         } else if (type === 'hints') {
-          const hints = (Array.isArray(q.hints) ? q.hints : []).map((h) => (typeof h === 'string' ? h.trim() : ''));
+          // A hint can be a picture instead of text — shown by its number
+          // on the view screen, so like a picture clue it keeps no text.
+          const { hints, hintImgs } = normalizeHints(q);
           if (hints.length < 2) return { error: `Klausimas "${label}" turi turėti bent 2 užuominas` };
-          if (hints.some((h) => !h)) return { error: `Klausimas "${label}" turi tuščią užuominą` };
+          if (hints.some((h, i) => !h && !hintImgs[i])) {
+            return { error: `Klausimas "${label}": kiekviena užuomina turi turėti tekstą arba nuotrauką` };
+          }
           const answer = typeof q.answer === 'string' ? q.answer.trim() : '';
           if (!answer) return { error: `Klausimas "${label}" turi turėti įrašytą teisingą atsakymą` };
           question.hints = hints;
+          if (hintImgs.some(Boolean)) question.hintImgs = hintImgs;
           question.answer = answer;
         } else {
           // A clue can be a picture instead of text — shown by its number
@@ -156,9 +172,10 @@
           question.links = links;
         }
 
-        const img = (q.img || '').trim();
+        // A hints question's pictures are its hints', and it has no music.
+        const img = type === 'hints' ? '' : (q.img || '').trim();
         if (img) question.img = img;
-        const audio = (q.audio || '').trim();
+        const audio = type === 'hints' ? '' : (q.audio || '').trim();
         if (audio) {
           question.audio = audio;
           const audioStart = Number(q.audioStart);

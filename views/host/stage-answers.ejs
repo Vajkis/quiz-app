@@ -29,8 +29,8 @@
         <% } else { %>
           <% if (q.hints) { %>
             <ol class="chain-clues hint-list">
-              <% q.hints.forEach(function(h) { %>
-                <li><%= h %></li>
+              <% q.hints.forEach(function(h, i) { %>
+                <li><% if (q.hintImgs && q.hintImgs[i]) { %><img class="chain-clue-img" src="<%= q.hintImgs[i] %>" alt=""><% } else { %><%= h %><% } %></li>
               <% }); %>
             </ol>
           <% } %>
@@ -45,7 +45,7 @@
           if (q.img) imgButtons.push({ src: q.img, label: 'Klausimo nuotrauką' });
           if (q.correctAnswerImg) imgButtons.push({ src: q.correctAnswerImg, label: 'Atsakymo nuotrauką' });
         %>
-        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: q.clueImages, optionsLabel: 'Užuominas per visą ekraną' }) %>
+        <%- include('_fullscreen-buttons', { roomId, imageButtons: imgButtons, optionImages: q.clueImages || q.hintImages, optionsLabel: 'Užuominas per visą ekraną' }) %>
       </div>
     <% }); %>
   </div>

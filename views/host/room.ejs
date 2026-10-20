@@ -48,7 +48,7 @@
         <p class="question-type-label">Užuominos: parodyta <%= revealedHints %> iš <%= currentQuestionHints.length %></p>
         <ol class="chain-clues hint-list">
           <% currentQuestionHints.forEach(function(h, i) { %>
-            <li class="<%= i < revealedHints ? '' : 'is-hidden-hint' %>"><%= h %></li>
+            <li class="<%= i < revealedHints ? '' : 'is-hidden-hint' %>"><% if (currentQuestionHintImgs && currentQuestionHintImgs[i]) { %><img class="chain-clue-img" src="<%= currentQuestionHintImgs[i] %>" alt=""><% } else { %><%= h %><% } %></li>
           <% }); %>
         </ol>
       <% } %>
@@ -63,7 +63,7 @@
       roomId,
       imageButtons: currentQuestionImg ? [{ src: currentQuestionImg, label: 'Nuotrauką per visą ekraną' }] : [],
       optionImages: currentQuestionOptionImages,
-      optionsLabel: currentQuestionType === 'chain' ? 'Užuominas per visą ekraną' : null,
+      optionsLabel: currentQuestionType === 'chain' || currentQuestionType === 'hints' ? 'Užuominas per visą ekraną' : null,
     }) %>
   </div>
 

@@ -29,13 +29,15 @@
     <% }); %>
   </div>
 
-  <nav id="host-bar">
+  <nav id="host-bar" data-morph-own-attrs>
     <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
     </div>
     <div class="host-bar-main">
-      <button id="next-btn" data-room="<%= roomId %>"><%= isLastStage ? 'Rodyti galutinius rezultatus' : 'Kitas etapas' %></button>
+      <%# Back to the stage's answers, to see again who wrote what (its points come off the history until shown again). %>
+      <button id="prev-btn" data-room="<%= roomId %>"><%- icon('arrow-left') %> Atgal į atsakymus</button>
+      <button id="next-btn" data-room="<%= roomId %>"<%= locals.cooldown ? ' data-cooldown' : '' %>><%= isLastStage ? 'Rodyti galutinius rezultatus' : 'Kitas etapas' %></button>
     </div>
     <div class="host-bar-end">
       <%- include('_text-scale', { roomId }) %>
@@ -44,6 +46,7 @@
   <%- include('_team-status', { roomId }) %>
 </div>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/audio-player.js"></script>
 <script src="/host.js"></script>
 </body>
 </html>

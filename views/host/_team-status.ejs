@@ -1,6 +1,6 @@
-<%# Live list of the room's teams and whether each phone can reach the internet (filled by host.js). %>
+<%# Live list of the room's teams and whether each phone can reach the internet (filled by host.js, so a page refresh leaves it as it is — data-morph-key). %>
 <hr class="section-divider team-status-divider">
-<div id="team-status" class="team-status" data-room="<%= roomId %>">
+<div id="team-status" class="team-status" data-room="<%= roomId %>" data-morph-key="team-status">
   <div class="team-status-header">
     <p class="team-status-title">Komandos</p>
     <%# Label/state filled by host.js from the room's setting. %>

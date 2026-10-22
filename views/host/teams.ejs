@@ -37,7 +37,7 @@
       <div class="stage-body season-section-body"<%- open ? '' : ' style="max-height: 0px"' %>>
         <div class="season-section-inner">
           <% season.teams.forEach(function(team) { %>
-            <div class="team-card">
+            <div class="team-card" data-team-id="<%= team.id %>">
               <div class="team-card-header">
                 <span class="team-card-title">
                   <span class="team-card-name"><%= team.name %></span>
@@ -45,18 +45,30 @@
                   <button type="button" class="reveal-btn team-id-btn" data-label="ID" data-value="<%= team.id %>" title="Rodyti komandos ID">ID</button>
                   <button type="button" class="reveal-btn team-penalty-reveal-btn" data-label="Nuobaudos" data-value="Nuobaudos: <%= team.penalty %>" title="Rodyti nuobaudos taškus">Nuobaudos</button>
                 </span>
-                <span class="team-card-total"><%= team.total %> tšk.</span>
+                <span class="team-card-end">
+                  <span class="team-card-total"><%= team.total %> tšk.</span>
+                  <%# The stages' − / + only while this is on (host.js). %>
+                  <button type="button" class="team-edit-btn" title="Taisyti taškus" aria-label="Taisyti taškus" aria-pressed="false"><%- icon('edit') %></button>
+                </span>
               </div>
               <% team.games.forEach(function(game) { %>
-                <div class="game-block">
+                <div class="game-block" data-game-id="<%= game.gameId %>">
                   <div class="game-block-header">
-                    <span><%= game.gameName %></span>
-                    <span><%= game.total %> tšk.</span>
+                    <span class="game-block-name"><%= game.gameName %></span>
+                    <span class="game-block-end">
+                      <span class="game-block-total"><%= game.total %> tšk.</span>
+                      <%# Only while the pencil is on: the game out of this team's history for the season. %>
+                      <button type="button" class="room-close-btn game-remove-btn" title="Pašalinti žaidimą iš komandos istorijos" aria-label="Pašalinti žaidimą iš komandos istorijos"><%- icon('close') %></button>
+                    </span>
                   </div>
                   <% game.stages.forEach(function(stage) { %>
-                    <div class="stage-line">
+                    <div class="stage-line" data-stage-id="<%= stage.stageKey %>">
                       <span><%= stage.stageName %></span>
-                      <span><%= stage.score %></span>
+                      <span class="stage-line-score">
+                        <button type="button" class="stage-score-btn" data-delta="-1" title="Atimti tašką" aria-label="Atimti tašką"><%- icon('minus') %></button>
+                        <span class="stage-score"><%= stage.score %></span>
+                        <button type="button" class="stage-score-btn" data-delta="1" title="Pridėti tašką" aria-label="Pridėti tašką"><%- icon('plus') %></button>
+                      </span>
                     </div>
                   <% }); %>
                 </div>

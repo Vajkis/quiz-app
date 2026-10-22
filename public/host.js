@@ -76,26 +76,33 @@ function getHostSocket() {
   return hostSocket;
 }
 
+// Room pages: every control is handled from the page as a whole rather than
+// wired to its own element — a refresh (refreshRoom) brings new ones in
+// place of the old, and these keep working on them.
+function onClick(selector, handler) {
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest(selector);
+    if (el && !el.disabled) handler(el, e);
+  });
+}
+
 // Each .audio-player-block holds a muted <audio> — muted because it's only
 // here so the host can see and drive playback (its controls from
 // audio-player.js: bar, elapsed time, volume); the actual sound comes from the view screen's own (unmuted)
 // element, which mirrors every play/pause/seek/volume change as a state
 // snapshot. There can be more than one block on a page (stage-answers lists
-// every question in the stage), so this is wired per-block, not by fixed id.
-const audioBlocks = Array.from(document.querySelectorAll('.audio-player-block'));
-const allQuestionAudios = audioBlocks
-  .map((block) => block.querySelector('.question-audio'))
-  .filter(Boolean);
-
+// every question in the stage), so this is wired per block, not by fixed id
+// — once each, on arrival and for every block a refresh brings — and each
+// keeps its controls in block.quizAudio, for the bottom bar's ▶ / ■.
 function pauseOtherAudioBlocks(except) {
-  allQuestionAudios.forEach((a) => {
+  document.querySelectorAll('.question-audio').forEach((a) => {
     if (a !== except && !a.paused) a.pause();
   });
 }
 
-audioBlocks.forEach((block) => {
+function initAudioBlock(block) {
   const questionAudio = block.querySelector('.question-audio');
-  if (!questionAudio) return;
+  if (!questionAudio || block.quizAudio) return;
   questionAudio.muted = true;
   const roomId = block.dataset.room;
   const clipStart = Number(questionAudio.dataset.start) || 0;
@@ -113,6 +120,9 @@ audioBlocks.forEach((block) => {
   }
 
   function sendAudioState() {
+    // Not once a refresh has taken the block off the page (which pauses it):
+    // the view screen has moved on with the host, and would load it again.
+    if (!block.isConnected) return;
     getHostSocket().emit('audio-state', {
       roomId,
       src: audioSrcForView(),
@@ -169,14 +179,12 @@ audioBlocks.forEach((block) => {
   // Bottom bar (room page — one question, so at most one block): ▶ starts
   // the marked part if there is one (else the whole track) or resumes after
   // II; ■ stops and rewinds, so the next ▶ starts over.
-  const barPlayBtn = document.getElementById('host-bar-audio');
-  const barStopBtn = document.getElementById('host-bar-audio-stop');
-  if (!barPlayBtn || audioBlocks.length !== 1) return;
-
   const hasClip = !!playClipBtn;
   let stopped = true; // next ▶ starts over rather than resuming
 
   function syncBarButton() {
+    const barPlayBtn = document.getElementById('host-bar-audio');
+    if (!barPlayBtn) return;
     const playing = !questionAudio.paused;
     barPlayBtn.innerHTML = QuizIcons.icon(playing ? 'pause' : 'play');
     barPlayBtn.setAttribute('aria-label', playing ? 'Pauzė' : 'Groti');
@@ -197,22 +205,43 @@ audioBlocks.forEach((block) => {
     syncBarButton();
   });
 
-  barPlayBtn.addEventListener('click', () => {
-    if (!questionAudio.paused) {
+  block.quizAudio = {
+    syncBarButton,
+    play() {
+      if (!questionAudio.paused) {
+        questionAudio.pause();
+      } else if (stopped) {
+        if (hasClip) playClip();
+        else playNormal();
+      } else {
+        questionAudio.play();
+      }
+    },
+    stop() {
+      stopped = true;
       questionAudio.pause();
-    } else if (stopped) {
-      if (hasClip) playClip();
-      else playNormal();
-    } else {
-      questionAudio.play();
-    }
-  });
+      questionAudio.currentTime = clipModeActive ? clipStart : 0;
+    },
+  };
+}
 
-  barStopBtn.addEventListener('click', () => {
-    stopped = true;
-    questionAudio.pause();
-    questionAudio.currentTime = clipModeActive ? clipStart : 0;
-  });
+function initAudioBlocks() {
+  document.querySelectorAll('.audio-player-block').forEach(initAudioBlock);
+}
+initAudioBlocks();
+
+// The bottom bar's ▶ / ■ drive the page's one block (a room page has at most one).
+function barAudio() {
+  const blocks = document.querySelectorAll('.audio-player-block');
+  return blocks.length === 1 ? blocks[0].quizAudio : null;
+}
+onClick('#host-bar-audio', () => {
+  const audio = barAudio();
+  if (audio) audio.play();
+});
+onClick('#host-bar-audio-stop', () => {
+  const audio = barAudio();
+  if (audio) audio.stop();
 });
 
 // Room panel + stage-answers review: remotely trigger (or dismiss) the view
@@ -236,72 +265,240 @@ function parseImagesAttr(value) {
 // Room panel bottom bar: one button that opens the question's picture (or,
 // without one, its picture options) on the view screen, and closes it again.
 // It only knows what this page sent — the view screen closes it by itself
-// when the host moves on, and moving on reloads this page anyway.
-const barFullscreenBtn = document.getElementById('host-bar-fullscreen');
-let barFullscreenOpen = false;
-
+// when the host moves on, and moving on brings the button back closed.
 function setBarFullscreenState(open) {
-  barFullscreenOpen = open;
-  if (!barFullscreenBtn) return;
-  barFullscreenBtn.classList.toggle('is-active', open);
-  barFullscreenBtn.setAttribute('aria-pressed', String(open));
-  barFullscreenBtn.title = open ? 'Uždaryti pilną ekraną' : 'Per visą ekraną (žiūrovų ekrane)';
+  const btn = document.getElementById('host-bar-fullscreen');
+  if (!btn) return;
+  btn.classList.toggle('is-active', open);
+  btn.setAttribute('aria-pressed', String(open));
+  btn.title = open ? 'Uždaryti pilną ekraną' : 'Per visą ekraną (žiūrovų ekrane)';
 }
 
-if (barFullscreenBtn) {
-  barFullscreenBtn.addEventListener('click', () => {
-    const roomId = barFullscreenBtn.dataset.room;
-    if (barFullscreenOpen) {
-      sendFullscreenCommand(roomId, { action: 'close' });
-    } else if (barFullscreenBtn.dataset.src) {
-      sendFullscreenCommand(roomId, { action: 'image', src: barFullscreenBtn.dataset.src });
-    } else {
-      sendFullscreenCommand(roomId, { action: 'options', images: parseImagesAttr(barFullscreenBtn.dataset.images) });
-    }
-  });
-}
-
-document.querySelectorAll('.fullscreen-mode-buttons').forEach((block) => {
-  const roomId = block.dataset.room;
-
-  block.querySelectorAll('.fullscreen-image-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      sendFullscreenCommand(roomId, { action: 'image', src: btn.dataset.src });
-    });
-  });
-
-  const optionsBtn = block.querySelector('.fullscreen-options-btn');
-  if (optionsBtn) {
-    optionsBtn.addEventListener('click', () => {
-      sendFullscreenCommand(roomId, { action: 'options', images: parseImagesAttr(optionsBtn.dataset.images) });
-    });
-  }
-
-  const closeBtn = block.querySelector('.fullscreen-close-btn');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', () => sendFullscreenCommand(roomId, { action: 'close' }));
+onClick('#host-bar-fullscreen', (btn) => {
+  const roomId = btn.dataset.room;
+  if (btn.getAttribute('aria-pressed') === 'true') {
+    sendFullscreenCommand(roomId, { action: 'close' });
+  } else if (btn.dataset.src) {
+    sendFullscreenCommand(roomId, { action: 'image', src: btn.dataset.src });
+  } else {
+    sendFullscreenCommand(roomId, { action: 'options', images: parseImagesAttr(btn.dataset.images) });
   }
 });
 
-// Room panel: next question / next stage (same endpoint drives both)
-const nextBtn = document.getElementById('next-btn');
-if (nextBtn) {
-  nextBtn.addEventListener('click', async () => {
-    const res = await fetch(`/api/host/room/${nextBtn.dataset.room}/next`, { method: 'POST' });
-    if (!res.ok) return;
-    window.location.reload();
+const fullscreenRoom = (btn) => btn.closest('.fullscreen-mode-buttons').dataset.room;
+onClick('.fullscreen-image-btn', (btn) => {
+  sendFullscreenCommand(fullscreenRoom(btn), { action: 'image', src: btn.dataset.src });
+});
+onClick('.fullscreen-options-btn', (btn) => {
+  sendFullscreenCommand(fullscreenRoom(btn), { action: 'options', images: parseImagesAttr(btn.dataset.images) });
+});
+onClick('.fullscreen-close-btn', (btn) => {
+  sendFullscreenCommand(fullscreenRoom(btn), { action: 'close' });
+});
+
+// Brings `from` (on the page) in line with `to` (the same element, freshly
+// rendered by the server): its attributes, then its children. A child with
+// an id or a data-morph-key is the one with the same id / key, wherever it
+// was among them (the bottom bar, the team list — moved, not made anew); the
+// rest are matched in order, each to the next one of its kind (node type and
+// tag). Whatever has no match is made anew, and old ones left over removed.
+// Some things are left as they are, being the page's own by now rather than
+// the server's: an element with data-morph-key (the team list, an audio
+// player — another key is another element), the attributes of one with
+// data-morph-own-attrs (the bottom bar, collapsed or not), and <script>s.
+function morph(from, to) {
+  if (!from.hasAttribute('data-morph-own-attrs')) {
+    Array.from(from.attributes).forEach((a) => {
+      if (!to.hasAttribute(a.name)) from.removeAttribute(a.name);
+    });
+    Array.from(to.attributes).forEach((a) => {
+      if (from.getAttribute(a.name) !== a.value) from.setAttribute(a.name, a.value);
+    });
+  }
+  const oldKids = Array.from(from.childNodes);
+  const keyed = new Map();
+  const unkeyed = [];
+  oldKids.forEach((n) => {
+    const key = morphKey(n);
+    if (key) keyed.set(key, n);
+    else unkeyed.push(n);
   });
+  const used = new Set();
+  let next = 0; // the first unkeyed old child not passed over yet
+  const nodes = Array.from(to.childNodes).map((newKid) => {
+    const key = morphKey(newKid);
+    let match = null;
+    if (key) {
+      match = keyed.get(key) || null;
+    } else {
+      const j = unkeyed.findIndex((n, k) => k >= next && sameKind(n, newKid));
+      if (j >= 0) {
+        match = unkeyed[j];
+        next = j + 1;
+      }
+    }
+    if (!match) return document.importNode(newKid, true);
+    used.add(match);
+    if (match.nodeType !== Node.ELEMENT_NODE) {
+      if (match.nodeValue !== newKid.nodeValue) match.nodeValue = newKid.nodeValue;
+    } else if (match.tagName !== 'SCRIPT' && !match.hasAttribute('data-morph-key')) {
+      morph(match, newKid);
+    }
+    return match;
+  });
+  oldKids.forEach((n) => {
+    if (!used.has(n)) n.remove();
+  });
+  // Then as few of the kept ones as possible are moved — a moved element is
+  // taken off the page and put back, which starts its animations over (the
+  // main button's wait strip) and pauses its track. The ones that stay put
+  // are the most (an element counting for far more than a bit of text)
+  // already in the wanted order; the rest, and the new ones, go in around them.
+  const onPage = new Map(oldKids.filter((n) => used.has(n)).map((n, i) => [n, i]));
+  const best = [];
+  const before = [];
+  nodes.forEach((node, i) => {
+    if (!onPage.has(node)) return;
+    const weight = node.nodeType === Node.ELEMENT_NODE ? 100 : 1;
+    best[i] = weight;
+    before[i] = -1;
+    for (let j = 0; j < i; j++) {
+      if (best[j] != null && onPage.get(nodes[j]) < onPage.get(node) && best[j] + weight > best[i]) {
+        best[i] = best[j] + weight;
+        before[i] = j;
+      }
+    }
+  });
+  let last = -1;
+  best.forEach((b, i) => {
+    if (b != null && (last < 0 || b > best[last])) last = i;
+  });
+  const staying = new Set();
+  for (let i = last; i >= 0; i = before[i]) staying.add(nodes[i]);
+  let ref = null;
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    if (!staying.has(nodes[i])) from.insertBefore(nodes[i], ref);
+    ref = nodes[i];
+  }
 }
 
-// Room panel: back to the previous question, restoring its picks
-const prevBtn = document.getElementById('prev-btn');
-if (prevBtn) {
-  prevBtn.addEventListener('click', async () => {
-    const res = await fetch(`/api/host/room/${prevBtn.dataset.room}/prev`, { method: 'POST' });
-    if (!res.ok) return;
-    window.location.reload();
-  });
+function morphKey(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE) return null;
+  if (node.hasAttribute('data-morph-key')) return `key:${node.getAttribute('data-morph-key')}`;
+  return node.id ? `id:${node.id}` : null;
 }
+
+function sameKind(a, b) {
+  return a.nodeType === b.nodeType && a.nodeName === b.nodeName;
+}
+
+// The room page again from the server, with only what changed on it updated
+// (morph) — no reload, so the team list, the bar, a playing track, the side
+// panel and the socket stay as they are. Anything but a room page back
+// (logged out, the room closed): loaded properly instead.
+async function refreshRoom() {
+  let doc = null;
+  try {
+    const res = await fetch(location.href, { cache: 'no-store' });
+    if (res.ok && !res.redirected)
+      doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+  } catch (err) {}
+  const next = doc && doc.getElementById('app');
+  if (!next || !doc.getElementById('host-bar')) {
+    location.reload();
+    return;
+  }
+  document.title = doc.title;
+  morph(document.getElementById('app'), next);
+  initAudioBlocks();
+  document.querySelectorAll('.audio-player-block').forEach((b) => b.quizAudio && b.quizAudio.syncBarButton());
+  markUnanswered();
+  applyCooldown();
+}
+
+// The bar's main button where it shows a new slide — the next question or
+// hint, the stage's answers, its points, the next stage, the final results
+// (data-cooldown on it) — can't be pressed for a moment after every move,
+// with a strip along it running out meanwhile: a double click, or one tap
+// too many on → after "Sekantis" has reached the newest question, can't show
+// one more by accident. A move onto an earlier question ("Sekantis" is
+// there — walking through those shows nothing new) doesn't start it again,
+// only lets one already running finish; back on the newest, it starts.
+// Going back, "Sekantis" and the numbers never wait themselves.
+const NEXT_COOLDOWN_MS = 1500;
+let cooldownUntil = 0;
+let cooldownTimer = null;
+
+function startCooldown() {
+  if (!document.getElementById('forward-btn')) {
+    cooldownUntil = Date.now() + NEXT_COOLDOWN_MS;
+    // The strip starts over, full: taken off and drawn without it first, or
+    // one still running would just carry on.
+    const btn = document.getElementById('next-btn');
+    if (btn) {
+      btn.classList.remove('is-cooling');
+      void btn.offsetWidth;
+    }
+  }
+  applyCooldown();
+}
+
+// Also after a refresh, which puts the button back as the server has it —
+// and this right back, the same, so a running strip carries on unbroken
+// (only ever started over by startCooldown).
+function applyCooldown() {
+  clearTimeout(cooldownTimer);
+  const btn = document.getElementById('next-btn');
+  if (!btn || !btn.hasAttribute('data-cooldown')) return;
+  const left = cooldownUntil - Date.now();
+  const cooling = left > 0;
+  btn.disabled = cooling;
+  btn.classList.toggle('is-cooling', cooling);
+  if (!cooling) return;
+  btn.style.setProperty('--cooldown', `${NEXT_COOLDOWN_MS}ms`);
+  cooldownTimer = setTimeout(applyCooldown, left);
+}
+startCooldown();
+
+// Room pages: a move — next, back, a shown question's number, the final
+// standings' views — is made on the server, then the page brought up to
+// date (refreshRoom). One at a time: a double click or a held key can't
+// skip past questions.
+let moving = false;
+async function roomMove(roomId, action, body) {
+  if (moving) return;
+  moving = true;
+  try {
+    const res = await fetch(`/api/host/room/${roomId}/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    });
+    if (res.ok) {
+      await refreshRoom();
+      startCooldown();
+    }
+  } finally {
+    moving = false;
+  }
+}
+
+// Next question / next stage (same endpoint drives both), and back to the
+// previous question, restoring its picks (or from a stage's results back to
+// its answers).
+onClick('#next-btn', (btn) => roomMove(btn.dataset.room, 'next'));
+onClick('#prev-btn', (btn) => roomMove(btn.dataset.room, 'prev'));
+
+// Back on an earlier question, one step forward again through the ones
+// already shown ("next" goes on to a new one instead).
+onClick('#forward-btn', (btn) => roomMove(btn.dataset.room, 'goto', { index: Number(btn.dataset.index) }));
+
+// The number buttons of the questions already shown — straight to that one
+// (the active one is the question on screen now).
+onClick('.question-jump-btn', (btn) => {
+  if (btn.classList.contains('active')) return;
+  roomMove(btn.closest('.question-jump').dataset.room, 'goto', { index: Number(btn.dataset.index) });
+});
 
 // Keyboard, on the pages with the bottom bar: ← back a question, → the next
 // one already shown (after stepping back) or else the bar's main button
@@ -310,38 +507,23 @@ if (prevBtn) {
 // screen's fullscreen picture (Esc closes it too), B the bar itself
 // collapsed / back ("bar"), a number straight to
 // that question already shown (its number button). Not while typing into a
-// field (a paper team's points), and one move per page — each reloads it,
-// so a held or double-tapped key can't skip past questions.
+// field (a paper team's points), and one move at a time (see roomMove), so
+// a held or double-tapped key can't skip past questions.
 if (document.getElementById('host-bar')) {
-  // Set while a move's page reload is on its way, so a second key press
-  // can't move again; let go after a while in case no reload comes (a failed
-  // request), so the keys never stay locked.
-  let navigating = false;
-  let navigatingTimer = null;
-  function startNavigating() {
-    navigating = true;
-    clearTimeout(navigatingTimer);
-    navigatingTimer = setTimeout(() => {
-      navigating = false;
-    }, 3000);
-  }
-
   // Number keys: the physical key (e.code), so the top row works with the
   // Lithuanian layout too (ą č ę… there, digits only with Shift), and the
   // number pad with Num Lock on or off. Two digits typed in a row make one
   // number (12) — waited for only while a shown question's number could
   // still start with what's typed. 0 on its own is 10.
   const DIGIT_CODE = /^(?:Digit|Numpad)(\d)$/;
-  const jumpButtons = Array.from(document.querySelectorAll('.question-jump-btn'));
+  const jumpButtons = () => Array.from(document.querySelectorAll('.question-jump-btn'));
   let typed = '';
   let typedTimer = null;
   function jumpTo(number) {
     typed = '';
     clearTimeout(typedTimer);
-    const btn = jumpButtons.find((b) => b.textContent.trim() === number);
-    if (!btn || btn.classList.contains('active')) return;
-    startNavigating();
-    btn.click();
+    const btn = jumpButtons().find((b) => b.textContent.trim() === number);
+    if (btn) btn.click();
   }
   function typeDigit(digit) {
     clearTimeout(typedTimer);
@@ -351,7 +533,7 @@ if (document.getElementById('host-bar')) {
       return;
     }
     typed += digit;
-    const longer = jumpButtons.some((b) => {
+    const longer = jumpButtons().some((b) => {
       const n = b.textContent.trim();
       return n.length > typed.length && n.startsWith(typed);
     });
@@ -363,9 +545,9 @@ if (document.getElementById('host-bar')) {
     if (e.target.closest('input, textarea, select, [contenteditable]')) return;
     const digit = (e.code || '').match(DIGIT_CODE);
     if (digit && !e.altKey && !e.ctrlKey && !e.metaKey) {
-      if (!jumpButtons.length) return;
+      if (!jumpButtons().length) return;
       e.preventDefault();
-      if (!navigating && !e.repeat) typeDigit(digit[1]);
+      if (!moving && !e.repeat) typeDigit(digit[1]);
       return;
     }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
@@ -380,12 +562,9 @@ if (document.getElementById('host-bar')) {
 
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault();
-      if (navigating || e.repeat) return;
-      const done =
-        e.key === 'ArrowLeft'
-          ? click('prev-btn')
-          : click('forward-btn') || click('next-btn');
-      if (done) startNavigating();
+      if (moving || e.repeat) return;
+      if (e.key === 'ArrowLeft') click('prev-btn');
+      else click('forward-btn') || click('next-btn');
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       const btn = scaleBtn(e.key === 'ArrowUp' ? 25 : -25);
@@ -415,94 +594,66 @@ if (document.getElementById('host-bar')) {
 
 // Bottom bar: − / + for the view screen's text size (this page stays as
 // it is). The server clamps it to 25%–500%; the buttons go grey at the ends.
-document.querySelectorAll('.text-scale').forEach((box) => {
-  const valueEl = box.querySelector('.text-scale-value');
-  const buttons = box.querySelectorAll('.text-scale-btn');
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const res = await fetch(`/api/host/room/${box.dataset.room}/text-scale`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ delta: Number(btn.dataset.delta) })
-      });
-      if (!res.ok) return;
-      const { scale, min, max } = await res.json();
-      valueEl.textContent = `${scale}%`;
-      buttons.forEach((b) => {
-        const delta = Number(b.dataset.delta);
-        b.disabled = delta < 0 ? scale <= min : scale >= max;
-      });
-    });
+onClick('.text-scale-btn', async (btn) => {
+  const box = btn.closest('.text-scale');
+  const res = await fetch(`/api/host/room/${box.dataset.room}/text-scale`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ delta: Number(btn.dataset.delta) })
   });
-});
-
-// Room panel: back on an earlier question, one step forward again through
-// the ones already shown ("next" goes on to a new one instead).
-const forwardBtn = document.getElementById('forward-btn');
-if (forwardBtn) {
-  forwardBtn.addEventListener('click', async () => {
-    const res = await fetch(`/api/host/room/${forwardBtn.dataset.room}/goto`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ index: Number(forwardBtn.dataset.index) })
-    });
-    if (!res.ok) return;
-    window.location.reload();
-  });
-}
-
-// Room panel: the number buttons of the questions already shown — straight
-// to that one (the active one is the question on screen now).
-document.querySelectorAll('.question-jump').forEach((nav) => {
-  nav.querySelectorAll('.question-jump-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (btn.classList.contains('active')) return;
-      const res = await fetch(`/api/host/room/${nav.dataset.room}/goto`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ index: Number(btn.dataset.index) })
-      });
-      if (!res.ok) return;
-      window.location.reload();
-    });
+  if (!res.ok) return;
+  const { scale, min, max } = await res.json();
+  box.querySelector('.text-scale-value').textContent = `${scale}%`;
+  box.querySelectorAll('.text-scale-btn').forEach((b) => {
+    const delta = Number(b.dataset.delta);
+    b.disabled = delta < 0 ? scale <= min : scale >= max;
   });
 });
 
 // Stage answers: mark a team's typed answer (or chain, or extra answer —
 // the row's data-part) right (✓) or wrong (✗) — the active one is pre-set
 // from the automatic match, and the server re-scores the question at once.
-document.querySelectorAll('.typed-answer-row').forEach((row) => {
+onClick('.typed-answer-btn', async (btn) => {
+  if (btn.classList.contains('active')) return;
+  const row = btn.closest('.typed-answer-row');
   const buttons = row.querySelectorAll('.typed-answer-btn');
-  if (buttons.length === 0) return;
-
-  function show(correct) {
-    buttons.forEach((b) =>
-      b.classList.toggle('active', (b.dataset.correct === 'true') === correct)
-    );
-  }
-
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      if (btn.classList.contains('active')) return;
-      buttons.forEach((b) => (b.disabled = true));
-      try {
-        const res = await fetch(`/api/host/room/${row.dataset.room}/typed-answer`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            index: Number(row.dataset.index),
-            teamId: row.dataset.team,
-            part: row.dataset.part,
-            correct: btn.dataset.correct === 'true'
-          })
-        });
-        if (res.ok) show((await res.json()).correct);
-      } finally {
-        buttons.forEach((b) => (b.disabled = false));
-      }
+  buttons.forEach((b) => (b.disabled = true));
+  try {
+    const res = await fetch(`/api/host/room/${row.dataset.room}/typed-answer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        index: Number(row.dataset.index),
+        teamId: row.dataset.team,
+        part: row.dataset.part,
+        correct: btn.dataset.correct === 'true'
+      })
     });
-  });
+    if (res.ok) {
+      const { correct } = await res.json();
+      buttons.forEach((b) =>
+        b.classList.toggle('active', (b.dataset.correct === 'true') === correct)
+      );
+    }
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+  }
 });
+
+// The number buttons of the questions shown so far, outlined red while a
+// team hasn't put anything into its answer — back to normal as soon as
+// every team has (from the team list's pushes, kept for after a refresh).
+// Not the one on screen now: the team list shows its answers already.
+let lastUnanswered = {};
+function markUnanswered(unanswered = lastUnanswered) {
+  lastUnanswered = unanswered;
+  document.querySelectorAll('.question-jump-btn').forEach((btn) => {
+    const names = !btn.classList.contains('active') && unanswered[btn.dataset.index];
+    btn.classList.toggle('is-unanswered', !!names);
+    if (names) btn.title = `Neatsakė: ${names.join(', ')}`;
+    else btn.removeAttribute('title');
+  });
+}
 
 // Game-flow pages: live list of the room's teams and whether each phone can
 // reach the internet (the hotspot has none, so it's mobile data). Phones
@@ -555,6 +706,7 @@ if (teamStatusEl) {
       if (team.answer) row.appendChild(answerStatus(team.answer));
       row.appendChild(badge);
       if (team.offline && paperEditable) row.appendChild(paperPointsField(team));
+      row.appendChild(adjustControls(team));
       if (team.penalty != null) row.appendChild(penaltyControls(team));
       row.appendChild(removeButton(team));
       listEl.appendChild(row);
@@ -598,27 +750,57 @@ if (teamStatusEl) {
     return wrap;
   }
 
-  // − count + for the team's penalty points this season; the new count
-  // comes back with the next team-status push.
-  function penaltyControls(team) {
+  // − count + (a count that can't go below 0 greys its − out at 0); the new
+  // count comes back with the next team-status push.
+  function stepper(className, title, text, onChange, minusDisabled) {
     const wrap = document.createElement('span');
-    wrap.className = 'team-penalty';
-    wrap.title = 'Nuobaudos taškai šį sezoną';
+    wrap.className = `team-penalty ${className}`;
+    wrap.title = title;
     const count = document.createElement('span');
     count.className = 'team-penalty-count';
-    count.textContent = team.penalty;
+    count.textContent = text;
     const button = (iconName, delta) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'team-penalty-btn';
       b.innerHTML = QuizIcons.icon(iconName);
       b.title = delta < 0 ? 'Atimti' : 'Pridėti';
-      b.disabled = delta < 0 && team.penalty === 0;
-      b.addEventListener('click', () => changePenalty(team.teamId, delta));
+      b.disabled = delta < 0 && !!minusDisabled;
+      b.addEventListener('click', () => onChange(delta));
       return b;
     };
     wrap.append(button('minus', -1), count, button('plus', 1));
     return wrap;
+  }
+
+  // The team's penalty points this season.
+  function penaltyControls(team) {
+    return stepper('', 'Nuobaudos taškai šį sezoną', team.penalty,
+      (delta) => changePenalty(team.teamId, delta), team.penalty === 0);
+  }
+
+  // The points the host gave (+) or took (−) this stage, on top of the
+  // team's answers — labelled, unlike the penalty's red count beside it.
+  function adjustControls(team) {
+    const n = team.adjustment;
+    const wrap = stepper('team-adjust', 'Pridėti / atimti taškai šiame etape',
+      n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0', (delta) => adjustScore(team.teamId, delta));
+    const label = document.createElement('span');
+    label.className = 'team-adjust-label';
+    label.textContent = 'Taškai:';
+    wrap.prepend(label);
+    return wrap;
+  }
+
+  async function adjustScore(teamId, delta) {
+    const res = await fetch(`/api/host/room/${roomId}/adjust`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamId, delta })
+    });
+    if (!res.ok) return;
+    // On the stage's results, they're shown changed.
+    if ((await res.json()).results) refreshRoom();
   }
 
   // A paper team's points this stage, saved when the field is left.
@@ -745,6 +927,7 @@ if (teamStatusEl) {
     receivedAt = Date.now();
     render();
     renderAddOptions(status.available, status.canAdd);
+    markUnanswered(status.unanswered || {});
   });
   // Ages the last checks even when nothing new arrives.
   setInterval(render, 5000);
@@ -772,26 +955,15 @@ if (teamStatusEl) {
 
 // Leaderboard: switch between this game's standings, the season's and the
 // season's penalty points
-document.querySelectorAll('.leaderboard-view-btn').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    const res = await fetch(`/api/host/room/${btn.dataset.id}/leaderboard-view`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ view: btn.dataset.view })
-    });
-    if (!res.ok) return;
-    window.location.reload();
-  });
-});
+onClick('.leaderboard-view-btn', (btn) =>
+  roomMove(btn.dataset.id, 'leaderboard-view', { view: btn.dataset.view })
+);
 
 // Leaderboard: finish game (closes the room)
-const finishGameBtn = document.getElementById('finish-game-btn');
-if (finishGameBtn) {
-  finishGameBtn.addEventListener('click', async () => {
-    await fetch(`/api/host/room/${finishGameBtn.dataset.id}`, { method: 'DELETE' });
-    window.location.href = '/host';
-  });
-}
+onClick('#finish-game-btn', async (btn) => {
+  await fetch(`/api/host/room/${btn.dataset.id}`, { method: 'DELETE' });
+  window.location.href = '/host';
+});
 
 // Team history: a team's "ID" / "Nuobaudos" buttons show its id / penalty
 // points instead, and hide them again on the next click.
@@ -801,6 +973,74 @@ document.querySelectorAll('.reveal-btn').forEach((btn) => {
     const shown = btn.classList.toggle('is-shown');
     btn.textContent = shown ? btn.dataset.value : btn.dataset.label;
     btn.title = shown ? 'Slėpti' : hiddenTitle;
+  });
+});
+
+// Team history: a team's pencil turns the − / + beside its stages' points
+// on and off — off to begin with, so a stray click (or anyone the page is
+// shown to) can't change them. Each click is saved at once, and the game's
+// and season's totals follow.
+document.querySelectorAll('.team-card').forEach((card) => {
+  const editBtn = card.querySelector('.team-edit-btn');
+  if (!editBtn) return;
+  editBtn.addEventListener('click', () => {
+    const editing = card.classList.toggle('is-editing');
+    editBtn.setAttribute('aria-pressed', String(editing));
+    editBtn.title = editing ? 'Baigti taisyti' : 'Taisyti taškus';
+  });
+
+  const section = card.closest('.season-section');
+
+  // The ✕ beside a game's total: out of the team's history for this season,
+  // after asking. The team's card goes too once it has no games left here.
+  card.querySelectorAll('.game-remove-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const block = btn.closest('.game-block');
+      const gameName = block.querySelector('.game-block-name').textContent;
+      const teamName = card.querySelector('.team-card-name').textContent;
+      if (!confirm(`Pašalinti žaidimą „${gameName}“ iš komandos „${teamName}“ ${section.dataset.seasonId} sezono istorijos? Jo taškai dings.`)) return;
+      btn.disabled = true;
+      try {
+        const res = await fetch(
+          `/api/host/teams/${encodeURIComponent(card.dataset.teamId)}/seasons/${encodeURIComponent(section.dataset.seasonId)}/games/${encodeURIComponent(block.dataset.gameId)}`,
+          { method: 'DELETE' }
+        );
+        if (!res.ok) return;
+        const { seasonTotal } = await res.json();
+        block.remove();
+        if (!card.querySelector('.game-block')) card.remove();
+        else card.querySelector('.team-card-total').textContent = `${seasonTotal} tšk.`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  card.querySelectorAll('.stage-line').forEach((line) => {
+    line.querySelectorAll('.stage-score-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/api/host/teams/${encodeURIComponent(card.dataset.teamId)}/score`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              seasonId: section.dataset.seasonId,
+              gameId: line.closest('.game-block').dataset.gameId,
+              stageId: line.dataset.stageId,
+              delta: Number(btn.dataset.delta)
+            })
+          });
+          if (!res.ok) return;
+          const { score, gameTotal, seasonTotal } = await res.json();
+          line.querySelector('.stage-score').textContent = score;
+          line.closest('.game-block').querySelector('.game-block-total').textContent = `${gameTotal} tšk.`;
+          card.querySelector('.team-card-total').textContent = `${seasonTotal} tšk.`;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   });
 });
 

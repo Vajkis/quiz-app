@@ -403,6 +403,35 @@
   }
 }
 
+// Waiting a moment after a move before it can show the next slide (host.js):
+// greyed out like any disabled button, with a strip along its bottom
+// running out over the wait (--cooldown, set by host.js).
+#next-btn.is-cooling {
+  position: relative;
+  overflow: hidden;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: v.$color-action;
+    transform-origin: left;
+    animation: next-cooldown var(--cooldown, 1.5s) linear forwards;
+  }
+}
+
+@keyframes next-cooldown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
 #next-btn,
 #finish-game-btn {
   display: block;
@@ -1556,6 +1585,7 @@ select option {
 .hints-section,
 .text-answers-section,
 .ordered-answers-toggle,
+.img-hidden-toggle,
 .bonus-fields {
   &[hidden] {
     display: none;
@@ -1589,13 +1619,77 @@ select option {
   border-radius: v.$radius-sm;
 }
 
-.ordered-answers-toggle {
+.ordered-answers-toggle,
+.img-hidden-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
   font-size: 14px;
   cursor: pointer;
+}
+
+// Right under the picture's field, which has its gap below already: the
+// same gap under it instead, before the thumbnail.
+.img-hidden-toggle {
+  margin: 0 0 8px;
+}
+
+// Every checkbox (the editor's), in the theme's colours rather than the
+// browser's: a box bordered like the fields, filled with the primary colour
+// with a ✓ — the dropdowns' own — when ticked.
+input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  background: v.$color-card;
+  border: 1.5px solid v.$color-border;
+  border-radius: 4px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &::before {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background-color: v.$color-on-accent;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  @include v.hover-only {
+    border-color: v.$color-primary;
+  }
+
+  &:checked {
+    background: v.$color-primary;
+    border-color: v.$color-primary;
+
+    &::before {
+      opacity: 1;
+    }
+  }
+
+  &:focus-visible {
+    outline: 2px solid v.$color-primary;
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    &::before {
+      transition: none;
+    }
+  }
 }
 
 // Taip / Ne: the right one is filled in, like the review's ✓.
@@ -2272,6 +2366,40 @@ select option {
   border-color: v.$color-danger;
 }
 
+// The team's total, with the pencil after it on the right.
+.team-card-end {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+// The pencil: the stages' − / + on (filled in) and off.
+.team-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  font-size: 14px;
+  background: v.$color-card;
+  color: v.$color-primary;
+  border: 1px solid v.$color-primary;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+
+  @include v.hover-only {
+    background: v.$color-primary-soft;
+  }
+
+  &[aria-pressed='true'] {
+    background: v.$color-primary;
+    color: v.$color-on-accent;
+  }
+}
+
 // Team history: one card per season (newest open) — built from the game
 // editor's stage card (.stage-card / .stage-header / .toggle-stage-btn /
 // .stage-body), so only the differences live here.
@@ -2321,16 +2449,79 @@ select option {
 .game-block-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+// The game's total, with its ✕ after it while the team's pencil is on.
+.game-block-end {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.game-remove-btn {
+  display: none;
+  width: 26px;
+  height: 26px;
+  font-size: 18px;
+
+  .team-card.is-editing & {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .stage-line {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 13px;
   color: v.$color-muted;
   padding: 2px 0;
+}
+
+.stage-line-score {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+// Only while the team's pencil is on.
+.stage-score-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  background: v.$color-card;
+  color: v.$color-primary;
+  border: 1px solid v.$color-border;
+  border-radius: v.$radius-sm;
+  cursor: pointer;
+
+  @include v.hover-only {
+    background: v.$color-primary-soft;
+  }
+
+  .team-card.is-editing & {
+    display: inline-flex;
+  }
+}
+
+.team-card.is-editing .stage-score {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 700;
+  color: v.$color-text;
 }
 
 // Question kind indicator on the host's room page (typed answer, Taip / Ne,
@@ -2752,8 +2943,10 @@ select option {
   gap: 4px;
 }
 
+// The same width for the points as for the penalty, so both counts sit the
+// same distance from their − / + (only a few points are ever given or taken).
 .team-penalty-count {
-  min-width: 2ch;
+  min-width: 2.5ch;
   text-align: center;
   font-weight: 700;
   color: v.$color-danger;
@@ -2776,6 +2969,18 @@ select option {
   @include v.hover-only {
     background: v.$color-primary-soft;
   }
+}
+
+// The points the host gave or took this stage: like the penalty points, but
+// labelled, and in the accent colour rather than red.
+.team-adjust-label {
+  margin-right: 2px;
+  font-size: 13px;
+  color: v.$color-muted;
+}
+
+.team-adjust .team-penalty-count {
+  color: v.$color-primary;
 }
 
 .team-status-badge {
@@ -3030,5 +3235,11 @@ select option {
     background: v.$color-primary;
     color: v.$color-on-accent;
     cursor: default;
+  }
+
+  // A team hasn't answered it yet (host.js) — a thicker border, so it stands
+  // out from the rest.
+  &.is-unanswered {
+    border: 2px solid v.$color-danger;
   }
 }

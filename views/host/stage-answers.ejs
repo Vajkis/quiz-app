@@ -115,13 +115,13 @@
     </div>
   <% } %>
 
-  <nav id="host-bar">
+  <nav id="host-bar" data-morph-own-attrs>
     <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
     </div>
     <div class="host-bar-main">
-      <button id="next-btn" data-room="<%= roomId %>">Rodyti taškus</button>
+      <button id="next-btn" data-room="<%= roomId %>"<%= locals.cooldown ? ' data-cooldown' : '' %>>Rodyti taškus</button>
     </div>
     <div class="host-bar-end">
       <%- include('_text-scale', { roomId }) %>

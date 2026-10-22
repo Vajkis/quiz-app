@@ -20,7 +20,7 @@
     <p class="stage-intro-name"><%= roomName %></p>
   </div>
 
-  <nav id="host-bar">
+  <nav id="host-bar" data-morph-own-attrs>
     <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
@@ -35,6 +35,7 @@
   <%- include('_team-status', { roomId }) %>
 </div>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/audio-player.js"></script>
 <script src="/host.js"></script>
 </body>
 </html>

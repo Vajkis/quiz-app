@@ -1086,6 +1086,30 @@ h1 {
   }
 }
 
+#next-btn.is-cooling {
+  position: relative;
+  overflow: hidden;
+}
+#next-btn.is-cooling::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--color-action);
+  transform-origin: left;
+  animation: next-cooldown var(--cooldown, 1.5s) linear forwards;
+}
+
+@keyframes next-cooldown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
 #next-btn,
 #finish-game-btn {
   display: block;
@@ -2170,6 +2194,7 @@ select option:checked {
 .hints-section[hidden],
 .text-answers-section[hidden],
 .ordered-answers-toggle[hidden],
+.img-hidden-toggle[hidden],
 .bonus-fields[hidden] {
   display: none;
 }
@@ -2198,13 +2223,64 @@ select option:checked {
   border-radius: 6px;
 }
 
-.ordered-answers-toggle {
+.ordered-answers-toggle,
+.img-hidden-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 8px;
   font-size: 14px;
   cursor: pointer;
+}
+
+.img-hidden-toggle {
+  margin: 0 0 8px;
+}
+
+input[type=checkbox] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-content: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  background: var(--color-card);
+  border: 1.5px solid var(--color-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+input[type=checkbox]::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  background-color: var(--color-on-accent);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/contain no-repeat;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+@media (min-width: 992px) {
+  input[type=checkbox]:hover:not(:disabled) {
+    border-color: var(--color-primary);
+  }
+}
+input[type=checkbox]:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+input[type=checkbox]:checked::before {
+  opacity: 1;
+}
+input[type=checkbox]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  input[type=checkbox], input[type=checkbox]::before {
+    transition: none;
+  }
 }
 
 .yesno-section {
@@ -2812,6 +2888,38 @@ select option:checked {
   border-color: var(--color-danger);
 }
 
+.team-card-end {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  font-size: 14px;
+  background: var(--color-card);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 6px;
+  cursor: pointer;
+}
+@media (min-width: 992px) {
+  .team-edit-btn:hover:not(:disabled) {
+    background: var(--color-primary-soft);
+  }
+}
+.team-edit-btn[aria-pressed=true] {
+  background: var(--color-primary);
+  color: var(--color-on-accent);
+}
+
 .season-section {
   margin-top: 16px;
 }
@@ -2852,16 +2960,76 @@ select option:checked {
 .game-block-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   margin-bottom: 4px;
+}
+
+.game-block-end {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.game-remove-btn {
+  display: none;
+  width: 26px;
+  height: 26px;
+  font-size: 18px;
+}
+.team-card.is-editing .game-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stage-line {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 13px;
   color: var(--color-muted);
   padding: 2px 0;
+}
+
+.stage-line-score {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage-score-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  background: var(--color-card);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+@media (min-width: 992px) {
+  .stage-score-btn:hover:not(:disabled) {
+    background: var(--color-primary-soft);
+  }
+}
+.team-card.is-editing .stage-score-btn {
+  display: inline-flex;
+}
+
+.team-card.is-editing .stage-score {
+  min-width: 2ch;
+  text-align: center;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
 .question-type-label {
@@ -3206,7 +3374,7 @@ select option:checked {
 }
 
 .team-penalty-count {
-  min-width: 2ch;
+  min-width: 2.5ch;
   text-align: center;
   font-weight: 700;
   color: var(--color-danger);
@@ -3230,6 +3398,16 @@ select option:checked {
   .team-penalty-btn:hover:not(:disabled) {
     background: var(--color-primary-soft);
   }
+}
+
+.team-adjust-label {
+  margin-right: 2px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.team-adjust .team-penalty-count {
+  color: var(--color-primary);
 }
 
 .team-status-badge {
@@ -3455,4 +3633,7 @@ select option:checked {
   background: var(--color-primary);
   color: var(--color-on-accent);
   cursor: default;
+}
+.question-jump-btn.is-unanswered {
+  border: 2px solid var(--color-danger);
 }

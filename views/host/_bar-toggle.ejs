@@ -1,5 +1,5 @@
-<%# The strip on a bottom bar's top edge (the host's #host-bar, the preview's #preview-bar) that slides the bar down out of the way and back — also the B key (host.js, preview.js). `bar` is the bar's id, `key` where this browser remembers it collapsed. Put back right here, before the page shows: the host's every move reloads the page, so it never slides on its own. %>
-<button type="button" id="<%= bar %>-toggle" class="bar-toggle" title="Suskleisti juostą" aria-label="Suskleisti juostą" aria-expanded="true"></button>
+<%# The strip on a bottom bar's top edge (the host's #host-bar, the preview's #preview-bar) that slides the bar down out of the way and back — also the B key (host.js, preview.js). `bar` is the bar's id, `key` where this browser remembers it collapsed. Put back right here, before the page shows, so it never slides on its own. The host's room pages refresh in place (host.js) without touching it: the bar keeps its own attributes (data-morph-own-attrs on it), and this button and script stay as they are (data-morph-key). %>
+<button type="button" id="<%= bar %>-toggle" class="bar-toggle" title="Suskleisti juostą" aria-label="Suskleisti juostą" aria-expanded="true" data-morph-key="bar-toggle"></button>
 <script>
   (() => {
     const bar = document.getElementById('<%= bar %>');

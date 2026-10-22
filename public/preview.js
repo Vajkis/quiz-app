@@ -304,8 +304,10 @@ function showQuestion(screen) {
   audioProgressWrap.hidden = !audioSrc;
   audioProgressFill.style.width = '0%';
 
+  // A hidden picture isn't on screen with the question — only full screen,
+  // as the host would put it up.
   const imgSrc = resolveMedia(q.img);
-  imageWrapEl.hidden = !imgSrc;
+  imageWrapEl.hidden = !imgSrc || !!q.imgHidden;
   if (imgSrc) imageEl.src = imgSrc;
   const hintCells = hintPictureCells(screen);
   renderHintPictures(hintCells);

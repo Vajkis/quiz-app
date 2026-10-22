@@ -53,7 +53,8 @@
 
   // Validates and tidies an editor form submission into the portable game
   // format: { name, rules?: [string], stages: [{ name, questions: [{ type, question, img?,
-  // audio?, audioStart?, audioEnd?, bonus?: { question, answer }, and by
+  // imgHidden?: true (the picture kept off the big screen until the host
+  // puts it up full screen), audio?, audioStart?, audioEnd?, bonus?: { question, answer }, and by
   // type: options: [{ text, img? }] (choice/text, with ordered?: true on a
   // text one whose answers go in order), answer: 'yes'|'no'
   // (yesno), links: [{ clue, img?, answer }] (chain) or hints: [string],
@@ -175,6 +176,8 @@
         // A hints question's pictures are its hints', and it has no music.
         const img = type === 'hints' ? '' : (q.img || '').trim();
         if (img) question.img = img;
+        // Kept off the big screen until the host puts it up full screen.
+        if (img && q.imgHidden) question.imgHidden = true;
         const audio = type === 'hints' ? '' : (q.audio || '').trim();
         if (audio) {
           question.audio = audio;

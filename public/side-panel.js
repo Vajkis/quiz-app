@@ -25,6 +25,7 @@
   const NAV = {
     host: [
       { icon: icon('home'), label: 'Skydelis', href: '/host', active: path === '/host' },
+      { icon: icon('teams'), label: 'Komandų istorija', href: '/host/teams', active: path === '/host/teams' },
       {
         icon: icon('games'),
         label: 'Žaidimai',
@@ -32,7 +33,6 @@
         active: path.startsWith('/host/games') && !hostNewGame,
       },
       { icon: icon('plus'), label: 'Naujas žaidimas', href: '/host/games/new', active: hostNewGame },
-      { icon: icon('teams'), label: 'Komandų istorija', href: '/host/teams', active: path === '/host/teams' },
       { icon: icon('screen'), label: 'Ekranas', note: '(naujame lange)', href: '/view', newTab: true },
     ],
     // Players: back to the join page and its room list.
@@ -250,11 +250,12 @@
       // The active season, at the bottom under the look switches (put there
       // with "Atsijungti", below — kept apart from the editor's numbered
       // stages): its number in a circle (like the editor's stages, so it
-      // reads with the panel collapsed too). Clicked, it switches to the
-      // newest season in the teams' history, right here — no going to the
-      // dashboard. Refreshed with the rooms below.
+      // reads with the panel collapsed too). Clicked, it switches between
+      // season 0 (for trying things out) and the newest in the teams'
+      // history, right here — no going to the dashboard. Refreshed with the
+      // rooms below.
       seasonItem = createItem('–', 'Sezonas', () =>
-        fetch('/api/host/season/latest', { method: 'POST' })
+        fetch('/api/host/season/toggle', { method: 'POST' })
           .then((res) => (res.ok ? res.json() : null))
           .then((data) => data && showSeason(data.activeSeason))
           .catch(() => {}), 'side-panel-stage', { keepMenuOpen: true });
@@ -263,7 +264,7 @@
         if (season === shownSeason) return;
         shownSeason = season;
         setItem(seasonItem, season ? String(season) : '–', 'Sezonas');
-        seasonItem.title = `${season ? `Sezonas ${season}` : 'Sezonas nenustatytas'} — paspaudus nustatomas naujausias istorijoje`;
+        seasonItem.title = `${season ? `Sezonas ${season}` : 'Sezonas nenustatytas'} — paspaudus nustatomas ${season === '0' ? 'naujausias istorijoje' : '0 (bandymams)'}`;
         // For the page to follow (the dashboard's season field, host.js).
         document.dispatchEvent(new CustomEvent('seasonchange', { detail: season }));
       };

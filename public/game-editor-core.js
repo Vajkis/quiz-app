@@ -233,6 +233,10 @@
       <input type="text" class="question-text-input" placeholder="Klausimo tekstas">
       <div class="question-media-fields">
         <input type="text" class="question-img-input" placeholder="Klausimo nuotraukos URL (nebūtina)">
+        <label class="img-hidden-toggle" hidden>
+          <input type="checkbox" class="question-img-hidden-input">
+          Paslėpta – ekrane rodoma tik paspaudus „Per visą ekraną“
+        </label>
         <div class="question-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></div>
         <input type="text" class="question-audio-input" placeholder="Klausimo muzikos/garso URL (nebūtina)">
         <div class="audio-clip-controls" hidden>
@@ -304,10 +308,16 @@
     const imgThumb = imgThumbWrap.querySelector('img');
     attachThumbRemove(imgThumb, imgInput);
     watchMediaLoad(imgThumb, imgInput, imgThumbWrap, 'image');
+    // With a picture: whether it's kept off the view screen with the
+    // question, until the host puts it up full screen (e.g. to show what
+    // the answer looks like while going through the answers).
+    const imgHiddenToggle = card.querySelector('.img-hidden-toggle');
+    card.querySelector('.question-img-hidden-input').checked = !!(question && question.imgHidden);
     function syncQuestionImage() {
       const url = imgInput.value.trim();
       const src = url ? resolveAudioSrc(url) : '';
       imgThumbWrap.hidden = !thumbShown(imgThumb, src);
+      imgHiddenToggle.hidden = !url;
       if (src && imgThumb.getAttribute('src') !== src) imgThumb.src = src;
     }
     syncQuestionImage();
@@ -1060,6 +1070,7 @@
           type,
           question: qEl.querySelector('.question-text-input').value.trim(),
           img: qEl.querySelector('.question-img-input').value.trim(),
+          imgHidden: qEl.querySelector('.question-img-hidden-input').checked,
           audio: qEl.querySelector('.question-audio-input').value.trim(),
           audioStart: qEl.querySelector('.audio-start-input').value.trim(),
           audioEnd: qEl.querySelector('.audio-end-input').value.trim()

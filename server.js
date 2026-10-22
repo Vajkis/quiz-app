@@ -390,6 +390,10 @@ function normalizeGamePayload(body) {
       // A hints question's pictures are its hints', and it has no music.
       const img = type === 'hints' ? '' : (q.img || '').trim();
       if (img) question.img = img;
+      // Kept off the view screen with the question, until the host puts it
+      // up full screen (e.g. to show what the answer looks like, while going
+      // through the answers) — see createHistoryEntry.
+      if (img && q.imgHidden) question.imgHidden = true;
       const audio = type === 'hints' ? '' : (q.audio || '').trim();
       if (audio) {
         question.audio = audio;
@@ -754,18 +758,25 @@ function buildLeaderboard(room, scores = room.scores) {
     .sort((a, b) => b.score - a.score);
 }
 
+// A number of points for the logs, with its sign: +2, 0, -1.
+function signed(n) {
+  return n > 0 ? `+${n}` : String(n);
+}
+
 // Adds a just-finished stage's scores onto each team's record, nested by
 // season -> game -> stage id, so standings persist and can be broken down
 // later. Keyed by stage id (not name) so two stages sharing a name never
 // merge; the name is looked up from games.json when displayed (see
 // stageDisplayName), and also kept with the team (rememberHistoryNames), so
 // it still reads once the game or stage is deleted. Purely backend
-// bookkeeping — never shown to clients.
+// bookkeeping — never shown to clients. Returns the teams that had nothing
+// recorded for this stage before (see unrecordStageScores).
 function recordStageScores(room, stage, stageScores) {
   const label = `"${stage.name}" (${stage.id})`;
+  const created = [];
   if (!room.seasonId) {
     console.log(`[istorija] ${label}: kambarys be sezono, neįrašyta`);
-    return;
+    return created;
   }
   const teams = loadTeams();
   const entries = Object.entries(stageScores);
@@ -779,17 +790,82 @@ function recordStageScores(room, stage, stageScores) {
       console.log(`[istorija] ${label}: praleista komanda ${teamId}`);
       return;
     }
-    console.log(`[istorija] ${label}: ${teams[teamId].name} +${score}`);
+    console.log(`[istorija] ${label}: ${teams[teamId].name} ${signed(score)}`);
     teams[teamId].seasons = teams[teamId].seasons || {};
     teams[teamId].seasons[room.seasonId] =
       teams[teamId].seasons[room.seasonId] || {};
     teams[teamId].seasons[room.seasonId][room.gameId] =
       teams[teamId].seasons[room.seasonId][room.gameId] || {};
     const gameStages = teams[teamId].seasons[room.seasonId][room.gameId];
+    if (!(stage.id in gameStages)) created.push(teamId);
     gameStages[stage.id] = (gameStages[stage.id] || 0) + score;
     rememberHistoryNames(teams[teamId]);
   });
   saveTeams(teams);
+  return created;
+}
+
+// Takes a recorded stage's scores off the teams' history again — by
+// subtracting them, so a change made on the team history page meanwhile
+// stays. A team that had nothing recorded for the stage before (created)
+// and is back at 0 loses the entry altogether, as if never recorded.
+function unrecordStageScores(room, stage, stageScores, created) {
+  if (!room.seasonId) return;
+  const teams = loadTeams();
+  Object.entries(stageScores).forEach(([teamId, score]) => {
+    const seasons = teams[teamId] && teams[teamId].seasons;
+    const seasonGames = seasons && seasons[room.seasonId];
+    const gameStages = seasonGames && seasonGames[room.gameId];
+    if (!gameStages || !(stage.id in gameStages)) return;
+    gameStages[stage.id] -= score;
+    console.log(
+      `[istorija] "${stage.name}" (${stage.id}): ${teams[teamId].name} ${signed(-score)} (atšaukta)`
+    );
+    if (!created.includes(teamId) || gameStages[stage.id] !== 0) return;
+    delete gameStages[stage.id];
+    if (!Object.keys(gameStages).length) delete seasonGames[room.gameId];
+    if (!Object.keys(seasonGames).length) delete seasons[room.seasonId];
+  });
+  saveTeams(teams);
+}
+
+// The current stage's points — every team that joined the room, not just
+// ones with a non-zero score, or a team that played but answered everything
+// wrong (0 points) never shows up in its own history — written into the
+// teams' history and ranked for its results. Kept with the room, along with
+// the totals before the stage, so they can be taken off again exactly (see
+// unrecordStage): going back to the stage's answers, or changing a team's
+// points on its results.
+function recordStage(room) {
+  const stageScores = {};
+  room.joinedTeams.forEach((teamId) => {
+    stageScores[teamId] =
+      (room.scores[teamId] || 0) - (room.priorScores[teamId] || 0);
+  });
+  room.stageRecord = {
+    scores: stageScores,
+    created: recordStageScores(room, currentStage(room), stageScores),
+    priorScores: room.priorScores
+  };
+  room.priorScores = { ...room.scores };
+  room.leaderboard = buildLeaderboard(room, stageScores);
+}
+
+function unrecordStage(room) {
+  const record = room.stageRecord;
+  if (!record) return;
+  unrecordStageScores(room, currentStage(room), record.scores, record.created);
+  room.priorScores = record.priorScores;
+  room.stageRecord = null;
+}
+
+// The stage's results, as every screen gets them.
+function stageLeaderboardPayload(room) {
+  return {
+    rows: room.leaderboard,
+    final: false,
+    stageName: currentStage(room).name
+  };
 }
 
 // The names of the games and stages a team's history points at, kept with
@@ -975,7 +1051,9 @@ function createHistoryEntry(q) {
     ready: {},
     bonusQuestion: q.bonus ? q.bonus.question || '' : null,
     bonusAnswer: q.bonus ? q.bonus.answer : null,
-    img: resolveMediaSrc(q.img),
+    // A hidden picture never goes out with the question — the host's
+    // fullscreen button (from the stored question) is the only way it's shown.
+    img: q.imgHidden ? null : resolveMediaSrc(q.img),
     audio: q.audio || null,
     audioStart: q.audioStart || null,
     audioEnd: q.audioEnd || null,
@@ -1826,6 +1904,12 @@ function renderHostRoom(req, res, roomId) {
     currentQuestionImg: currentQuestion
       ? resolveMediaSrc(currentQuestion.img)
       : null,
+    // Not on the view screen until put up full screen.
+    currentQuestionImgHidden: !!(
+      currentQuestion &&
+      currentQuestion.img &&
+      currentQuestion.imgHidden
+    ),
     currentQuestionType: currentQuestion ? questionType(currentQuestion) : null,
     // A typed-answer question with several answers: how many, and whether
     // they have to be in order.
@@ -1984,6 +2068,7 @@ app.get('/host/teams', (req, res) => {
         ([gameId, stageScores]) => {
           const stageList = Object.entries(stageScores).map(
             ([stageKey, score]) => ({
+              stageKey,
               stageName: stageDisplayName(gameId, stageKey, t),
               score
             })
@@ -2030,6 +2115,71 @@ app.get('/host/teams', (req, res) => {
     openSeasonId,
     teamCount,
     error: null
+  });
+});
+
+// Team history, with a team's pencil on: a point more or less for one stage
+// of a game it played in a season (a mistake noticed after the game, say).
+// Replies with the stage's new score and the game's and season's totals.
+// obj[key] when obj has it as its own — never something from its prototype
+// (a key from a request can be anything, "__proto__" too) — else null.
+function own(obj, key) {
+  return obj && Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : null;
+}
+
+app.post('/api/host/teams/:teamId/score', (req, res) => {
+  const teams = loadTeams();
+  const team = own(teams, req.params.teamId);
+  const { seasonId, gameId, stageId, delta } = req.body || {};
+  if (delta !== 1 && delta !== -1)
+    return res.status(400).json({ error: 'Netinkamas pokytis' });
+  const seasonGames = own(team && team.seasons, seasonId);
+  const gameStages = own(seasonGames, gameId);
+  if (typeof own(gameStages, stageId) !== 'number')
+    return res.status(404).json({ error: 'Etapas nerastas' });
+  gameStages[stageId] += delta;
+  saveTeams(teams);
+  console.log(
+    `[istorija] ${team.name}: "${stageDisplayName(gameId, stageId, team)}" ${signed(delta)} = ${gameStages[stageId]} (sezonas ${seasonId})`
+  );
+  const sum = (scores) => Object.values(scores).reduce((s, n) => s + n, 0);
+  res.json({
+    score: gameStages[stageId],
+    gameTotal: sum(gameStages),
+    seasonTotal: Object.values(seasonGames).reduce((s, g) => s + sum(g), 0)
+  });
+});
+
+// Team history, with a team's pencil on: a game taken out of the team's
+// history for a season, its points and all. The names kept for it (see
+// rememberHistoryNames) go too once no other season has it, so nothing's
+// left behind. Replies with the season's new total.
+app.delete('/api/host/teams/:teamId/seasons/:seasonId/games/:gameId', (req, res) => {
+  const { teamId, seasonId, gameId } = req.params;
+  const teams = loadTeams();
+  const team = own(teams, teamId);
+  const seasonGames = own(team && team.seasons, seasonId);
+  if (!own(seasonGames, gameId))
+    return res.status(404).json({ error: 'Žaidimas nerastas' });
+  const gameName = gameDisplayName(gameId, team);
+  delete seasonGames[gameId];
+  if (!Object.keys(seasonGames).length) delete team.seasons[seasonId];
+  if (!Object.keys(team.seasons).length) delete team.seasons;
+  const played = Object.values(team.seasons || {}).some((g) => own(g, gameId));
+  if (!played) {
+    ['gameNames', 'stageNames'].forEach((names) => {
+      if (!team[names]) return;
+      delete team[names][gameId];
+      if (!Object.keys(team[names]).length) delete team[names];
+    });
+  }
+  saveTeams(teams);
+  console.log(
+    `[istorija] ${team.name}: pašalintas "${gameName}" (sezonas ${seasonId})`
+  );
+  const sum = (scores) => Object.values(scores).reduce((s, n) => s + n, 0);
+  res.json({
+    seasonTotal: Object.values(seasonGames).reduce((s, g) => s + sum(g), 0)
   });
 });
 
@@ -2096,6 +2246,9 @@ app.get('/host/:roomId(\\d{6})', (req, res) => {
   if (!room) return renderHostDashboard(req, res, 'Kambarys nerastas');
   // For the − / + in every page's bottom bar (_text-scale.ejs).
   res.locals.textScale = textScalePercent(room);
+  // The main button's wait after a move (data-cooldown, host.js) — not in a
+  // room of season 0, the one used for trying things out.
+  res.locals.cooldown = !(room.seasonId != null && Number(room.seasonId) === 0);
   if (room.phase === 'finished') return renderLeaderboard(req, res, roomId);
   return renderHostRoom(req, res, roomId);
 });
@@ -2272,6 +2425,12 @@ app.post('/api/host/room', (req, res) => {
     // keyed by stage index, then team id.
     offlineTeams: new Set(),
     paperScores: {},
+    // Points the host gave or took by hand (see /adjust), the same way —
+    // keyed by stage index, then team id.
+    adjustments: {},
+    // The current stage's points once written into the teams' history (see
+    // recordStage), so they can be taken off again; null until then.
+    stageRecord: null,
     internetStatus: {},
     internetWarning: false,
     leaderboard: null,
@@ -2315,13 +2474,15 @@ function newestRecordedSeason() {
   );
 }
 
-// The side panel's season button: back to the newest season — e.g. after
-// trying out another number. Nothing recorded yet: left as it is.
-app.post('/api/host/season/latest', (req, res) => {
+// The side panel's season button: between season 0 (for trying things out —
+// no wait on the main button, see res.locals.cooldown) and the newest one.
+// From 0 to the newest (nothing recorded yet: left at 0); from any other
+// season, or none, to 0.
+app.post('/api/host/season/toggle', (req, res) => {
+  const current = loadSettings().activeSeason;
   const newest = newestRecordedSeason();
-  const activeSeason = newest
-    ? setActiveSeason(newest)
-    : loadSettings().activeSeason || null;
+  const activeSeason =
+    current === '0' ? (newest ? setActiveSeason(newest) : current) : setActiveSeason('0');
   res.json({ activeSeason });
 });
 
@@ -2446,6 +2607,16 @@ app.post('/api/host/room/:roomId/prev', (req, res) => {
     else io.to(roomId).emit('game-intro', { gameName: room.name });
     return res.json({ phase: room.phase });
   }
+  // A stage's results back to its answers — to see again who wrote what,
+  // and still mark them: its points come off the teams' history until
+  // they're shown again.
+  if (room.phase === 'stage-results') {
+    unrecordStage(room);
+    room.phase = 'stage-answers';
+    io.to(roomId).emit('stage-answers', room.stageReview);
+    emitTeamStatus(roomId);
+    return res.json({ phase: 'stage-answers' });
+  }
   if (room.phase !== 'question') {
     return res
       .status(400)
@@ -2527,28 +2698,15 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
   }
 
   if (room.phase === 'stage-answers') {
-    // Every team that connected to the room, not just ones with a
-    // non-zero score — otherwise a team that played but answered
-    // everything wrong (0 points) never shows up in its own history.
-    const stageScores = {};
-    room.joinedTeams.forEach((teamId) => {
-      stageScores[teamId] =
-        (room.scores[teamId] || 0) - (room.priorScores[teamId] || 0);
-    });
-    recordStageScores(room, currentStage(room), stageScores);
-    room.priorScores = { ...room.scores };
-
+    recordStage(room);
     room.phase = 'stage-results';
-    room.leaderboard = buildLeaderboard(room, stageScores);
-    io.to(roomId).emit('leaderboard', {
-      rows: room.leaderboard,
-      final: false,
-      stageName: currentStage(room).name
-    });
+    io.to(roomId).emit('leaderboard', stageLeaderboardPayload(room));
     return res.json({ phase: 'stage-results' });
   }
 
   if (room.phase === 'stage-results') {
+    // The stage's points stay in the history for good now.
+    room.stageRecord = null;
     room.stageIndex++;
     room.questionIndex = -1;
     room.questionHistory = [];
@@ -2721,6 +2879,36 @@ app.post('/api/host/room/:roomId/paper-points', (req, res) => {
   res.json({ points });
 });
 
+// Host's − / + "Taškai" beside a team in the team status list: a point more
+// or less for it in the current stage (a disputed answer, say), on top of
+// what it answered — counted like the stage's other points. With the
+// stage's results already up, they're re-recorded with it and every screen
+// gets them again (the host's page refreshes them, told so by the reply).
+app.post('/api/host/room/:roomId/adjust', (req, res) => {
+  const roomId = req.params.roomId;
+  const room = rooms[roomId];
+  if (!room) return res.status(404).json({ error: 'Kambarys nerastas' });
+  const { teamId, delta } = req.body;
+  if (delta !== 1 && delta !== -1)
+    return res.status(400).json({ error: 'Netinkamas pokytis' });
+  if (!room.joinedTeams.has(teamId))
+    return res.status(404).json({ error: 'Komanda nerasta' });
+  if (room.phase === 'finished')
+    return res.status(400).json({ error: 'Žaidimas jau baigtas' });
+  const recorded = room.phase === 'stage-results';
+  if (recorded) unrecordStage(room);
+  const stageAdjustments = (room.adjustments[room.stageIndex] =
+    room.adjustments[room.stageIndex] || {});
+  stageAdjustments[teamId] = (stageAdjustments[teamId] || 0) + delta;
+  room.scores[teamId] = (room.scores[teamId] || 0) + delta;
+  if (recorded) {
+    recordStage(room);
+    io.to(roomId).emit('leaderboard', stageLeaderboardPayload(room));
+  }
+  emitTeamStatus(roomId);
+  res.json({ adjustment: stageAdjustments[teamId], results: recorded });
+});
+
 // Host takes a team out of the room (e.g. joined by mistake, under a wrong
 // name): it's gone from the team list and the standings, and whatever it
 // answered no longer counts. Its phone is sent back to the join page.
@@ -2736,7 +2924,9 @@ app.delete('/api/host/room/:roomId/teams/:teamId', (req, res) => {
   delete room.internetStatus[teamId];
   delete room.scores[teamId];
   delete room.priorScores[teamId];
+  if (room.stageRecord) delete room.stageRecord.priorScores[teamId];
   Object.values(room.paperScores).forEach((stage) => delete stage[teamId]);
+  Object.values(room.adjustments).forEach((stage) => delete stage[teamId]);
   room.questionHistory.forEach((entry) => {
     if (!entry) return;
     [
@@ -2831,7 +3021,8 @@ function hostWatchChannel(roomId) {
 // its last internet check (online, and how long ago — the host page treats
 // an old check as unknown) and its penalty points this season (null when
 // the room has no season, so there's nowhere to keep them) — or, for a team
-// playing on paper, the points entered for it this stage. While a question
+// playing on paper, the points entered for it this stage — and the points
+// the host gave or took this stage (see /adjust). While a question
 // is up, a phone team's answer to the one the host is on (see
 // answerStatusFor) and whether it's being typed right now. Plus every
 // registered team not in the room, to add one playing on paper.
@@ -2864,6 +3055,7 @@ function teamStatusPayload(roomId) {
           : null,
         offline: room.offlineTeams.has(teamId),
         paperPoints: (room.paperScores[room.stageIndex] || {})[teamId] || 0,
+        adjustment: (room.adjustments[room.stageIndex] || {})[teamId] || 0,
         answer:
           entry && !room.offlineTeams.has(teamId)
             ? {
@@ -2879,9 +3071,23 @@ function teamStatusPayload(roomId) {
     .filter(([teamId]) => !room.joinedTeams.has(teamId))
     .map(([teamId, t]) => ({ teamId, name: t.name }))
     .sort((a, b) => a.name.localeCompare(b.name, 'lt'));
+  // Per question of the stage shown so far (by index), the phone teams that
+  // haven't put anything into its answer yet — its number button is marked
+  // until they do. The extra answer isn't needed; paper teams answer on paper.
+  const unanswered = {};
+  if (room.phase === 'question') {
+    room.questionHistory.forEach((e, index) => {
+      if (!e) return;
+      const names = list
+        .filter((t) => !t.offline && answerStatusFor(e, t.teamId).filled === 0)
+        .map((t) => t.name);
+      if (names.length) unanswered[index] = names;
+    });
+  }
   return {
     teams: list,
     available,
+    unanswered,
     paperEditable: paperPointsEditable(room),
     canAdd: room.phase !== 'finished'
   };
@@ -2926,11 +3132,7 @@ io.on('connection', (socket) => {
     if (room.phase === 'finished') {
       socket.emit('leaderboard', finalLeaderboardPayload(room));
     } else if (room.phase === 'stage-results') {
-      socket.emit('leaderboard', {
-        rows: room.leaderboard,
-        final: false,
-        stageName: currentStage(room).name
-      });
+      socket.emit('leaderboard', stageLeaderboardPayload(room));
     } else if (room.phase === 'stage-answers') {
       socket.emit('stage-answers', room.stageReview);
     } else if (room.phase === 'game-intro') {
@@ -3041,11 +3243,9 @@ io.on('connection', (socket) => {
       entry.selections[teamId] = selection;
     });
     // The host's team list only when what it shows changed (not on every
-    // keystroke that's sent).
-    if (
-      targetIndex === room.questionIndex &&
-      JSON.stringify(answerStatusFor(entry, teamId)) !== statusBefore
-    )
+    // keystroke that's sent) — an earlier question's too, for its number
+    // button (see unanswered in teamStatusPayload).
+    if (JSON.stringify(answerStatusFor(entry, teamId)) !== statusBefore)
       emitTeamStatus(socket.data.roomId);
   });
 

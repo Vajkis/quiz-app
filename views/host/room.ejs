@@ -52,6 +52,9 @@
           <% }); %>
         </ol>
       <% } %>
+      <% if (currentQuestionImgHidden) { %>
+        <p class="question-type-label">Nuotrauka paslėpta – ekrane rodoma tik per visą ekraną</p>
+      <% } %>
       <% if (currentQuestionBonus) { %>
         <p class="question-type-label bonus-label">Papildomas klausimas<%= currentQuestionBonus.question ? ': ' + currentQuestionBonus.question : '' %></p>
       <% } %>
@@ -67,7 +70,7 @@
     }) %>
   </div>
 
-  <nav id="host-bar">
+  <nav id="host-bar" data-morph-own-attrs>
     <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
@@ -92,7 +95,7 @@
         <%# Back on an earlier question: the next one already shown. %>
         <button id="forward-btn" data-room="<%= roomId %>" data-index="<%= currentQuestionNumber %>">Sekantis <%- icon('arrow-right') %></button>
       <% } %>
-      <button id="next-btn" data-room="<%= roomId %>"><%= currentQuestionHints && revealedHints < currentQuestionHints.length ? 'Kita užuomina' : hasMore ? 'Kitas klausimas' : 'Rodyti etapo atsakymus' %><% if ((currentQuestionHints && revealedHints < currentQuestionHints.length) || hasMore) { %> <%- icon('arrow-right') %><% } %></button>
+      <button id="next-btn" data-room="<%= roomId %>"<%= locals.cooldown ? ' data-cooldown' : '' %>><%= currentQuestionHints && revealedHints < currentQuestionHints.length ? 'Kita užuomina' : hasMore ? 'Kitas klausimas' : 'Rodyti etapo atsakymus' %><% if ((currentQuestionHints && revealedHints < currentQuestionHints.length) || hasMore) { %> <%- icon('arrow-right') %><% } %></button>
     </div>
     <div class="host-bar-end">
       <%- include('_text-scale', { roomId }) %>

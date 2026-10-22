@@ -1,5 +1,6 @@
 <% if (audio) { %>
-  <div class="audio-player-block" data-room="<%= roomId %>">
+  <%# Kept as it is (playing, its own controls from audio-player.js) by a page refresh while it's the same track and part — data-morph-key; another one replaces it. %>
+  <div class="audio-player-block" data-room="<%= roomId %>" data-morph-key="<%= audio %>|<%= audioStart || '' %>|<%= audioEnd || '' %>">
     <audio
       class="question-audio"
       controls

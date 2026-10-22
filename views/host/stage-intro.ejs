@@ -23,7 +23,7 @@
     <% if (stageDescription) { %><p class="stage-intro-description"><%= stageDescription %></p><% } %>
   </div>
 
-  <nav id="host-bar">
+  <nav id="host-bar" data-morph-own-attrs>
     <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
@@ -33,7 +33,8 @@
       <% if (stageNumber === 1) { %>
         <button id="prev-btn" data-room="<%= roomId %>"><%- icon('arrow-left') %> Atgal</button>
       <% } %>
-      <button id="next-btn" data-room="<%= roomId %>">Pradėti etapą</button>
+      <%# No wait on the first stage's title — like the game's name and rules before it, it only opens the game. %>
+      <button id="next-btn" data-room="<%= roomId %>"<%= locals.cooldown && stageNumber > 1 ? ' data-cooldown' : '' %>>Pradėti etapą</button>
     </div>
     <div class="host-bar-end">
       <%- include('_text-scale', { roomId }) %>
@@ -42,6 +43,7 @@
   <%- include('_team-status', { roomId }) %>
 </div>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/audio-player.js"></script>
 <script src="/host.js"></script>
 </body>
 </html>

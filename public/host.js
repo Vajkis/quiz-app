@@ -251,7 +251,7 @@ onClick('#host-bar-audio-stop', () => {
 // block isn't showing the live question view has loaded.
 function sendFullscreenCommand(roomId, payload) {
   getHostSocket().emit('fullscreen-command', { roomId, ...payload });
-  setBarFullscreenState(payload.action !== 'close');
+  setBarFullscreenState(payload);
 }
 
 function parseImagesAttr(value) {
@@ -262,19 +262,31 @@ function parseImagesAttr(value) {
   }
 }
 
-// Room panel bottom bar: one button that opens the question's picture (or,
-// without one, its picture options) on the view screen, and closes it again.
-// It only knows what this page sent — the view screen closes it by itself
-// when the host moves on, and moving on brings the button back closed.
-function setBarFullscreenState(open) {
-  const btn = document.getElementById('host-bar-fullscreen');
-  if (!btn) return;
-  btn.classList.toggle('is-active', open);
-  btn.setAttribute('aria-pressed', String(open));
-  btn.title = open ? 'Uždaryti pilną ekraną' : 'Per visą ekraną (žiūrovų ekrane)';
+// Room panel bottom bar: a button that opens the question's picture (or,
+// without one, or with a hidden one, its picture options) on the view
+// screen, and closes it again — and with a hidden picture, one more for
+// that. They only know what this page sent — the view screen closes it by
+// itself when the host moves on, and moving on brings them back closed.
+const BAR_FULLSCREEN_TITLES = {
+  'host-bar-fullscreen': 'Per visą ekraną (žiūrovų ekrane)',
+  'host-bar-hidden-img': 'Paslėptą nuotrauką per visą ekraną (Shift+F)'
+};
+function setBarFullscreenState(payload) {
+  const hiddenBtn = document.getElementById('host-bar-hidden-img');
+  const showsHidden =
+    !!hiddenBtn && payload.action === 'image' && payload.src === hiddenBtn.dataset.src;
+  Object.keys(BAR_FULLSCREEN_TITLES).forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const open =
+      payload.action !== 'close' && (id === 'host-bar-hidden-img') === showsHidden;
+    btn.classList.toggle('is-active', open);
+    btn.setAttribute('aria-pressed', String(open));
+    btn.title = open ? 'Uždaryti pilną ekraną' : BAR_FULLSCREEN_TITLES[id];
+  });
 }
 
-onClick('#host-bar-fullscreen', (btn) => {
+onClick('#host-bar-fullscreen, #host-bar-hidden-img', (btn) => {
   const roomId = btn.dataset.room;
   if (btn.getAttribute('aria-pressed') === 'true') {
     sendFullscreenCommand(roomId, { action: 'close' });
@@ -504,7 +516,7 @@ onClick('.question-jump-btn', (btn) => {
 // one already shown (after stepping back) or else the bar's main button
 // (next question, start the stage, show the answers…), ↑ / ↓ the view
 // screen's text bigger / smaller, space the track's ▶ / II, F the view
-// screen's fullscreen picture (Esc closes it too), B the bar itself
+// screen's fullscreen picture (Shift+F a hidden one; Esc closes it too), B the bar itself
 // collapsed / back ("bar"), a number straight to
 // that question already shown (its number button). Not while typing into a
 // field (a paper team's points), and one move at a time (see roomMove), so
@@ -550,6 +562,13 @@ if (document.getElementById('host-bar')) {
       if (!moving && !e.repeat) typeDigit(digit[1]);
       return;
     }
+    // Shift+F: a hidden picture full screen on / off — kept off plain F, so
+    // it isn't put up by mistake (it's usually what the answer looks like).
+    if (e.code === 'KeyF' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const btn = document.getElementById('host-bar-hidden-img');
+      if (btn && !e.repeat) btn.click();
+      return;
+    }
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
     const click = (id) => {
       const btn = document.getElementById(id);
@@ -576,8 +595,9 @@ if (document.getElementById('host-bar')) {
       if (!e.repeat) click('host-bar-audio');
     } else if (e.code === 'KeyF') {
       // F: the view screen's fullscreen picture on / off — only a question
-      // with a picture (or picture options) has that button. By the key's
-      // place (e.code), so any keyboard layout works.
+      // with a picture (or picture options) has that button; a hidden
+      // picture is Shift+F's. By the key's place (e.code), so any keyboard
+      // layout works.
       if (!e.repeat) click('host-bar-fullscreen');
     } else if (e.code === 'KeyB') {
       // B: the bar collapsed / back, by the key's place like F.
@@ -585,9 +605,10 @@ if (document.getElementById('host-bar')) {
     } else if (e.key === 'Escape') {
       // Esc: only closes an open fullscreen picture — never leaves the game
       // (too easy to hit by mistake; the ✕ is there for that).
-      const fullscreenBtn = document.getElementById('host-bar-fullscreen');
-      if (!e.repeat && fullscreenBtn && fullscreenBtn.getAttribute('aria-pressed') === 'true')
-        fullscreenBtn.click();
+      const openBtn = document.querySelector(
+        '#host-bar-fullscreen[aria-pressed="true"], #host-bar-hidden-img[aria-pressed="true"]'
+      );
+      if (!e.repeat && openBtn) openBtn.click();
     }
   });
 }

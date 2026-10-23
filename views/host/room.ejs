@@ -53,7 +53,7 @@
         </ol>
       <% } %>
       <% if (currentQuestionImgHidden) { %>
-        <p class="question-type-label">Nuotrauka paslėpta – ekrane rodoma tik per visą ekraną</p>
+        <p class="question-type-label">Nuotrauka paslėpta – ekrane rodoma tik per visą ekraną (Shift+F)</p>
       <% } %>
       <% if (currentQuestionBonus) { %>
         <p class="question-type-label bonus-label">Papildomas klausimas<%= currentQuestionBonus.question ? ': ' + currentQuestionBonus.question : '' %></p>
@@ -74,12 +74,20 @@
     <%- include('_bar-toggle', { bar: 'host-bar', key: 'quizHostBarCollapsed' }) %>
     <div class="host-bar-side">
       <a id="host-bar-exit" class="host-bar-btn" href="/host" title="Atgal į skydelį"><%- icon('close') %></a>
-      <% if (currentQuestionImg || currentQuestionOptionImages) { %>
+      <%# F: the picture, or the grid — never a hidden picture, which has its own button (Shift+F) after it. %>
+      <% const barImg = currentQuestionImgHidden ? null : currentQuestionImg; %>
+      <% if (barImg || currentQuestionOptionImages) { %>
         <button type="button" id="host-bar-fullscreen" class="host-bar-btn" title="Per visą ekraną (žiūrovų ekrane)" aria-label="Per visą ekraną" aria-pressed="false"
           data-room="<%= roomId %>"
-          <% if (currentQuestionImg) { %>data-src="<%= currentQuestionImg %>"<% } %>
+          <% if (barImg) { %>data-src="<%= barImg %>"<% } %>
           <% if (currentQuestionOptionImages) { %>data-images='<%- JSON.stringify(currentQuestionOptionImages).replace(/'/g, "&#39;") %>'<% } %>>
           <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+        </button>
+      <% } %>
+      <% if (currentQuestionImgHidden) { %>
+        <button type="button" id="host-bar-hidden-img" class="host-bar-btn" title="Paslėptą nuotrauką per visą ekraną (Shift+F)" aria-label="Paslėptą nuotrauką per visą ekraną" aria-pressed="false"
+          data-room="<%= roomId %>" data-src="<%= currentQuestionImg %>">
+          <%- icon('image') %>
         </button>
       <% } %>
       <% if (currentQuestionAudio) { %>

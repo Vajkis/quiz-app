@@ -179,8 +179,10 @@ body:has(#preview-bar.is-collapsed) {
   font-variant-numeric: tabular-nums;
 }
 
-// Filled while the overlay is open.
-#preview-fullscreen {
+// Filled while the overlay is open (#preview-hidden-img, a hidden
+// picture's, keeps the plain look till then).
+#preview-fullscreen,
+#preview-hidden-img {
   &.is-active {
     background: v.$color-primary;
     color: v.$color-on-accent;

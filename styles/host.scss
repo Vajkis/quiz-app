@@ -581,6 +581,14 @@ body:has(#host-bar.is-collapsed) {
   }
 }
 
+// A hidden picture's (Shift+F): the plain secondary look next to it, filled
+// the same way while it's up.
+#host-bar-hidden-img.is-active {
+  background: v.$color-primary;
+  border-color: v.$color-primary;
+  color: v.$color-on-accent;
+}
+
 // The view screen's text size: − 100% + (_text-scale.ejs).
 .text-scale {
   display: flex;
@@ -1578,7 +1586,7 @@ select option {
   }
 }
 
-.question-media-fields,
+.question-audio-fields,
 .options-section,
 .yesno-section,
 .chain-section,
@@ -1633,6 +1641,12 @@ select option {
 // same gap under it instead, before the thumbnail.
 .img-hidden-toggle {
   margin: 0 0 8px;
+
+  // A hints question's: always ticked, nothing to change.
+  &:has(input:disabled) {
+    cursor: default;
+    opacity: 0.6;
+  }
 }
 
 // Every checkbox (the editor's), in the theme's colours rather than the
@@ -1682,6 +1696,10 @@ input[type='checkbox'] {
   &:focus-visible {
     outline: 2px solid v.$color-primary;
     outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
   }
 
   @media (prefers-reduced-motion: reduce) {

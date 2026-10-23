@@ -59,7 +59,7 @@
   // text one whose answers go in order), answer: 'yes'|'no'
   // (yesno), links: [{ clue, img?, answer }] (chain) or hints: [string],
   // hintImgs?: [string] (each hint's picture, '' for a text one) and
-  // answer: string, with no img or audio (hints) }] }] }, the first option
+  // answer: string, with no audio and its img always hidden (hints) }] }] }, the first option
   // being the correct one (the editor's own convention — see
   // createOptionRow in game-editor-core.js). It carries no ids at all: this
   // runs in the GitHub Pages editor and for exports, and ids are only ever
@@ -173,11 +173,12 @@
           question.links = links;
         }
 
-        // A hints question's pictures are its hints', and it has no music.
-        const img = type === 'hints' ? '' : (q.img || '').trim();
+        const img = (q.img || '').trim();
         if (img) question.img = img;
-        // Kept off the big screen until the host puts it up full screen.
-        if (img && q.imgHidden) question.imgHidden = true;
+        // Kept off the big screen until the host puts it up full screen — a
+        // hints question's always (what's on screen with it are its hints).
+        if (img && (q.imgHidden || type === 'hints')) question.imgHidden = true;
+        // A hints question has no music.
         const audio = type === 'hints' ? '' : (q.audio || '').trim();
         if (audio) {
           question.audio = audio;

@@ -47,6 +47,7 @@ const audioBtn = document.getElementById('preview-audio');
 const audioStopBtn = document.getElementById('preview-audio-stop');
 const counterEl = document.getElementById('preview-counter');
 const fullscreenBtn = document.getElementById('preview-fullscreen');
+const hiddenImgBtn = document.getElementById('preview-hidden-img');
 const overlayEl = document.getElementById('fullscreen-overlay');
 const overlayContentEl = document.getElementById('fullscreen-content');
 
@@ -279,6 +280,7 @@ function hideAll() {
   audioBtn.hidden = true;
   audioStopBtn.hidden = true;
   fullscreenBtn.hidden = true;
+  hiddenImgBtn.hidden = true;
   closeFullscreen(true);
   stopAudio();
 }
@@ -313,7 +315,9 @@ function showQuestion(screen) {
   renderHintPictures(hintCells);
 
   const cells = gridCellsFor(screen);
-  fullscreenBtn.hidden = !imgSrc && !cells.length && !hintCells.length;
+  // F: the picture or the grid; a hidden picture has its own button.
+  fullscreenBtn.hidden = !(imgSrc && !q.imgHidden) && !cells.length && !hintCells.length;
+  hiddenImgBtn.hidden = !(imgSrc && q.imgHidden);
   optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
 
@@ -470,28 +474,38 @@ function go(delta) {
 
 // Pending end of a close animation — cancelled if it's opened again first.
 let closeTimer = null;
+// What's up full screen: 'main' (F — the picture or the grid), 'hidden'
+// (Shift+F — the hidden picture) or null.
+let fullscreenMode = null;
 
 function isFullscreenOpen() {
   return !overlayEl.hidden && overlayEl.classList.contains('visible');
 }
 
-function syncFullscreenButton(open) {
-  fullscreenBtn.classList.toggle('is-active', open);
-  fullscreenBtn.setAttribute('aria-pressed', String(open));
-  fullscreenBtn.title = open ? 'Uždaryti pilną ekraną' : 'Per visą ekraną';
+function syncFullscreenButtons() {
+  [
+    [fullscreenBtn, 'main', 'Per visą ekraną'],
+    [hiddenImgBtn, 'hidden', 'Paslėptą nuotrauką per visą ekraną (Shift+F)']
+  ].forEach(([btn, mode, title]) => {
+    const open = fullscreenMode === mode;
+    btn.classList.toggle('is-active', open);
+    btn.setAttribute('aria-pressed', String(open));
+    btn.title = open ? 'Uždaryti pilną ekraną' : title;
+  });
 }
 
-function buildFullscreenContent(screen) {
+function buildFullscreenContent(screen, mode) {
   const imgSrc = resolveMedia(screen.question.img);
-  if (imgSrc) {
+  // A hints question's picture hints shown so far, as the host's.
+  const hintCells = hintPictureCells(screen);
+  const cells = hintCells.length ? hintCells : gridCellsFor(screen);
+  // The picture — a hidden one only by its own button, as the host's.
+  if (imgSrc && (mode === 'hidden' || !screen.question.imgHidden)) {
     const bigImg = document.createElement('img');
     bigImg.src = imgSrc;
     bigImg.alt = '';
     return bigImg;
   }
-  // A hints question's picture hints shown so far, as the host's.
-  const hintCells = hintPictureCells(screen);
-  const cells = hintCells.length ? hintCells : gridCellsFor(screen);
   const grid = document.createElement('div');
   grid.className = 'fullscreen-grid';
   const { cols, rows } = pickGridSize(cells.length);
@@ -501,21 +515,24 @@ function buildFullscreenContent(screen) {
   return grid;
 }
 
-function openFullscreen() {
+function openFullscreen(mode) {
   const screen = screens[current];
-  if (fullscreenBtn.hidden || !screen || screen.type !== 'question') return;
+  const btn = mode === 'hidden' ? hiddenImgBtn : fullscreenBtn;
+  if (btn.hidden || !screen || screen.type !== 'question') return;
   clearTimeout(closeTimer);
   overlayContentEl.innerHTML = '';
-  overlayContentEl.appendChild(buildFullscreenContent(screen));
+  overlayContentEl.appendChild(buildFullscreenContent(screen, mode));
   overlayEl.hidden = false;
   requestAnimationFrame(() => overlayEl.classList.add('visible'));
-  syncFullscreenButton(true);
+  fullscreenMode = mode;
+  syncFullscreenButtons();
 }
 
 // immediate: on moving to another screen, so it doesn't show through a
 // fading picture of the previous question.
 function closeFullscreen(immediate) {
-  syncFullscreenButton(false);
+  fullscreenMode = null;
+  syncFullscreenButtons();
   if (overlayEl.hidden) return;
   overlayEl.classList.remove('visible');
   clearTimeout(closeTimer);
@@ -527,9 +544,10 @@ function closeFullscreen(immediate) {
   else closeTimer = setTimeout(finish, 250);
 }
 
-function toggleFullscreen() {
-  if (isFullscreenOpen()) closeFullscreen();
-  else openFullscreen();
+// The other button's while one's up: swapped for it, not closed.
+function toggleFullscreen(mode) {
+  if (isFullscreenOpen() && fullscreenMode === mode) closeFullscreen();
+  else openFullscreen(mode);
 }
 
 // --- music: one button, always the marked clip from "nuo" to "iki" ---
@@ -592,7 +610,8 @@ audioEl.addEventListener('ended', syncAudioButton);
 prevBtn.addEventListener('click', () => go(-1));
 nextBtn.addEventListener('click', () => go(1));
 audioBtn.addEventListener('click', toggleAudio);
-fullscreenBtn.addEventListener('click', toggleFullscreen);
+fullscreenBtn.addEventListener('click', () => toggleFullscreen('main'));
+hiddenImgBtn.addEventListener('click', () => toggleFullscreen('hidden'));
 overlayEl.addEventListener('click', () => closeFullscreen());
 audioStopBtn.addEventListener('click', () => {
   stopAudio();
@@ -638,7 +657,7 @@ document.addEventListener('keydown', (e) => {
     // Space would otherwise also "click" whichever bar button has focus.
     e.preventDefault();
     toggleAudio();
-  } else if (e.code === 'KeyF') toggleFullscreen();
+  } else if (e.code === 'KeyF') toggleFullscreen(e.shiftKey ? 'hidden' : 'main');
   // B: the bar collapsed / back ("bar"), by the key's place like F.
   else if (e.code === 'KeyB') document.getElementById('preview-bar-toggle').click();
   // Esc: only closes an open fullscreen picture — leaving is the ✕'s job.

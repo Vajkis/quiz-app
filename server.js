@@ -182,7 +182,7 @@ const YES_NO_OPTIONS = [
 // (choice/text, with ordered?: true on a text one whose answers go in
 // order), answer: 'yes'|'no' (yesno), hints: [string], hintImgs?:
 // [string] (each hint's picture, '' for a text one) and answer: string,
-// with no img or audio (hints) or links: [{ clue, img?, answer }]
+// with no audio and its img always hidden (hints) or links: [{ clue, img?, answer }]
 // (chain) }] }] }) into the games.json shape. The first option in the array
 // is always taken as the correct answer (see the editor's createOptionRow).
 //
@@ -379,7 +379,7 @@ function normalizeGamePayload(body) {
       // browser — it only works once imported from that editor's .zip export
       // (the file is uploaded then), never as-is.
       const mediaValues =
-        type === 'hints' ? optionImgs : [q.img, q.audio, ...optionImgs];
+        type === 'hints' ? [q.img, ...optionImgs] : [q.img, q.audio, ...optionImgs];
       if (
         mediaValues.some((v) => typeof v === 'string' && v.startsWith('media:'))
       )
@@ -387,13 +387,14 @@ function normalizeGamePayload(body) {
           error: `Klausimas "${label}" nurodo failą, kurio nėra — importuok žaidimą iš .zip failo`
         };
 
-      // A hints question's pictures are its hints', and it has no music.
-      const img = type === 'hints' ? '' : (q.img || '').trim();
+      const img = (q.img || '').trim();
       if (img) question.img = img;
       // Kept off the view screen with the question, until the host puts it
       // up full screen (e.g. to show what the answer looks like, while going
-      // through the answers) — see createHistoryEntry.
-      if (img && q.imgHidden) question.imgHidden = true;
+      // through the answers) — see createHistoryEntry. A hints question's
+      // always is: what's on screen with it are its hints.
+      if (img && (q.imgHidden || type === 'hints')) question.imgHidden = true;
+      // A hints question has no music.
       const audio = type === 'hints' ? '' : (q.audio || '').trim();
       if (audio) {
         question.audio = audio;

@@ -58,12 +58,14 @@
 
 <nav id="preview-bar">
   <%- include('_bar-toggle', { bar: 'preview-bar', key: 'quizPreviewBarCollapsed' }) %>
-  <%# The left edge: ✕, then the fullscreen toggle and ▶ / II + ■ when the screen has a picture or music. %>
+  <%# The left edge: ✕, then the fullscreen toggles and ▶ / II + ■ when the screen has a picture or music. %>
   <div id="preview-bar-start">
     <a id="preview-exit" class="preview-btn" href="<%= docs ? 'index.html' : '/host/games' %>" title="Atgal į žaidimus"><%- icon('close') %></a>
     <button type="button" id="preview-fullscreen" class="preview-btn preview-icon-btn" title="Per visą ekraną" aria-label="Per visą ekraną" aria-pressed="false" hidden>
       <svg class="fullscreen-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
     </button>
+    <%# A hidden picture's own (Shift+F) — the one above (F) never puts it up. %>
+    <button type="button" id="preview-hidden-img" class="preview-btn preview-icon-btn" title="Paslėptą nuotrauką per visą ekraną (Shift+F)" aria-label="Paslėptą nuotrauką per visą ekraną" aria-pressed="false" hidden><%- icon('image') %></button>
     <button type="button" id="preview-audio" class="preview-btn" title="Groti / pauzė" aria-label="Groti" hidden><%- icon('play') %></button>
     <button type="button" id="preview-audio-stop" class="preview-btn" title="Stabdyti" aria-label="Stabdyti" hidden><%- icon('stop') %></button>
   </div>

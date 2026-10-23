@@ -1216,7 +1216,8 @@ body:has(#preview-bar.is-collapsed) {
   font-variant-numeric: tabular-nums;
 }
 
-#preview-fullscreen.is-active {
+#preview-fullscreen.is-active,
+#preview-hidden-img.is-active {
   background: var(--color-primary);
   color: var(--color-on-accent);
 }

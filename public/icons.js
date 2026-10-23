@@ -32,6 +32,7 @@
     'bell-off':
       '<path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.7 4.7 0 0 1 .3-1.7"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0M2 2l20 20"/>',
     zoom: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
     'arrow-left': '<path d="M19 12H5M12 19l-7-7 7-7"/>',
     'arrow-right': '<path d="M5 12h14M12 5l7 7-7 7"/>',
     'arrow-down': '<path d="M12 5v14M19 12l-7 7-7-7"/>',

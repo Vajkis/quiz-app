@@ -920,6 +920,19 @@ body {
   display: none;
 }
 
+#view-picture-first-note {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 8px 0 0;
+  font-size: calc(18px * var(--text-scale, 1));
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-muted);
+}
+#view-picture-first-note[hidden] {
+  display: none;
+}
+
 #view-options.image-options {
   flex: 1;
   min-height: 0;

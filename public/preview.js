@@ -34,6 +34,7 @@ const imagesEl = document.getElementById('view-images');
 const questionTextEl = document.getElementById('view-question-text');
 const optionsEl = document.getElementById('view-options');
 const bonusQuestionEl = document.getElementById('view-bonus-question');
+const pictureFirstNoteEl = document.getElementById('view-picture-first-note');
 const stageReviewEl = document.getElementById('stage-review');
 const errorEl = document.getElementById('preview-error');
 
@@ -321,6 +322,8 @@ function showQuestion(screen) {
   optionsEl.innerHTML = '';
 
   bonusQuestionEl.hidden = !q.bonus || !!screen.pictureOnly;
+  // So the picture isn't taken for the whole question.
+  pictureFirstNoteEl.hidden = !screen.pictureOnly;
   if (screen.pictureOnly) return;
   bonusQuestionEl.textContent =
     q.bonus && q.bonus.question ? `Papildomas klausimas: ${q.bonus.question}` : 'Papildomas atsakymas';

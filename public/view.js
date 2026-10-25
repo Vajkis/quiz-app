@@ -19,6 +19,7 @@ const imagesEl = document.getElementById('view-images');
 const questionTextEl = document.getElementById('view-question-text');
 const optionsEl = document.getElementById('view-options');
 const bonusQuestionEl = document.getElementById('view-bonus-question');
+const pictureFirstNoteEl = document.getElementById('view-picture-first-note');
 const stageReviewEl = document.getElementById('stage-review');
 const leaderboardEl = document.getElementById('leaderboard');
 
@@ -216,6 +217,8 @@ function renderQuestion(q) {
   optionsEl.innerHTML = '';
 
   showBonusQuestion(bonusQuestionEl, q.hasBonus && !q.pictureOnly, q.bonusQuestion);
+  // So the picture isn't taken for the whole question.
+  pictureFirstNoteEl.hidden = !q.pictureOnly;
   if (q.pictureOnly) return;
 
   if (q.type === 'chain') {

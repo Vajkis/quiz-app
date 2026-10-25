@@ -621,6 +621,21 @@ $badge-bottom: calc(8px + #{v.text(32px * 1.5)});
   }
 }
 
+// Under a picture shown first on its own: the question is still to come.
+#view-picture-first-note {
+  flex-shrink: 0;
+  align-self: center;
+  margin: 8px 0 0;
+  font-size: v.text(18px);
+  font-weight: 600;
+  text-align: center;
+  color: v.$color-muted;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
 // Image options take up all the room left under the question instead of
 // sitting at their natural (often tiny) size. #view-question is already a
 // flex column filling the screen; this grid is its stretching child, and

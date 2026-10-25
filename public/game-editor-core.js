@@ -171,9 +171,11 @@
     row.className = 'option-row';
     row.innerHTML = `
       <div class="option-row-main">
-        <span class="correct-answer-badge" title="Teisingas atsakymas"><span class="check-icon"></span></span>
-        <input type="text" class="option-text-input" placeholder="Atsakymo variantas">
-        <span class="option-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></span>
+        <span class="option-answer">
+          <span class="correct-answer-badge" title="Teisingas atsakymas"><span class="check-icon"></span></span>
+          <input type="text" class="option-text-input" placeholder="Atsakymo variantas">
+          <span class="option-img-thumb-wrap" hidden><img class="option-img-thumb" alt="Nuotrauka"></span>
+        </span>
         <button type="button" class="remove-option-btn" title="Pašalinti variantą">${icon('close')}</button>
       </div>
       <input type="text" class="option-img-input" placeholder="Nuotraukos URL (nebūtina)">
@@ -232,6 +234,10 @@
       </div>
       <input type="text" class="question-text-input" placeholder="Klausimo tekstas">
       <input type="text" class="question-img-input" placeholder="Klausimo nuotraukos URL (nebūtina)">
+      <label class="img-hidden-toggle" hidden>
+        <input type="checkbox" class="question-img-first-input">
+        Pirma rodoma tik nuotrauka, paskui – klausimas (nuotrauka tada paslepiama)
+      </label>
       <label class="img-hidden-toggle" hidden>
         <input type="checkbox" class="question-img-hidden-input">
         Paslėpta – ekrane rodoma tik paspaudus „Per visą ekraną“
@@ -311,20 +317,43 @@
     // With a picture: whether it's kept off the view screen with the
     // question, until the host puts it up full screen (e.g. to show what
     // the answer looks like while going through the answers). A hints
-    // question's always is — ticked and locked by syncQuestionType, which
-    // gives the author's own choice back on a switch to another type.
-    const imgHiddenToggle = card.querySelector('.img-hidden-toggle');
+    // question's always is — ticked, with both choices locked, by
+    // syncImgHidden, and it stays so on a switch to another type, as it was
+    // last seen. Or, instead, shown first on its own before the question
+    // (and hidden after) — one or the other, so ticking one unticks the
+    // other.
+    const [imgFirstToggle, imgHiddenToggle] = card.querySelectorAll('.img-hidden-toggle');
     const imgHiddenInput = card.querySelector('.question-img-hidden-input');
-    let imgHiddenChoice = !!(question && question.imgHidden);
-    imgHiddenInput.checked = imgHiddenChoice;
+    const imgFirstInput = card.querySelector('.question-img-first-input');
+    let imgFirstChoice = !!(question && question.imgFirst);
+    let imgHiddenChoice = !!(question && question.imgHidden) && !imgFirstChoice;
     imgHiddenInput.addEventListener('change', () => {
       imgHiddenChoice = imgHiddenInput.checked;
+      if (imgHiddenChoice) imgFirstChoice = false;
+      syncImgHidden();
     });
+    imgFirstInput.addEventListener('change', () => {
+      imgFirstChoice = imgFirstInput.checked;
+      if (imgFirstChoice) imgHiddenChoice = false;
+      syncImgHidden();
+    });
+    function syncImgHidden() {
+      const hints = typeSelect.value === 'hints';
+      if (hints) {
+        imgHiddenChoice = true;
+        imgFirstChoice = false;
+      }
+      imgHiddenInput.disabled = hints;
+      imgFirstInput.disabled = hints;
+      imgHiddenInput.checked = imgHiddenChoice;
+      imgFirstInput.checked = imgFirstChoice;
+    }
     function syncQuestionImage() {
       const url = imgInput.value.trim();
       const src = url ? resolveAudioSrc(url) : '';
       imgThumbWrap.hidden = !thumbShown(imgThumb, src);
       imgHiddenToggle.hidden = !url;
+      imgFirstToggle.hidden = !url;
       if (src && imgThumb.getAttribute('src') !== src) imgThumb.src = src;
     }
     syncQuestionImage();
@@ -570,8 +599,7 @@
       // A hints question has no music, and its picture is always hidden:
       // what's on screen with it are its hints.
       card.querySelector('.question-audio-fields').hidden = type === 'hints';
-      imgHiddenInput.disabled = type === 'hints';
-      imgHiddenInput.checked = type === 'hints' || imgHiddenChoice;
+      syncImgHidden();
       // "[check] text": the icon, then the text.
       const [, hintIcon, hintText] = HINTS[type].match(/^\[([\w-]+)\] (.*)$/);
       hint.innerHTML = `${icon(hintIcon)} `;
@@ -1081,6 +1109,7 @@
           question: qEl.querySelector('.question-text-input').value.trim(),
           img: qEl.querySelector('.question-img-input').value.trim(),
           imgHidden: qEl.querySelector('.question-img-hidden-input').checked,
+          imgFirst: qEl.querySelector('.question-img-first-input').checked,
           audio: qEl.querySelector('.question-audio-input').value.trim(),
           audioStart: qEl.querySelector('.audio-start-input').value.trim(),
           audioEnd: qEl.querySelector('.audio-end-input').value.trim()

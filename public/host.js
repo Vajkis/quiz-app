@@ -671,7 +671,9 @@ function markUnanswered(unanswered = lastUnanswered) {
   document.querySelectorAll('.question-jump-btn').forEach((btn) => {
     const names = !btn.classList.contains('active') && unanswered[btn.dataset.index];
     btn.classList.toggle('is-unanswered', !!names);
-    if (names) btn.title = `Neatsakė: ${names.join(', ')}`;
+    const title = names ? `Neatsakė: ${names.join(', ')}` : null;
+    if (btn.getAttribute('title') === title) return;
+    if (title) btn.title = title;
     else btn.removeAttribute('title');
   });
 }
@@ -689,6 +691,8 @@ if (teamStatusEl) {
   let teams = [];
   let paperEditable = false;
   let receivedAt = 0;
+  // The team whose answers are shown under its row — one at a time.
+  let openTeamId = null;
 
   function describe(team) {
     if (team.offline) return { cls: 'is-paper', icon: 'paper', text: 'Ant lapelio' };
@@ -700,38 +704,156 @@ if (teamStatusEl) {
       : { cls: 'is-clean', icon: 'check', text: 'Be interneto' };
   }
 
+  // Per team, what its row last showed (as a string) and the row's elements
+  // (with its answers under it, if open) — pushes and the 5s ageing mostly
+  // bring the same again, so only a row that would look different is built
+  // anew, and the list's DOM is only touched when anything changed.
+  const rowCache = new Map();
+
+  function rowKey(team, status, hasAnswers, open) {
+    return JSON.stringify([
+      team.name, status, team.answer, team.offline && paperEditable && team.paperPoints,
+      team.adjustment, team.penalty, hasAnswers, open, open && team.answers
+    ]);
+  }
+
   function render() {
     // Not while a paper team's points are being typed in — that'd wipe them.
     if (listEl.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')
       return;
-    listEl.innerHTML = '';
     if (teams.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'team-status-empty';
-      empty.textContent = 'Kol kas neprisijungė nė viena komanda.';
-      listEl.appendChild(empty);
+      rowCache.clear();
+      if (listEl.querySelector('.team-status-row') || !listEl.firstChild) {
+        const empty = document.createElement('p');
+        empty.className = 'team-status-empty';
+        empty.textContent = 'Kol kas neprisijungė nė viena komanda.';
+        listEl.replaceChildren(empty);
+      }
       return;
     }
+    const seen = new Set();
+    const nodes = [];
     teams.forEach((team) => {
-      const { cls, icon, text } = describe(team);
-      const row = document.createElement('div');
-      row.className = `team-status-row ${cls}`;
-      const name = document.createElement('span');
-      name.className = 'team-status-name';
-      name.textContent = team.name;
-      const badge = document.createElement('span');
-      badge.className = 'team-status-badge';
-      if (icon) badge.innerHTML = `${QuizIcons.icon(icon)} `;
-      badge.append(text);
-      row.append(name);
-      if (team.answer) row.appendChild(answerStatus(team.answer));
-      row.appendChild(badge);
-      if (team.offline && paperEditable) row.appendChild(paperPointsField(team));
-      row.appendChild(adjustControls(team));
-      if (team.penalty != null) row.appendChild(penaltyControls(team));
-      row.appendChild(removeButton(team));
-      listEl.appendChild(row);
+      const status = describe(team);
+      const hasAnswers = !!(team.answers && team.answers.length);
+      const open = hasAnswers && team.teamId === openTeamId;
+      const key = rowKey(team, status, hasAnswers, open);
+      seen.add(team.teamId);
+      let cached = rowCache.get(team.teamId);
+      if (!cached || cached.key !== key) {
+        cached = { key, nodes: buildRow(team, status, hasAnswers, open) };
+        rowCache.set(team.teamId, cached);
+      }
+      nodes.push(...cached.nodes);
     });
+    rowCache.forEach((_, teamId) => {
+      if (!seen.has(teamId)) rowCache.delete(teamId);
+    });
+    const current = listEl.children;
+    if (current.length !== nodes.length || nodes.some((n, i) => current[i] !== n))
+      listEl.replaceChildren(...nodes);
+  }
+
+  function buildRow(team, { cls, icon, text }, hasAnswers, open) {
+    const row = document.createElement('div');
+    row.className = `team-status-row ${cls}`;
+    const name = document.createElement('span');
+    name.className = 'team-status-name';
+    name.textContent = team.name;
+    const badge = document.createElement('span');
+    badge.className = 'team-status-badge';
+    if (icon) badge.innerHTML = `${QuizIcons.icon(icon)} `;
+    badge.append(text);
+    if (hasAnswers) row.appendChild(answersToggle(team, open));
+    row.append(name);
+    if (team.answer) row.appendChild(answerStatus(team.answer));
+    row.appendChild(badge);
+    if (team.offline && paperEditable) row.appendChild(paperPointsField(team));
+    row.appendChild(adjustControls(team));
+    if (team.penalty != null) row.appendChild(penaltyControls(team));
+    row.appendChild(removeButton(team));
+    return open ? [row, answersPanel(team.answers)] : [row];
+  }
+
+  // The chevron before a phone team's name, as on the editor's stages: opens
+  // the team's answers under its row (closing any other team's). As with the
+  // seasons in the team history, the row stays where it is on screen while
+  // the one open before shuts, then the page glides up until its top border
+  // is at the very top of the screen — following it
+  // by its team, as a push can build the row anew meanwhile.
+  function answersToggle(team, open) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `toggle-stage-btn${open ? '' : ' collapsed'}`;
+    b.innerHTML = '<span class="chevron-icon"></span>';
+    b.title = open ? 'Slėpti atsakymus' : 'Rodyti atsakymus';
+    b.setAttribute('aria-expanded', String(open));
+    b.addEventListener('click', () => {
+      openTeamId = open ? null : team.teamId;
+      const row = () => (rowCache.get(team.teamId) || { nodes: [null] }).nodes[0];
+      const before = row().getBoundingClientRect().top;
+      render();
+      if (open) return;
+      window.scrollBy({ top: row().getBoundingClientRect().top - before, behavior: 'instant' });
+      glide(row, 0, 300);
+    });
+    return b;
+  }
+
+  // A team's answers to the stage's questions shown so far: each question,
+  // its right answer and the team's — in green while it counts, red while
+  // it doesn't, greyed out with nothing typed — and the same for the extra
+  // answer, in purple.
+  function answersPanel(answers) {
+    const panel = document.createElement('div');
+    panel.className = 'team-answers-panel';
+    const line = (cls, label, value) => {
+      const p = document.createElement('p');
+      p.className = `team-answers-line ${cls}`;
+      const l = document.createElement('span');
+      l.className = 'team-answers-label';
+      l.textContent = label;
+      p.append(l, value);
+      return p;
+    };
+    const given = (text, correct, note) => {
+      const span = document.createElement('span');
+      if (!text && !correct) {
+        span.className = 'team-answers-given is-empty';
+        span.textContent = 'Neatsakyta';
+        return span;
+      }
+      span.className = `team-answers-given ${correct ? 'is-correct' : 'is-wrong'}`;
+      span.textContent = text || '—';
+      if (note) {
+        const n = document.createElement('span');
+        n.className = 'team-answers-note';
+        n.textContent = ` ${note}`;
+        span.append(n);
+      }
+      return span;
+    };
+    answers.forEach((a) => {
+      const item = document.createElement('div');
+      item.className = 'team-answers-item';
+      const q = document.createElement('p');
+      q.className = 'team-answers-question';
+      q.textContent = `${a.number}. ${a.question}`;
+      item.append(
+        q,
+        line('', 'Teisingas:', a.correctAnswer || '—'),
+        line('', 'Komandos:', given(a.given, a.correct,
+          a.lockedPoints != null ? `(užrakinta už ${a.lockedPoints} tšk.)` : ''))
+      );
+      if (a.bonus) {
+        item.append(
+          line('is-bonus', 'Papildomas:', a.bonus.correctAnswer || '—'),
+          line('is-bonus', 'Komandos:', given(a.bonus.given, a.bonus.correct))
+        );
+      }
+      panel.appendChild(item);
+    });
+    return panel;
   }
 
   // The team's answer to the question on screen, as one icon (the words in
@@ -851,7 +973,11 @@ if (teamStatusEl) {
         body: JSON.stringify({ teamId: team.teamId, points })
       });
     });
-    input.addEventListener('blur', () => setTimeout(render, 0));
+    // Built afresh even if nothing came back, so an unsaved number is reset.
+    input.addEventListener('blur', () => {
+      rowCache.delete(team.teamId);
+      setTimeout(render, 0);
+    });
     label.append('Etapo taškai', input);
     return label;
   }
@@ -879,8 +1005,14 @@ if (teamStatusEl) {
   const addError = addEl.querySelector('.team-add-error');
   const NEW_TEAM = '__new';
 
+  // Rebuilt only when the teams to pick from changed — rebuilding it closes
+  // the list if it's open.
+  let lastAvailable = null;
   function renderAddOptions(available, canAdd) {
     addEl.hidden = !canAdd;
+    const key = JSON.stringify(available);
+    if (key === lastAvailable) return;
+    lastAvailable = key;
     const selected = addSelect.value;
     addSelect.innerHTML = '';
     const option = (value, text) => {
@@ -942,7 +1074,12 @@ if (teamStatusEl) {
   const watch = () => socket.emit('host-watch', teamStatusEl.dataset.room);
   socket.on('connect', watch);
   if (socket.connected) watch();
+  let stageIndex = null;
   socket.on('team-status', (status) => {
+    // On to a new stage: the open team's answers shut (its questions are
+    // gone), and stay shut once the new stage's come in.
+    if (stageIndex != null && status.stageIndex !== stageIndex) openTeamId = null;
+    stageIndex = status.stageIndex;
     teams = status.teams;
     paperEditable = status.paperEditable;
     receivedAt = Date.now();
@@ -1081,16 +1218,21 @@ function scrollAlong(el, done) {
 
 // Scrolls the page, frame by frame, so el's top on screen moves from where
 // it is to `to` (null: stays put) over `duration` ms — whatever grows or
-// shrinks around it meanwhile. done, if any, once it's there.
+// shrinks around it meanwhile. done, if any, once it's there. el can be a
+// function giving it, for one that may be built anew on the way — if it's
+// gone from the page, the scrolling just stops.
 function glide(el, to, duration, done) {
-  const from = el.getBoundingClientRect().top;
+  const node = () => (typeof el === 'function' ? el() : el);
+  const from = node().getBoundingClientRect().top;
   const target = to == null ? from : to;
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const start = performance.now();
   const step = () => {
+    const current = node();
+    if (!current || !current.isConnected) return;
     const t = Math.min(1, (performance.now() - start) / duration);
     const wanted = from + (target - from) * ease(t);
-    const drift = el.getBoundingClientRect().top - wanted;
+    const drift = current.getBoundingClientRect().top - wanted;
     if (drift) window.scrollBy({ top: drift, behavior: 'instant' });
     if (t < 1) requestAnimationFrame(step);
     else if (done) done();

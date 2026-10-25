@@ -177,8 +177,6 @@ socket.on('room-closed', () => {
 socket.on('question', (q) => {
   hideAll(`question-${q.index}`);
   questionAreaEl.hidden = false;
-  // No text (a picture or song question): just which question it is.
-  questionTextEl.textContent = q.question ? `${q.number}. ${q.question}` : `${q.number} klausimas`;
 
   audioEl.src = q.audio ? resolveAudioSrc(q.audio) : '';
   audioClipMode = false;
@@ -186,6 +184,24 @@ socket.on('question', (q) => {
   audioClipEnd = null;
   audioProgressWrap.hidden = !q.audio;
   audioProgressFill.style.width = '0%';
+
+  renderQuestion(q);
+});
+
+// The question after its picture shown first on its own: the picture goes
+// (full screen too) and the question comes — the music plays on.
+socket.on('question-shown', (q) => {
+  if (currentScreenKey !== `question-${q.index}`) return;
+  closeFullscreen();
+  renderQuestion(q);
+});
+
+// Everything of a question on screen but its music. A picture shown first
+// is all there is then, under which question it is.
+function renderQuestion(q) {
+  // No text (a picture or song question): just which question it is.
+  questionTextEl.textContent =
+    q.question && !q.pictureOnly ? `${q.number}. ${q.question}` : `${q.number} klausimas`;
 
   questionBoxEl.classList.toggle('has-image', !!q.img);
   if (q.img) {
@@ -199,7 +215,8 @@ socket.on('question', (q) => {
   optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
 
-  showBonusQuestion(bonusQuestionEl, q.hasBonus, q.bonusQuestion);
+  showBonusQuestion(bonusQuestionEl, q.hasBonus && !q.pictureOnly, q.bonusQuestion);
+  if (q.pictureOnly) return;
 
   if (q.type === 'chain') {
     renderChainClues(optionsEl, q.clues, q.clueImgs || []);
@@ -235,7 +252,7 @@ socket.on('question', (q) => {
     div.textContent = opt.text;
     optionsEl.appendChild(div);
   });
-});
+}
 
 // A chain: its clues, numbered like the fields teams type each answer in.
 // With a picture among them every clue gets a cell of the picture grid,

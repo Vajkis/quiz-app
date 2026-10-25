@@ -208,18 +208,14 @@ function buildScreens(game) {
     const shownOptions = stage.questions.map(shownOptionsFor);
     stage.questions.forEach((q, i) => {
       const questionType = QuizGameShared.questionType(q);
+      const screen = { type: 'question', number: i + 1, question: q, questionType, options: shownOptions[i] };
+      // A picture shown first gets a screen of its own before the question.
+      if (q.img && q.imgFirst) list.push({ ...screen, pictureOnly: true, revealedHints: 0 });
       // A hints question gets a screen per hint, as the host reveals them
       // one by one.
       const steps = questionType === 'hints' ? q.hints.length : 1;
       for (let revealed = 1; revealed <= steps; revealed++) {
-        list.push({
-          type: 'question',
-          number: i + 1,
-          question: q,
-          questionType,
-          options: shownOptions[i],
-          revealedHints: revealed,
-        });
+        list.push({ ...screen, revealedHints: revealed });
       }
     });
     list.push({ type: 'stage-answers', stage, shownOptions });
@@ -288,8 +284,9 @@ function hideAll() {
 function showQuestion(screen) {
   const q = screen.question;
   questionAreaEl.hidden = false;
-  // No text (a picture or song question): just which question it is.
-  const title = questionTitle(q);
+  // No text (a picture or song question, or its picture shown first): just
+  // which question it is.
+  const title = screen.pictureOnly ? '' : questionTitle(q);
   questionTextEl.textContent = title ? `${screen.number}. ${title}` : `${screen.number} klausimas`;
 
   const audioSrc = resolveMedia(q.audio);
@@ -307,21 +304,24 @@ function showQuestion(screen) {
   audioProgressFill.style.width = '0%';
 
   // A hidden picture isn't on screen with the question — only full screen,
-  // as the host would put it up.
+  // as the host would put it up. One shown first is all there is on its
+  // own screen (F's then), and hidden on the question's.
   const imgSrc = resolveMedia(q.img);
-  imageWrapEl.hidden = !imgSrc || !!q.imgHidden;
+  const imgHidden = !!(q.imgHidden || q.imgFirst) && !screen.pictureOnly;
+  imageWrapEl.hidden = !imgSrc || imgHidden;
   if (imgSrc) imageEl.src = imgSrc;
   const hintCells = hintPictureCells(screen);
   renderHintPictures(hintCells);
 
-  const cells = gridCellsFor(screen);
+  const cells = screen.pictureOnly ? [] : gridCellsFor(screen);
   // F: the picture or the grid; a hidden picture has its own button.
-  fullscreenBtn.hidden = !(imgSrc && !q.imgHidden) && !cells.length && !hintCells.length;
-  hiddenImgBtn.hidden = !(imgSrc && q.imgHidden);
+  fullscreenBtn.hidden = !(imgSrc && !imgHidden) && !cells.length && !hintCells.length;
+  hiddenImgBtn.hidden = !(imgSrc && imgHidden);
   optionsEl.className = 'options-list';
   optionsEl.innerHTML = '';
 
-  bonusQuestionEl.hidden = !q.bonus;
+  bonusQuestionEl.hidden = !q.bonus || !!screen.pictureOnly;
+  if (screen.pictureOnly) return;
   bonusQuestionEl.textContent =
     q.bonus && q.bonus.question ? `Papildomas klausimas: ${q.bonus.question}` : 'Papildomas atsakymas';
 
@@ -499,8 +499,10 @@ function buildFullscreenContent(screen, mode) {
   // A hints question's picture hints shown so far, as the host's.
   const hintCells = hintPictureCells(screen);
   const cells = hintCells.length ? hintCells : gridCellsFor(screen);
-  // The picture — a hidden one only by its own button, as the host's.
-  if (imgSrc && (mode === 'hidden' || !screen.question.imgHidden)) {
+  // The picture — a hidden one only by its own button, as the host's (one
+  // shown first is F's on its own screen).
+  const q = screen.question;
+  if (imgSrc && (mode === 'hidden' || !(q.imgHidden || q.imgFirst) || screen.pictureOnly)) {
     const bigImg = document.createElement('img');
     bigImg.src = imgSrc;
     bigImg.alt = '';

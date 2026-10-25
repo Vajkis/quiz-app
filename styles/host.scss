@@ -1327,6 +1327,16 @@ $clip-control-height: 38px;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+// The option itself — its text field, or the picture standing in for it
+// — with the first one's ✓ right against it: not a button, so none of the
+// row's gap between them.
+.option-answer {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
 
   .option-text-input {
     flex: 1;
@@ -1430,8 +1440,9 @@ $clip-control-height: 38px;
 }
 
 .correct-answer-badge {
-  // Same 32x32 footprint as .remove-option-btn (just not clickable). Only
-  // the first row shows one at all — no reserved space on the rest.
+  // Same 32x32 footprint as .remove-option-btn (just not clickable), right
+  // against its field (see .option-answer). Only the first row shows one
+  // at all — no reserved space on the rest.
   display: none;
   flex-shrink: 0;
   width: 32px;
@@ -1909,8 +1920,18 @@ input[type='checkbox'] {
   padding-top: 8px;
   border-top: 1px dashed v.$color-border;
 
-  .add-bonus-btn[hidden] {
-    display: none;
+  // Its padding is the space under the line already, and the card's the
+  // space under the last field.
+  .add-bonus-btn {
+    margin-top: 0;
+
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .bonus-answer-input {
+    margin-bottom: 0;
   }
 }
 
@@ -2872,6 +2893,77 @@ input[type='checkbox'] {
   flex: 1;
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+// The expanded team's answers to the stage's questions shown so far.
+.team-answers-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+
+.team-answers-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: v.$radius-sm;
+  background: v.$color-neutral-soft;
+  font-size: 14px;
+
+  p {
+    margin: 0;
+  }
+
+  // A bit more space under the question than between the answer lines.
+  .team-answers-question {
+    margin-bottom: 4px;
+  }
+}
+
+.team-answers-question {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.team-answers-line {
+  overflow-wrap: anywhere;
+
+  // The extra answer, in its purple (as everywhere else).
+  &.is-bonus {
+    color: v.$color-purple;
+  }
+}
+
+.team-answers-label {
+  display: inline-block;
+  min-width: 90px;
+  margin-right: 4px;
+  color: v.$color-muted;
+}
+
+.team-answers-given {
+  font-weight: 700;
+
+  &.is-correct {
+    color: v.$color-success;
+  }
+
+  &.is-wrong {
+    color: v.$color-danger;
+  }
+
+  &.is-empty {
+    font-weight: 400;
+    font-style: italic;
+    color: v.$color-muted;
+  }
+}
+
+.team-answers-note {
+  font-weight: 400;
+  color: v.$color-muted;
 }
 
 // The team's answer to the question on screen, as one icon — and one more

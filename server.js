@@ -392,8 +392,14 @@ function normalizeGamePayload(body) {
       // Kept off the view screen with the question, until the host puts it
       // up full screen (e.g. to show what the answer looks like, while going
       // through the answers) — see createHistoryEntry. A hints question's
-      // always is: what's on screen with it are its hints.
-      if (img && (q.imgHidden || type === 'hints')) question.imgHidden = true;
+      // always is: what's on screen with it are its hints. Or instead shown
+      // on its own first, before the question (see pictureOnly in
+      // createHistoryEntry), then hidden the same way — never a hints
+      // question's.
+      const imgFirst = !!(img && q.imgFirst && type !== 'hints');
+      if (imgFirst) question.imgFirst = true;
+      if (img && ((q.imgHidden && !imgFirst) || type === 'hints'))
+        question.imgHidden = true;
       // A hints question has no music.
       const audio = type === 'hints' ? '' : (q.audio || '').trim();
       if (audio) {
@@ -551,8 +557,9 @@ function currentStage(room) {
 
 function publicQuestion(room, index = room.questionIndex) {
   const entry = room.questionHistory[index];
+  const q = currentStage(room).questions[index];
   return {
-    question: questionTitle(currentStage(room).questions[index]),
+    question: questionTitle(q),
     type: entry.type,
     options: entry.options,
     textAnswer: entry.textAnswer,
@@ -564,7 +571,10 @@ function publicQuestion(room, index = room.questionIndex) {
     linkCount: entry.clues ? entry.clues.length : 0,
     hasBonus: entry.bonusAnswer != null,
     bonusQuestion: entry.bonusQuestion,
-    img: entry.img,
+    // While only a picture shown first is up, that picture (the view screen
+    // shows nothing else then); after, it's hidden.
+    pictureOnly: entry.pictureOnly,
+    img: entry.pictureOnly ? resolveMediaSrc(q.img) : entry.img,
     audio: entry.audio,
     audioStart: entry.audioStart,
     audioEnd: entry.audioEnd
@@ -1054,7 +1064,12 @@ function createHistoryEntry(q) {
     bonusAnswer: q.bonus ? q.bonus.answer : null,
     // A hidden picture never goes out with the question — the host's
     // fullscreen button (from the stored question) is the only way it's shown.
-    img: q.imgHidden ? null : resolveMediaSrc(q.img),
+    img: q.imgHidden || q.imgFirst ? null : resolveMediaSrc(q.img),
+    // A picture shown first: only it on the view screen until the host's
+    // "next" shows the question (see /next), which hides it as above — or
+    // the host leaves it (see navigateTo); kept here, so coming back to the
+    // question later shows the question.
+    pictureOnly: !!(q.img && q.imgFirst),
     audio: q.audio || null,
     audioStart: q.audioStart || null,
     audioEnd: q.audioEnd || null,
@@ -1319,6 +1334,56 @@ function answerStatusFor(entry, teamId) {
   };
 }
 
+// How a team's main answer reads in the host's team list: the picked
+// option's label, the typed string, or several typed strings (a chain's, or
+// a typed-answer question's with several answers) joined the way the right
+// answer is — '—' for a field left empty, '' with nothing typed at all.
+function givenAnswerText(entry, teamId) {
+  if (entry.type === 'choice' || entry.type === 'yesno')
+    return optionLabel(entry, entry.selections[teamId]);
+  const selection = mySelectionFor(entry, teamId);
+  if (!Array.isArray(selection)) return selection.trim();
+  const fields = selection.map((s) => s.trim());
+  if (!fields.some(Boolean)) return '';
+  const joiner = entry.type === 'chain' || entry.ordered ? ' → ' : ', ';
+  return fields.map((s) => s || '—').join(joiner);
+}
+
+// Host-only, for the team list's expanded team: every question of the stage
+// shown so far, its right answer and this team's — and whether that counts
+// right now (the host's call on it included) — plus the same for the extra
+// answer.
+function teamAnswersFor(room, teamId) {
+  const questions = currentStage(room).questions;
+  const out = [];
+  room.questionHistory.forEach((entry, index) => {
+    if (!entry) return;
+    const q = questions[index];
+    const bonusGiven =
+      entry.bonusAnswer != null
+        ? mySelectionFor(entry, teamId, entry.bonusSelections).trim()
+        : null;
+    out.push({
+      number: index + 1,
+      question: questionTitle(q),
+      correctAnswer: correctAnswerFor(q, entry).correctAnswer,
+      given: givenAnswerText(entry, teamId),
+      correct: isMainCorrect(entry, teamId),
+      lockedPoints: teamId in entry.locks ? entry.locks[teamId] : null,
+      bonus:
+        bonusGiven != null
+          ? {
+              question: entry.bonusQuestion,
+              correctAnswer: entry.bonusAnswer,
+              given: bonusGiven,
+              correct: isBonusCorrect(entry, teamId)
+            }
+          : null
+    });
+  });
+  return out;
+}
+
 // A team's "Galime judėti toliau", on or off, to every phone of that team
 // in the room.
 function sendReady(roomId, index, teamId, ready) {
@@ -1373,6 +1438,15 @@ function broadcastHints(room, roomId, index) {
   }
 }
 
+// The question after the picture shown first on its own, to the view screen
+// only — phones had the question from the start (they never show it).
+function broadcastQuestionShown(room, roomId) {
+  for (const [, socket] of io.sockets.sockets) {
+    if (socket.data.roomId !== roomId || socket.data.teamId) continue;
+    socket.emit('question-shown', questionPayloadFor(room, null));
+  }
+}
+
 // Moves the host to targetIndex within the current stage, in either direction.
 // Finalizes (scores) the question being left, and reopens the target question —
 // restoring its exact shuffle and each team's prior picks, undoing its score if
@@ -1382,7 +1456,13 @@ function navigateTo(room, roomId, targetIndex) {
   const stage = currentStage(room);
   if (targetIndex < 0 || targetIndex >= stage.questions.length) return false;
 
-  if (room.questionIndex >= 0) finalizeEntry(room, room.questionIndex);
+  if (room.questionIndex >= 0) {
+    finalizeEntry(room, room.questionIndex);
+    // A picture shown first has been seen once the host leaves it: coming
+    // back brings the question, with the picture hidden.
+    const left = room.questionHistory[room.questionIndex];
+    if (left) left.pictureOnly = false;
+  }
 
   const entry = room.questionHistory[targetIndex];
   if (entry) {
@@ -1905,12 +1985,16 @@ function renderHostRoom(req, res, roomId) {
     currentQuestionImg: currentQuestion
       ? resolveMediaSrc(currentQuestion.img)
       : null,
-    // Not on the view screen until put up full screen.
+    // Not on the view screen until put up full screen (one shown first,
+    // once the question's come).
     currentQuestionImgHidden: !!(
       currentQuestion &&
       currentQuestion.img &&
-      currentQuestion.imgHidden
+      (currentQuestion.imgHidden || currentQuestion.imgFirst)
     ),
+    // Only the picture on the view screen so far — "next" shows the
+    // question (and hides the picture).
+    currentQuestionPictureOnly: !!(currentEntry && currentEntry.pictureOnly),
     currentQuestionType: currentQuestion ? questionType(currentQuestion) : null,
     // A typed-answer question with several answers: how many, and whether
     // they have to be in order.
@@ -2524,6 +2608,7 @@ app.post('/api/host/room/:roomId/typed-answer', (req, res) => {
       part === 'bonus' ? entry.bonusOverrides : entry.textOverrides;
     overrides[teamId] = !!correct;
   });
+  emitTeamStatus(req.params.roomId);
   res.json({
     correct:
       part === 'bonus'
@@ -2660,8 +2745,14 @@ app.post('/api/host/room/:roomId/next', (req, res) => {
   }
 
   if (room.phase === 'question') {
-    // A hints question shows its hints one by one before moving on.
     const entry = room.questionHistory[room.questionIndex];
+    // A picture shown first: the question comes next.
+    if (entry && entry.pictureOnly) {
+      entry.pictureOnly = false;
+      broadcastQuestionShown(room, roomId);
+      return res.json({ phase: 'question' });
+    }
+    // A hints question shows its hints one by one before moving on.
     if (
       entry &&
       entry.type === 'hints' &&
@@ -3025,7 +3116,8 @@ function hostWatchChannel(roomId) {
 // playing on paper, the points entered for it this stage — and the points
 // the host gave or took this stage (see /adjust). While a question
 // is up, a phone team's answer to the one the host is on (see
-// answerStatusFor) and whether it's being typed right now. Plus every
+// answerStatusFor) and whether it's being typed right now — and its answers
+// to the stage's questions shown so far (see teamAnswersFor). Plus every
 // registered team not in the room, to add one playing on paper.
 function teamStatusPayload(roomId) {
   const room = rooms[roomId];
@@ -3064,7 +3156,10 @@ function teamStatusPayload(roomId) {
                 typing: typing.has(teamId),
                 typingBonus: typingBonus.has(teamId)
               }
-            : null
+            : null,
+        answers: room.offlineTeams.has(teamId)
+          ? null
+          : teamAnswersFor(room, teamId)
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name, 'lt'));
@@ -3090,7 +3185,9 @@ function teamStatusPayload(roomId) {
     available,
     unanswered,
     paperEditable: paperPointsEditable(room),
-    canAdd: room.phase !== 'finished'
+    canAdd: room.phase !== 'finished',
+    // A new stage shuts the team whose answers the host has open.
+    stageIndex: room.stageIndex
   };
 }
 
@@ -3234,20 +3331,17 @@ io.on('connection', (socket) => {
       selection = value;
     }
 
-    const statusBefore = JSON.stringify(answerStatusFor(entry, teamId));
+    const changed =
+      JSON.stringify(entry.selections[teamId]) !== JSON.stringify(selection);
     updateEntry(room, targetIndex, () => {
       // A changed typed answer drops the host's earlier call on the old one.
-      if (
-        JSON.stringify(entry.selections[teamId]) !== JSON.stringify(selection)
-      )
-        delete entry.textOverrides[teamId];
+      if (changed) delete entry.textOverrides[teamId];
       entry.selections[teamId] = selection;
     });
-    // The host's team list only when what it shows changed (not on every
-    // keystroke that's sent) — an earlier question's too, for its number
-    // button (see unanswered in teamStatusPayload).
-    if (JSON.stringify(answerStatusFor(entry, teamId)) !== statusBefore)
-      emitTeamStatus(socket.data.roomId);
+    // The host's team list whenever the answer changed — an earlier
+    // question's too: its number button (see unanswered in
+    // teamStatusPayload) and the team's answers (see teamAnswersFor).
+    if (changed) emitTeamStatus(socket.data.roomId);
   });
 
   // Locks a hints question's typed answer in (sent along, so the last few
@@ -3349,17 +3443,12 @@ io.on('connection', (socket) => {
     if (entry.bonusAnswer == null) return;
     const teamId = socket.data.teamId;
     const selection = value.slice(0, 200);
-    const statusBefore = JSON.stringify(answerStatusFor(entry, teamId));
+    const changed = entry.bonusSelections[teamId] !== selection;
     updateEntry(room, targetIndex, () => {
-      if (entry.bonusSelections[teamId] !== selection)
-        delete entry.bonusOverrides[teamId];
+      if (changed) delete entry.bonusOverrides[teamId];
       entry.bonusSelections[teamId] = selection;
     });
-    if (
-      targetIndex === room.questionIndex &&
-      JSON.stringify(answerStatusFor(entry, teamId)) !== statusBefore
-    )
-      emitTeamStatus(socket.data.roomId);
+    if (changed) emitTeamStatus(socket.data.roomId);
   });
 
   // The host's <audio> element is muted — it's just there so the host can see

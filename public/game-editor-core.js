@@ -43,7 +43,9 @@
     const uploadFile = global.QuizGameEditorCore.uploadFile;
     if (typeof pickLocalFile !== 'function' && typeof uploadFile !== 'function')
       return;
-    const accept = kind === 'audio' ? 'audio/*' : 'image/*';
+    // Videos too: Windows lists some sound files (.m4a) as video, and a
+    // video's sound is what's played.
+    const accept = kind === 'audio' ? 'audio/*,video/*' : 'image/*';
 
     const field = document.createElement('div');
     field.className = 'file-url-field';

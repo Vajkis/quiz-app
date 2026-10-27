@@ -29,9 +29,12 @@
     png: 'image/png',
     gif: 'image/gif',
     webp: 'image/webp',
+    avif: 'image/avif',
     svg: 'image/svg+xml',
     mp3: 'audio/mpeg',
     m4a: 'audio/mp4',
+    // A video, of which only the sound is played.
+    mp4: 'audio/mp4',
     aac: 'audio/aac',
     wav: 'audio/wav',
     ogg: 'audio/ogg',

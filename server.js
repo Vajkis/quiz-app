@@ -1563,20 +1563,17 @@ app.post('/host/logout', (req, res) => {
   res.redirect('/host/login');
 });
 
-const LOCAL_MEDIA_MIME_BY_EXT = {
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
-  '.ogg': 'audio/ogg',
-  '.m4a': 'audio/mp4',
-  '.aac': 'audio/aac',
-  '.flac': 'audio/flac',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml'
-};
+// A file's type by its name, from the list Express itself serves files by
+// (which doesn't know .avif yet). Pictures, music and videos — a video's
+// sound is what an <audio> plays — are media; anything else isn't.
+const mime = express.static.mime;
+mime.define({ 'image/avif': ['avif'] });
+const MEDIA_TYPE_PATTERN = /^(image|audio|video)\//;
+
+function mediaTypeOf(fileName) {
+  const type = mime.lookup(fileName);
+  return MEDIA_TYPE_PATTERN.test(type) ? type : null;
+}
 
 function localPathKey(filePath) {
   return path.resolve(filePath).toLowerCase();
@@ -1613,13 +1610,12 @@ function referencedLocalPaths() {
 // resolveMediaSrc() below, and its client-side mirrors (view.js,
 // game-editor-core.js), route anything but a URL/app-relative path here.
 // Every phone on the hotspot can reach this, so it never serves an arbitrary
-// file (e.g. .env): only picture/audio types, and — for anyone but the host,
+// file (e.g. .env): only picture, sound and video types, and — for anyone but the host,
 // whose editor previews files before they're saved — only ones a game uses.
 app.get('/api/local-audio', (req, res) => {
   const filePath = req.query.path;
   if (!filePath || typeof filePath !== 'string') return res.status(400).end();
-  const contentType =
-    LOCAL_MEDIA_MIME_BY_EXT[path.extname(filePath).toLowerCase()];
+  const contentType = mediaTypeOf(filePath);
   if (!contentType) return res.status(404).end();
   if (!isHostAuthed(req) && !referencedLocalPaths().has(localPathKey(filePath)))
     return res.status(404).end();
@@ -1678,7 +1674,22 @@ function detectMediaExtension(buf) {
   if (ascii(0, 4) === 'OggS') return '.ogg';
   if (ascii(0, 4) === 'fLaC') return '.flac';
   if (buf.readUInt32BE(0) === 0x1a45dfa3) return '.webm';
-  if (ascii(4, 8) === 'ftyp') return '.m4a';
+  // MP4 family (.m4a, .mp4, AVIF, HEIC): a chain of boxes — 4-byte size,
+  // 4-byte name — normally starting with ftyp, whose brands say what's
+  // inside. A picture is told apart by them; anything else — music, or a
+  // video, whose sound an <audio> plays — is kept as .m4a. Some older files
+  // start straight with another box, with no ftyp.
+  if (ascii(4, 8) === 'ftyp') {
+    const boxEnd = Math.min(buf.readUInt32BE(0), buf.length);
+    const brands = [ascii(8, 12)];
+    for (let i = 16; i + 4 <= boxEnd; i += 4) brands.push(ascii(i, i + 4));
+    if (brands.some((b) => b === 'avif' || b === 'avis')) return '.avif';
+    // HEIC (iPhone photos): browsers other than Safari can't show it.
+    if (brands.some((b) => /^(hei[cmsx]|hev[cmsx]|mif1|msf1)$/.test(b)))
+      return null;
+    return '.m4a';
+  }
+  if (/^(moov|mdat|free|skip|wide)$/.test(ascii(4, 8))) return '.m4a';
   if (ascii(0, 3) === 'ID3') return '.mp3';
   // No header, straight into audio frames: 11 sync bits, then the layer
   // bits tell AAC (00) from MP3 (anything else).
@@ -1688,6 +1699,24 @@ function detectMediaExtension(buf) {
   // SVG is text: an <svg> tag near the top (after any <?xml ...?>/comments).
   if (/<svg[\s>]/i.test(ascii(0, 1024))) return '.svg';
   return null;
+}
+
+// A sound or video file none of the signatures above knows (e.g. .wma,
+// .avi): taken by its name, or failing that by the type the browser gave
+// it. Never a picture (those are all known by their first bytes), so what's
+// stored this way is only ever served as sound or video.
+function declaredSoundExtension(req) {
+  const isSound = (type) => /^(audio|video)\//.test(type || '');
+  let name = '';
+  try {
+    name = decodeURIComponent(req.get('X-File-Name') || '');
+  } catch {}
+  const nameExt = path.extname(name).toLowerCase();
+  if (/^\.[a-z0-9]+$/.test(nameExt) && isSound(mime.lookup(nameExt)))
+    return nameExt;
+  const type = (req.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
+  const typeExt = isSound(type) && mime.extension(type);
+  return typeExt ? `.${typeExt}` : null;
 }
 
 app.use(
@@ -1756,7 +1785,7 @@ app.post(
   (req, res) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0)
       return res.status(400).json({ error: 'Failas tuščias' });
-    const ext = detectMediaExtension(req.body);
+    const ext = detectMediaExtension(req.body) || declaredSoundExtension(req);
     if (!ext)
       return res
         .status(400)
@@ -1809,9 +1838,18 @@ function canUseNativeFilePicker(req) {
   );
 }
 
+// Every file name ending of these types, from the same list as
+// mediaTypeOf() — as a Windows dialog filter ("*.mp3;*.wav;...").
+function dialogPatternFor(typePattern) {
+  return Object.entries(mime.types)
+    .filter(([, type]) => typePattern.test(type))
+    .map(([ext]) => `*.${ext}`)
+    .join(';');
+}
+
 const FILE_DIALOG_FILTERS = {
-  image: 'Nuotraukos|*.jpg;*.jpeg;*.png;*.gif;*.webp;*.svg',
-  audio: 'Garso failai|*.mp3;*.wav;*.ogg;*.m4a;*.aac;*.flac'
+  image: `Nuotraukos|${dialogPatternFor(/^image\//)}`,
+  audio: `Garso ir vaizdo failai|${dialogPatternFor(/^(audio|video)\//)}`
 };
 
 // Opens the Windows "Open file" dialog (topmost, so it isn't hidden behind

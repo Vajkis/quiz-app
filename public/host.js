@@ -155,7 +155,14 @@ function initAudioBlock(block) {
     });
   }
 
+  // A recording that still hasn't loaded (see keepLoading in
+  // audio-player.js) is asked for once more by playing it.
+  function loadIfFailed() {
+    if (questionAudio.error && questionAudio.quizKeepLoading) questionAudio.quizKeepLoading.retry();
+  }
+
   function playClip() {
+    loadIfFailed();
     pauseOtherAudioBlocks(questionAudio);
     clipModeActive = true;
     clipEndReached = false;
@@ -164,6 +171,7 @@ function initAudioBlock(block) {
   }
 
   function playNormal() {
+    loadIfFailed();
     pauseOtherAudioBlocks(questionAudio);
     clipModeActive = false;
     questionAudio.currentTime = 0;
@@ -214,6 +222,7 @@ function initAudioBlock(block) {
         if (hasClip) playClip();
         else playNormal();
       } else {
+        loadIfFailed();
         questionAudio.play();
       }
     },

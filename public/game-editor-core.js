@@ -230,6 +230,7 @@
           <option value="chain">Grandinėlė</option>
           <option value="hints">Užuominos</option>
         </select>
+        <button type="button" class="preview-question-btn move-btn" title="Peržiūrėti klausimą">${icon('play')}</button>
         <button type="button" class="move-question-up-btn move-btn" title="Kelti aukštyn"><span class="chevron-icon chevron-icon--up"></span></button>
         <button type="button" class="move-question-down-btn move-btn" title="Kelti žemyn"><span class="chevron-icon"></span></button>
         <button type="button" class="remove-question-btn" title="Pašalinti klausimą">${icon('close')}</button>
@@ -826,6 +827,7 @@
       <div class="stage-header">
         <button type="button" class="toggle-stage-btn" title="Suskleisti/išskleisti etapą"><span class="chevron-icon"></span></button>
         <input type="text" class="stage-name-input" placeholder="Etapo pavadinimas">
+        <button type="button" class="preview-stage-btn move-btn" title="Peržiūrėti etapą">${icon('play')}</button>
         <button type="button" class="move-stage-up-btn move-btn" title="Kelti aukštyn"><span class="chevron-icon chevron-icon--up"></span></button>
         <button type="button" class="move-stage-down-btn move-btn" title="Kelti žemyn"><span class="chevron-icon"></span></button>
         <button type="button" class="remove-stage-btn" title="Pašalinti etapą">${icon('close')}</button>
@@ -1405,12 +1407,144 @@
         btn.remove();
         return;
       }
-      const stageCard = target.closest('.stage-card');
-      if (stageCard && stageCard !== target && stageCard.collapse) stageCard.collapse.set(false);
-      // A third of the way down the screen, so what's around it shows too.
-      glide(target, window.innerHeight / 3, 300, () => markError(target));
+      jumpToError(target);
     });
     errorEl.append(' ', btn);
+  }
+
+  function jumpToError(target) {
+    const stageCard = target.closest('.stage-card');
+    if (stageCard && stageCard !== target && stageCard.collapse) stageCard.collapse.set(false);
+    // A third of the way down the screen, so what's around it shows too.
+    glide(target, window.innerHeight / 3, 300, () => markError(target));
+  }
+
+  // The ▶ of a question, a stage (in their headers) and of the whole game
+  // (#preview-game-btn) opens the game preview (preview.js, at previewUrl
+  // with ?editor) in a tab of its own — the same one every time, so another
+  // ▶ just changes what it shows — with what the form holds, unsaved
+  // changes and all, checked as a save would (a problem is shown instead:
+  // the field it's in, as "Rodyti" does). Handed over by postMessage: the
+  // preview asks for it once loaded. While it's open, every edit is sent
+  // again and it stays where it was (see show in preview.js) — until the
+  // card it shows is removed, or an edit breaks the checks (the last good
+  // one stays up meanwhile).
+  const PREVIEW_WINDOW = 'quiz-editor-preview';
+  const PREVIEW_MESSAGE = 'quiz-editor-preview';
+
+  function mountPreview(stagesContainer, nameInput, previewUrl) {
+    const { normalizeGamePayload } = global.QuizGameShared;
+    const editorEl = document.getElementById('game-editor');
+    const errorEl = document.getElementById('editor-error');
+    const pageUrl = new URL(previewUrl, location.href).href;
+    let previewWin = null;
+    // What's previewed: a stage's or a question's card, or null for the game.
+    let target = null;
+    let lastSent = null;
+
+    // { game, scope } for the preview, or { error, field } where the checks fail.
+    function build() {
+      const payload = collectPayload(stagesContainer, nameInput);
+      const stageCards = Array.from(stagesContainer.querySelectorAll('.stage-card'));
+      if (!target) {
+        const { game, error } = normalizeGamePayload(payload);
+        return error
+          ? { error, field: findFirstError(stagesContainer, nameInput) }
+          : { game, scope: { kind: 'game' } };
+      }
+      const stageCard = target.closest('.stage-card');
+      const s = stageCards.indexOf(stageCard);
+      const stage = payload.stages[s];
+      // Only what's shown has to pass — not the game's name (nor the
+      // stage's, for a question), nor the other stages and questions.
+      const base = { name: payload.name || 'Be pavadinimo', background: payload.background };
+      const scope = { stageNumber: s + 1, stageCount: stageCards.length };
+      const questionCards = Array.from(stageCard.querySelectorAll('.question-card'));
+      if (target === stageCard) {
+        const { game, error } = normalizeGamePayload({ ...base, stages: [stage] });
+        if (!error) return { game, scope: { ...scope, kind: 'stage' } };
+        if (!stage.name) return { error, field: stageCard.querySelector('.stage-name-input') };
+        const j = stage.questions.findIndex(
+          (q) => normalizeGamePayload({ ...base, stages: [{ name: '-', questions: [q] }] }).error
+        );
+        return { error, field: j >= 0 ? errorField(questionCards[j], stage.questions[j]) : stageCard };
+      }
+      const j = questionCards.indexOf(target);
+      const q = stage.questions[j];
+      const { game, error } = normalizeGamePayload({
+        ...base,
+        stages: [{ ...stage, name: stage.name || '-', questions: [q] }]
+      });
+      if (error) return { error, field: errorField(target, q) };
+      game.stages[0].name = stage.name;
+      return { game, scope: { ...scope, kind: 'question', questionNumber: j + 1 } };
+    }
+
+    function send(built, keepPlace) {
+      lastSent = JSON.stringify({ game: built.game, scope: built.scope });
+      previewWin.postMessage({ type: PREVIEW_MESSAGE, game: built.game, scope: built.scope, keepPlace }, location.origin);
+    }
+
+    function open(card) {
+      errorEl.textContent = '';
+      target = card;
+      const built = build();
+      if (built.error) {
+        errorEl.textContent = built.error;
+        // The whole game's: its stages marked too, as a save's are.
+        if (!card) markStageErrors(stagesContainer, nameInput);
+        if (built.field) jumpToError(built.field);
+        return;
+      }
+      // Its tab if it's open already (by name), else a new blank one.
+      previewWin = window.open('', PREVIEW_WINDOW);
+      if (!previewWin) {
+        errorEl.textContent = 'Naršyklė neleido atidaryti peržiūros';
+        return;
+      }
+      let loaded = false;
+      try {
+        loaded = previewWin.location.href === pageUrl;
+      } catch (e) {}
+      // Already the preview: it gets the new one now. Otherwise it's loaded,
+      // and asks for it once ready.
+      if (loaded) send(built, false);
+      else previewWin.location.href = pageUrl;
+      previewWin.focus();
+    }
+
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data || e.data.type !== 'quiz-editor-preview-ready') return;
+      previewWin = e.source;
+      const built = build();
+      if (!built.error) send(built, false);
+      else if (lastSent) previewWin.postMessage({ type: PREVIEW_MESSAGE, ...JSON.parse(lastSent), keepPlace: false }, location.origin);
+    });
+
+    let updateTimer = null;
+    function update() {
+      clearTimeout(updateTimer);
+      updateTimer = setTimeout(() => {
+        if (!previewWin || previewWin.closed || !lastSent) return;
+        if (target && !target.isConnected) return;
+        const built = build();
+        if (built.error) return;
+        if (JSON.stringify({ game: built.game, scope: built.scope }) === lastSent) return;
+        send(built, true);
+      }, 300);
+    }
+    // Typing, and everything else that changes the game without an input
+    // event: added/removed/moved cards, Taip/Ne buttons, an import.
+    ['input', 'change', 'click'].forEach((type) => editorEl.addEventListener(type, update));
+    new MutationObserver(update).observe(editorEl, { childList: true, subtree: true });
+
+    stagesContainer.addEventListener('click', (e) => {
+      const btn = e.target.closest('.preview-question-btn, .preview-stage-btn');
+      if (!btn) return;
+      open(btn.closest(btn.classList.contains('preview-stage-btn') ? '.stage-card' : '.question-card'));
+    });
+    const gameBtn = document.getElementById('preview-game-btn');
+    if (gameBtn) gameBtn.addEventListener('click', () => open(null));
   }
 
   // "← Atgal į žaidimus" (and the side panel's links) asks first
@@ -1482,6 +1616,9 @@
     sidePanel
       .addSection('Žaidimas')
       .append(
+        // First, as its button is at the editor's top.
+        // Not clickReal: a problem is scrolled to itself (see mountPreview).
+        createItem(icon('play'), 'Peržiūrėti', () => document.getElementById('preview-game-btn').click()),
         createItem(icon('rules'), 'Taisyklės', () =>
           showCard(editorEl.querySelector('.rules-card'))
         ),
@@ -1551,6 +1688,7 @@
     addDefaultRulesButton,
     chooseImportGame,
     mountSidePanel,
+    mountPreview,
     markStageErrors,
     guardBackLink
   };

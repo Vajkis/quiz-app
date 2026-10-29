@@ -1,5 +1,6 @@
 <%# The game preview — the big screen's screens stepped through with a bar at
-    the bottom (public/preview.js). Rendered by the host (/host/games/:id/preview)
+    the bottom (public/preview.js). Rendered by the host (/host/games/:id/preview,
+    and with no game for the editor's preview, /host/games/preview?editor)
     and, with docs: true, by scripts/build-docs.js into docs/preview.html, whose
     files sit in js/ and css/ next to it. -%>
 <% const js = docs ? 'js/' : '/'; -%>
@@ -94,10 +95,13 @@
 <script src="js/storage.js"></script>
 <script src="js/preview-source.js"></script>
 <% } else { %>
+<% if (game) { %>
 <script id="game-data" type="application/json"><%- JSON.stringify(game).replace(/</g, '\\u003c') %></script>
+<% } %>
 <script src="/game-shared.js"></script>
 <script src="/host-preview-source.js"></script>
 <% } %>
+<script src="<%= js %>audio-player.js"></script>
 <script src="<%= js %>preview.js"></script>
 </body>
 </html>

@@ -29,6 +29,8 @@ const overlayContentEl = document.getElementById('fullscreen-content');
 const audioEl = document.getElementById('view-audio');
 const audioProgressWrap = document.getElementById('audio-progress-wrap');
 const audioProgressFill = document.getElementById('audio-progress-fill');
+// A recording that didn't load is asked for again (audio-player.js).
+QuizAudioPlayer.keepLoading(audioEl);
 
 // stage-answers can list several questions, each with its own audio — a
 // small "▶" next to whichever one's track is currently playing shows which
@@ -509,7 +511,9 @@ socket.on('audio-state', ({ src, paused, time, volume, clipMode, clipStart, clip
   cancelPendingPlayback();
 
   const absSrc = src ? new URL(src, location.href).href : '';
-  if (absSrc && audioEl.currentSrc !== absSrc) {
+  // Another recording, or this one failed to load (even after the tries
+  // again, see keepLoading): loaded now, and played once it's here.
+  if (absSrc && (audioEl.currentSrc !== absSrc || audioEl.error)) {
     pendingPlayback = () => {
       pendingPlayback = null;
       applyPlayback();

@@ -786,22 +786,22 @@ function recordStageScores(room, stage, stageScores) {
   const label = `"${stage.name}" (${stage.id})`;
   const created = [];
   if (!room.seasonId) {
-    console.log(`[istorija] ${label}: kambarys be sezono, neįrašyta`);
+    console.log(`[history] ${label}: room has no season, not recorded`);
     return created;
   }
   const teams = loadTeams();
   const entries = Object.entries(stageScores);
   if (entries.length === 0)
-    console.log(`[istorija] ${label}: nėra prisijungusių komandų`);
+    console.log(`[history] ${label}: no teams joined`);
   entries.forEach(([teamId, score]) => {
     // Zero is still recorded (a team that played but scored nothing this
     // stage should still show up in its own history) — only an unknown
     // team (deleted mid-game) or a missing/NaN score is skipped.
     if (!teams[teamId] || typeof score !== 'number' || Number.isNaN(score)) {
-      console.log(`[istorija] ${label}: praleista komanda ${teamId}`);
+      console.log(`[history] ${label}: skipped team ${teamId}`);
       return;
     }
-    console.log(`[istorija] ${label}: ${teams[teamId].name} ${signed(score)}`);
+    console.log(`[history] ${label}: ${teams[teamId].name} ${signed(score)}`);
     teams[teamId].seasons = teams[teamId].seasons || {};
     teams[teamId].seasons[room.seasonId] =
       teams[teamId].seasons[room.seasonId] || {};
@@ -830,7 +830,7 @@ function unrecordStageScores(room, stage, stageScores, created) {
     if (!gameStages || !(stage.id in gameStages)) return;
     gameStages[stage.id] -= score;
     console.log(
-      `[istorija] "${stage.name}" (${stage.id}): ${teams[teamId].name} ${signed(-score)} (atšaukta)`
+      `[history] "${stage.name}" (${stage.id}): ${teams[teamId].name} ${signed(-score)} (undone)`
     );
     if (!created.includes(teamId) || gameStages[stage.id] !== 0) return;
     delete gameStages[stage.id];
@@ -1352,9 +1352,11 @@ function givenAnswerText(entry, teamId) {
 // Host-only, for the team list's expanded team: every question of the stage
 // shown so far, its right answer and this team's — and whether that counts
 // right now (the host's call on it included) — plus the same for the extra
-// answer.
+// answer. None once the game's finished — there's no stage any more.
 function teamAnswersFor(room, teamId) {
-  const questions = currentStage(room).questions;
+  const stage = currentStage(room);
+  if (!stage) return [];
+  const questions = stage.questions;
   const out = [];
   room.questionHistory.forEach((entry, index) => {
     if (!entry) return;
@@ -1756,7 +1758,7 @@ function removeUnusedMedia(folders) {
       try {
         fs.rmSync(path.join(dir, entry.name), { force: true });
       } catch (err) {
-        console.error('Nepavyko ištrinti failo', path.join(dir, entry.name), err.message);
+        console.error('Could not delete file', path.join(dir, entry.name), err.message);
       }
     }
     if (folder) {
@@ -2263,7 +2265,7 @@ app.post('/api/host/teams/:teamId/score', (req, res) => {
   gameStages[stageId] += delta;
   saveTeams(teams);
   console.log(
-    `[istorija] ${team.name}: "${stageDisplayName(gameId, stageId, team)}" ${signed(delta)} = ${gameStages[stageId]} (sezonas ${seasonId})`
+    `[history] ${team.name}: "${stageDisplayName(gameId, stageId, team)}" ${signed(delta)} = ${gameStages[stageId]} (season ${seasonId})`
   );
   const sum = (scores) => Object.values(scores).reduce((s, n) => s + n, 0);
   res.json({
@@ -2298,7 +2300,7 @@ app.delete('/api/host/teams/:teamId/seasons/:seasonId/games/:gameId', (req, res)
   }
   saveTeams(teams);
   console.log(
-    `[istorija] ${team.name}: pašalintas "${gameName}" (sezonas ${seasonId})`
+    `[history] ${team.name}: removed "${gameName}" (season ${seasonId})`
   );
   const sum = (scores) => Object.values(scores).reduce((s, n) => s + n, 0);
   res.json({
@@ -2357,6 +2359,12 @@ app.get('/host/games/:gameId/edit', (req, res) => {
 
 // The game shown as the view screen would, stepped through without a room
 // (public/preview.js) — the same page the GitHub Pages site has.
+// The editor's preview (?editor): the same page with no game of its own —
+// it's handed the one in the editor by the tab that opened it (preview.js).
+app.get('/host/games/preview', (req, res) => {
+  res.render('host/game-preview', { docs: false, game: null });
+});
+
 app.get('/host/games/:gameId/preview', (req, res) => {
   const game = games[req.params.gameId];
   if (!game) return renderGamesList(res, 'Žaidimas nerastas');
@@ -2928,7 +2936,7 @@ app.post('/api/host/room/:roomId/penalty', (req, res) => {
   team.penalties[room.seasonId] = penalty;
   saveTeams(teams);
   console.log(
-    `[nuobaudos] ${team.name}: ${penalty} (sezonas ${room.seasonId})`
+    `[penalties] ${team.name}: ${penalty} (season ${room.seasonId})`
   );
   emitTeamStatus(roomId);
   if (room.phase === 'finished' && room.leaderboardView === 'penalties')
@@ -3130,7 +3138,7 @@ app.post('/api/team/rename', (req, res) => {
   const oldName = teams[id].name;
   teams[id].name = name;
   saveTeams(teams);
-  console.log(`[komanda] ${oldName} -> ${name} (${id})`);
+  console.log(`[team] ${oldName} -> ${name} (${id})`);
   Object.entries(rooms).forEach(([roomId, room]) => {
     if (room.joinedTeams.has(id)) emitTeamStatus(roomId);
   });
@@ -3590,4 +3598,15 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('====================================');
   console.log('HOST ACCESS CODE: ' + HOST_CODE);
   console.log('====================================');
+
+  // A bug in a socket handler (or anything else no route catches) would
+  // otherwise stop the server mid-game, taking every room with it — it's
+  // logged instead and the game goes on. Only once running, so a failed
+  // start (the port taken) still stops it.
+  process.on('uncaughtException', (err) => {
+    console.error('[error]', err);
+  });
+  process.on('unhandledRejection', (err) => {
+    console.error('[error]', err);
+  });
 });

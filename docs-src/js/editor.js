@@ -31,6 +31,7 @@ QuizGameEditorCore.uploadFile = async (file) => {
 };
 
 QuizGameEditorCore.mountSidePanel(stagesContainer);
+QuizGameEditorCore.mountPreview(stagesContainer, nameInput, 'preview.html?editor');
 
 async function showGame(game) {
   // A file that can't be read just has no preview — the game still opens

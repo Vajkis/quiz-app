@@ -16,7 +16,10 @@
 <script src="js/side-panel.js"></script>
 <div id="app">
   <h1 id="editor-title">Naujas žaidimas</h1>
-  <a id="editor-back-link" class="option" href="index.html">{{icon:arrow-left}} Atgal į žaidimus</a>
+  <div class="editor-top-links">
+    <a id="editor-back-link" class="option" href="index.html">{{icon:arrow-left}} Atgal į žaidimus</a>
+    <button type="button" id="preview-game-btn" class="option">{{icon:play}} Peržiūrėti žaidimą</button>
+  </div>
 
   <div id="game-editor">
     <input id="game-name-input" type="text" placeholder="Žaidimo pavadinimas">

@@ -17,6 +17,87 @@
   };
   const clamp = (v) => Math.min(1, Math.max(0, v));
 
+  // A recording that didn't load — the connection dropped, or the request
+  // never got an answer (nothing arriving for STALL_MS) — is asked for again
+  // on its own, a few times (RETRY_DELAYS apart), while the element is on
+  // the page. onFailed(true) as soon as a try fails — a player shows ↻ from
+  // then on — and onFailed(false) once it's loaded after all. retry() (↻)
+  // is one try more: made now if none is under way or waited for, otherwise
+  // added to the ones left — never two at once.
+  // Also for the view screen's and the preview's own <audio>, which have no
+  // player of their own.
+  // Short: served on the local network, a recording that's there comes at once.
+  const RETRY_DELAYS = [1000, 1500, 2500];
+  const STALL_MS = 3000;
+
+  function keepLoading(audio, onFailed) {
+    if (audio.quizKeepLoading) return audio.quizKeepLoading;
+    let src = null;
+    let tries = 0; // made again so far
+    let allowed = RETRY_DELAYS.length; // ↻ adds one each
+    // A try under way (watched for STALL_MS) or the next one waited for —
+    // null once they've run out.
+    let timer = null;
+    let failed = false;
+    const setFailed = (value) => {
+      if (failed === value) return;
+      failed = value;
+      if (onFailed) onFailed(value);
+    };
+    const loaded = () => audio.readyState >= HTMLMediaElement.HAVE_METADATA;
+    const stop = () => {
+      clearTimeout(timer);
+      timer = null;
+    };
+    const reset = () => {
+      stop();
+      tries = 0;
+      allowed = RETRY_DELAYS.length;
+      setFailed(false);
+    };
+    function tryNow() {
+      stop();
+      tries++;
+      audio.load();
+    }
+    function again() {
+      stop();
+      if (!audio.getAttribute('src') || !audio.isConnected || loaded()) return;
+      setFailed(true);
+      if (tries >= allowed) return;
+      timer = setTimeout(tryNow, RETRY_DELAYS[Math.min(tries, RETRY_DELAYS.length - 1)]);
+    }
+    // While nothing's arriving, it's waited on for so long only.
+    const watch = () => {
+      stop();
+      if (!loaded()) timer = setTimeout(again, STALL_MS);
+    };
+    audio.addEventListener('loadstart', () => {
+      // Another recording: tried afresh.
+      if (audio.getAttribute('src') !== src) {
+        src = audio.getAttribute('src');
+        reset();
+      }
+      watch();
+    });
+    audio.addEventListener('progress', watch);
+    audio.addEventListener('loadedmetadata', reset);
+    audio.addEventListener('error', again);
+    // Already on its way (the page's own, loading before this ran) — or failed.
+    if (audio.getAttribute('src')) {
+      src = audio.getAttribute('src');
+      if (audio.error) again();
+      else watch();
+    }
+    audio.quizKeepLoading = {
+      retry() {
+        allowed++;
+        if (!timer) tryNow();
+      },
+    };
+    return audio.quizKeepLoading;
+  }
+
   function attach(audio) {
     if (audio.dataset.player) return;
     audio.dataset.player = 'custom';
@@ -70,10 +151,17 @@
       render();
       frame = audio.paused ? null : requestAnimationFrame(tick);
     };
+    // A recording that wouldn't load even after the tries again (see
+    // keepLoading): ▶ is ↻ then, to try once more.
+    let failed = false;
+    const loading = keepLoading(audio, (value) => {
+      failed = value;
+      syncPlaying();
+    });
     const syncPlaying = () => {
       const playing = !audio.paused;
-      playBtn.innerHTML = icon(playing ? 'pause' : 'play');
-      playBtn.title = playing ? 'Pauzė' : 'Groti';
+      playBtn.innerHTML = icon(failed ? 'refresh' : playing ? 'pause' : 'play');
+      playBtn.title = failed ? 'Įrašo nepavyko įkelti – bandyti dar kartą' : playing ? 'Pauzė' : 'Groti';
       playBtn.setAttribute('aria-label', playBtn.title);
       if (playing && !frame) frame = requestAnimationFrame(tick);
       render();
@@ -84,7 +172,8 @@
     );
 
     playBtn.addEventListener('click', () => {
-      if (audio.paused) audio.play().catch(() => {});
+      if (failed) loading.retry();
+      else if (audio.paused) audio.play().catch(() => {});
       else audio.pause();
     });
 
@@ -195,7 +284,7 @@
     }).observe(document.body, { childList: true, subtree: true });
   }
 
-  global.QuizAudioPlayer = { attach };
+  global.QuizAudioPlayer = { attach, keepLoading };
   if (document.body) start();
   else document.addEventListener('DOMContentLoaded', start);
 })(window);

@@ -12,8 +12,13 @@
 // Shared by the host (/host/games/:id/preview) and the GitHub Pages site
 // (docs/preview.html), both from views/host/game-preview.ejs. Where the game
 // and its files come from is up to the page's QuizPreviewSource, loaded
-// before this: loadGame() resolves with the game (or null) and resolve()
+// before this: loadGame() resolves with the game (or null), prepare(game)
+// (if it has one) readies a game's files before it's shown, and resolve()
 // turns a picture/music field into something to play or show.
+// Opened from the editor (?editor — see mountPreview in
+// game-editor-core.js), the game comes from the editor's tab instead, as
+// the form holds it: the whole game, one stage or one question, and again
+// after every edit there.
 
 const gameIntroEl = document.getElementById('game-intro-screen');
 const gameIntroNameEl = document.getElementById('game-intro-name');
@@ -41,6 +46,9 @@ const errorEl = document.getElementById('preview-error');
 const audioEl = document.getElementById('view-audio');
 const audioProgressWrap = document.getElementById('audio-progress-wrap');
 const audioProgressFill = document.getElementById('audio-progress-fill');
+// A recording that didn't load is asked for again (audio-player.js) — and
+// once more by ▶ if it still hasn't.
+const audioLoading = QuizAudioPlayer.keepLoading(audioEl);
 
 const prevBtn = document.getElementById('preview-prev');
 const nextBtn = document.getElementById('preview-next');
@@ -164,12 +172,22 @@ function renderHintPictures(cells) {
 
 // The first option is the correct one in a stored game (see
 // normalizeGamePayload), so a choice question's options are shuffled —
-// once, when the preview opens, so going back and forth doesn't reorder
-// them — as the server does. Taip / Ne always keep their order.
+// once per question (key: its stage's and its own number), so going back
+// and forth, or an edit in the editor, doesn't reorder them; only a changed
+// number of options does — as the server does. Taip / Ne always keep their
+// order.
 const YES_NO_OPTIONS = [{ text: 'Taip' }, { text: 'Ne' }];
-function shownOptionsFor(q) {
+const optionOrders = new Map();
+function shownOptionsFor(q, key) {
   const type = QuizGameShared.questionType(q);
-  if (type === 'choice') return shuffle(q.options);
+  if (type === 'choice') {
+    let order = optionOrders.get(key);
+    if (!order || order.length !== q.options.length) {
+      order = shuffle(q.options.map((o, i) => i));
+      optionOrders.set(key, order);
+    }
+    return order.map((i) => q.options[i]);
+  }
   if (type === 'yesno') return YES_NO_OPTIONS;
   return [];
 }
@@ -194,22 +212,34 @@ function typedAnswerPrompt(count, ordered) {
   return `Įrašykite ${count} ${word}${ordered ? ' eilės tvarka' : ''}`;
 }
 
-function buildScreens(game) {
-  const list = [{ type: 'game-intro', name: game.name }];
-  if (game.rules && game.rules.length) list.push({ type: 'game-rules', rules: game.rules });
+// What's shown (scope): the whole game (kind 'game'), or from the editor
+// one stage ('stage' — its title, questions and answers) or one question
+// ('question' — its screens and its answer), the game then holding just
+// that one. They keep their numbers in the game (stageNumber / stageCount,
+// questionNumber), so "Etapas 3 / 6" and "5." read as they will.
+function buildScreens(game, scope) {
+  const list = [];
+  if (scope.kind === 'game') {
+    list.push({ type: 'game-intro', name: game.name });
+    if (game.rules && game.rules.length) list.push({ type: 'game-rules', rules: game.rules });
+  }
   game.stages.forEach((stage, s) => {
-    list.push({
-      type: 'stage-intro',
-      name: stage.name,
-      topic: stage.topic || '',
-      description: stage.description || '',
-      number: s + 1,
-      count: game.stages.length,
-    });
-    const shownOptions = stage.questions.map(shownOptionsFor);
+    const stageNumber = scope.stageNumber || s + 1;
+    if (scope.kind !== 'question') {
+      list.push({
+        type: 'stage-intro',
+        name: stage.name,
+        topic: stage.topic || '',
+        description: stage.description || '',
+        number: stageNumber,
+        count: scope.stageCount || game.stages.length,
+      });
+    }
+    const firstNumber = scope.questionNumber || 1;
+    const shownOptions = stage.questions.map((q, i) => shownOptionsFor(q, `${stageNumber}:${firstNumber + i}`));
     stage.questions.forEach((q, i) => {
       const questionType = QuizGameShared.questionType(q);
-      const screen = { type: 'question', number: i + 1, question: q, questionType, options: shownOptions[i] };
+      const screen = { type: 'question', number: firstNumber + i, question: q, questionType, options: shownOptions[i] };
       // A picture shown first gets a screen of its own before the question.
       if (q.img && q.imgFirst) list.push({ ...screen, pictureOnly: true, revealedHints: 0 });
       // A hints question gets a screen per hint, as the host reveals them
@@ -219,7 +249,7 @@ function buildScreens(game) {
         list.push({ ...screen, revealedHints: revealed });
       }
     });
-    list.push({ type: 'stage-answers', stage, shownOptions });
+    list.push({ type: 'stage-answers', stage, shownOptions, firstNumber });
   });
   return list;
 }
@@ -406,7 +436,7 @@ function correctAnswerText(q, shown) {
   return correct.text || '—';
 }
 
-function showStageAnswers(stage, shownOptions) {
+function showStageAnswers(stage, shownOptions, firstNumber = 1) {
   stageReviewEl.hidden = false;
   stageReviewEl.innerHTML = '';
 
@@ -419,7 +449,7 @@ function showStageAnswers(stage, shownOptions) {
     const box = document.createElement('div');
     box.className = 'question';
     const questionP = document.createElement('p');
-    questionP.textContent = `${i + 1}. ${questionTitle(q)}`;
+    questionP.textContent = `${firstNumber + i}. ${questionTitle(q)}`;
     const answerP = document.createElement('p');
     answerP.className = 'correct-answer';
     const answer = correctAnswerText(q, shownOptions[i]);
@@ -457,13 +487,17 @@ function render() {
   } else if (screen.type === 'question') {
     showQuestion(screen);
   } else {
-    showStageAnswers(screen.stage, screen.shownOptions);
+    showStageAnswers(screen.stage, screen.shownOptions, screen.firstNumber);
   }
 
+  syncCounter();
+  window.scrollTo(0, 0);
+}
+
+function syncCounter() {
   counterEl.textContent = `${current + 1} / ${screens.length}`;
   prevBtn.disabled = current === 0;
   nextBtn.disabled = current === screens.length - 1;
-  window.scrollTo(0, 0);
 }
 
 function go(delta) {
@@ -573,6 +607,7 @@ function toggleAudio() {
   }
   const inClip = !audioEl.ended && audioEl.currentTime >= clipStart &&
     (clipEnd == null || audioEl.currentTime < clipEnd);
+  if (audioEl.error) audioLoading.retry();
   if (!clipPaused || !inClip) audioEl.currentTime = clipStart;
   clipPaused = false;
   audioEl.play().catch(() => {
@@ -671,24 +706,72 @@ document.addEventListener('keydown', (e) => {
   e.preventDefault();
 });
 
-async function init() {
-  const game = await QuizPreviewSource.loadGame().catch(() => null);
-  if (!game) {
-    errorEl.textContent = QuizPreviewSource.notFoundText;
-    errorEl.hidden = false;
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
-    return;
-  }
+function showError(text) {
+  errorEl.textContent = text;
+  errorEl.hidden = false;
+  prevBtn.disabled = true;
+  nextBtn.disabled = true;
+}
+
+// Lays the game out (see buildScreens) and shows its first screen — or,
+// with keepPlace (an edit made in the editor), stays on the screen it was
+// on, not even redrawn if the edit left it as it was (another question's,
+// say), so its music plays on.
+function show(game, scope = { kind: 'game' }, keepPlace = false) {
   document.title = `Peržiūra - ${game.name}`;
   // The game's background picture, behind every screen (see view.scss).
   const background = resolveMedia(game.background);
-  if (background) {
-    document.body.classList.add('has-game-bg');
-    document.body.style.setProperty('--game-bg', `url(${JSON.stringify(background)})`);
+  document.body.classList.toggle('has-game-bg', !!background);
+  if (background) document.body.style.setProperty('--game-bg', `url(${JSON.stringify(background)})`);
+  const before = keepPlace ? JSON.stringify(screens[current]) : null;
+  screens = buildScreens(game, scope);
+  current = keepPlace ? Math.min(current, screens.length - 1) : 0;
+  errorEl.hidden = true;
+  if (before && before === JSON.stringify(screens[current])) syncCounter();
+  else render();
+}
+
+// The editor's preview: this page asks the tab that opened it for the game
+// once it's ready, and gets it again — in the order sent — whenever it's
+// edited there (keepPlace) or another ▶ is pressed (see mountPreview).
+function listenToEditor() {
+  if (!window.opener) {
+    showError('Peržiūra atidaroma iš žaidimo redaktoriaus');
+    return;
   }
-  screens = buildScreens(game);
-  render();
+  prevBtn.disabled = true;
+  nextBtn.disabled = true;
+  let queue = Promise.resolve();
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.type !== 'quiz-editor-preview') return;
+    const { game, scope, keepPlace } = e.data;
+    queue = queue
+      .then(() => QuizPreviewSource.prepare && QuizPreviewSource.prepare(game))
+      .catch(() => {})
+      .then(() => show(game, scope, keepPlace));
+  });
+  window.opener.postMessage({ type: 'quiz-editor-preview-ready' }, location.origin);
+  // Its ✕ shuts this tab, the editor staying open in its own.
+  const exitLink = document.getElementById('preview-exit');
+  exitLink.title = 'Uždaryti peržiūrą';
+  exitLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.close();
+  });
+}
+
+async function init() {
+  if (new URLSearchParams(location.search).has('editor')) {
+    listenToEditor();
+    return;
+  }
+  const game = await QuizPreviewSource.loadGame().catch(() => null);
+  if (!game) {
+    showError(QuizPreviewSource.notFoundText);
+    return;
+  }
+  if (QuizPreviewSource.prepare) await QuizPreviewSource.prepare(game).catch(() => {});
+  show(game);
 }
 
 init();

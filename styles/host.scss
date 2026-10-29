@@ -918,6 +918,31 @@ $select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
   }
 }
 
+// The editor's "Atgal į žaidimus" and "Peržiūrėti žaidimą": side by side,
+// one under the other on a phone.
+.editor-top-links {
+  display: flex;
+  flex-direction: column;
+
+  .option + .option {
+    margin-top: 0;
+  }
+
+  @media (min-width: 576px) {
+    flex-direction: row;
+    gap: 8px;
+
+    .option {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .option + .option {
+      margin-top: 8px;
+    }
+  }
+}
+
 #game-name-input {
   width: 100%;
   padding: 10px;
@@ -2011,6 +2036,13 @@ input[type='checkbox'] {
   @include v.hover-only {
     background: v.$color-primary-soft;
   }
+}
+
+// A stage's / question's ▶ (the editor's preview): the filled triangle
+// looks bigger than the chevrons beside it at the same size.
+.preview-stage-btn,
+.preview-question-btn {
+  font-size: 16px;
 }
 
 .remove-option-btn,

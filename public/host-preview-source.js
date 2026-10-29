@@ -1,5 +1,6 @@
 // Where the host's preview (preview.js) gets its game: the saved game the
-// server put into the page (#game-data), with pictures and music resolved
+// server put into the page (#game-data) — or, opened from the editor
+// (/host/games/preview?editor), the editor's tab's — with pictures and music resolved
 // the way the view screen does — uploaded files and URLs as they are, a
 // local file path streamed through /api/local-audio.
 window.QuizPreviewSource = {

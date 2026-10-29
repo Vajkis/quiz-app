@@ -1645,6 +1645,27 @@ body:has(#host-bar.is-collapsed) {
   }
 }
 
+.editor-top-links {
+  display: flex;
+  flex-direction: column;
+}
+.editor-top-links .option + .option {
+  margin-top: 0;
+}
+@media (min-width: 576px) {
+  .editor-top-links {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .editor-top-links .option {
+    flex: 1;
+    min-width: 0;
+  }
+  .editor-top-links .option + .option {
+    margin-top: 8px;
+  }
+}
+
 #game-name-input {
   width: 100%;
   padding: 10px;
@@ -2560,6 +2581,11 @@ input[type=checkbox]:disabled {
   .move-btn:hover:not(:disabled) {
     background: var(--color-primary-soft);
   }
+}
+
+.preview-stage-btn,
+.preview-question-btn {
+  font-size: 16px;
 }
 
 .remove-option-btn,

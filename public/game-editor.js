@@ -57,6 +57,7 @@ const initialGame = initialDataEl
   : null;
 renderGame(stagesContainer, nameInput, initialGame);
 QuizGameEditorCore.mountSidePanel(stagesContainer);
+QuizGameEditorCore.mountPreview(stagesContainer, nameInput, '/host/games/preview?editor');
 QuizGameEditorCore.addDefaultRulesButton(
   stagesContainer,
   JSON.parse(document.getElementById('default-rules-data').textContent)
